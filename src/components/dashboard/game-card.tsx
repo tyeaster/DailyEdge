@@ -2,15 +2,33 @@
 
 import { useState } from "react";
 
-import type { GamePreview } from "@/src/types/mlb-dashboard";
+import type { Game, Pitcher, Team, Weather } from "@/src/models/mlb";
 
 import { Badge } from "@/src/components/ui";
 import { cn } from "@/src/lib/cn";
 
 import { DashboardCard } from "./dashboard-card";
 
-export function GameCard({ game }: { game: GamePreview }) {
+export function GameCard({
+  awayPitcher,
+  awayTeam,
+  game,
+  homePitcher,
+  homeTeam,
+  weather,
+}: {
+  awayPitcher: Pitcher;
+  awayTeam: Team;
+  game: Game;
+  homePitcher: Pitcher;
+  homeTeam: Team;
+  weather: Weather;
+}) {
   const [expanded, setExpanded] = useState(false);
+  const status = game.status
+    .split("-")
+    .map((part) => part[0].toUpperCase() + part.slice(1))
+    .join(" ");
 
   return (
     <DashboardCard
@@ -30,29 +48,29 @@ export function GameCard({ game }: { game: GamePreview }) {
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">
-              {game.gameTime}
+              {formatGameTime(game.scheduledAt)}
             </p>
             <Badge className="px-2 py-0.5 text-xs" variant="neutral">
-              {game.status}
+              {status}
             </Badge>
           </div>
           <h3 className="mt-4 text-lg font-semibold text-white">
-            {game.awayTeam} at {game.homeTeam}
+            {awayTeam.name} at {homeTeam.name}
           </h3>
           <p className="mt-1 text-sm text-slate-400">{game.venue}</p>
         </div>
         <Badge className="border-emerald-300/20 bg-emerald-400/10 text-emerald-200">
-          {game.confidence}%
+          {game.confidence.value}%
         </Badge>
       </div>
 
       <div className="mt-5 grid gap-2 text-sm">
-        <GameLine label="Away SP" value={game.awayPitcher} />
-        <GameLine label="Home SP" value={game.homePitcher} />
-        <GameLine label="Moneyline" value={game.moneyline} />
-        <GameLine label="Spread" value={game.spread} />
-        <GameLine label="Total" value={game.total} />
-        <GameLine label="Weather" value={game.weather} />
+        <GameLine label="Away SP" value={awayPitcher.fullName} />
+        <GameLine label="Home SP" value={homePitcher.fullName} />
+        <GameLine label="Moneyline" value={game.odds.moneyline.displayLine} />
+        <GameLine label="Spread" value={game.odds.spread.displayLine} />
+        <GameLine label="Total" value={game.odds.total.displayLine} />
+        <GameLine label="Weather" value={weather.summary} />
       </div>
 
       <div
@@ -69,6 +87,14 @@ export function GameCard({ game }: { game: GamePreview }) {
       </div>
     </DashboardCard>
   );
+}
+
+function formatGameTime(scheduledAt: string) {
+  return new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    timeZoneName: "short",
+  }).format(new Date(scheduledAt));
 }
 
 function GameLine({ label, value }: { label: string; value: string }) {
