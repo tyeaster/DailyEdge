@@ -4,6 +4,7 @@ export type BattingSide = "L" | "R" | "S";
 export type ThrowingHand = "L" | "R";
 export type GameStatus = "scheduled" | "confirmed" | "line-watch" | "weather-watch" | "roof-watch";
 export type OddsMarket = "moneyline" | "spread" | "total" | "team-total" | "player-prop";
+export type ValueRating = "No Edge" | "Lean" | "Play" | "Strong Play" | "Elite";
 export type PlayerPropCategory =
   | "Strikeouts"
   | "Hits"
@@ -20,6 +21,22 @@ export interface ConfidenceScore {
 export interface EdgeScore {
   percentage: number;
   rating: "S" | "A" | "B" | "C";
+}
+
+export interface ValueAssessment {
+  display: {
+    edgePercent: string;
+    fairLine: string;
+    modelProbability: string;
+    sportsbookImpliedProbability: string;
+  };
+  edgePercent: number;
+  fairLine: number;
+  modelProbability: number;
+  recommendation: string;
+  sportsbookImpliedProbability: number;
+  sportsbookLine: string;
+  valueRating: ValueRating;
 }
 
 export interface Team {
@@ -114,11 +131,13 @@ export interface BetRecommendation {
   id: string;
   odds: Odds;
   playerId?: string;
+  modelProbability: number;
   rank: number;
   recommendedUnits: number;
   selection: string;
   teamId?: string;
   prediction: Prediction;
+  value?: ValueAssessment;
 }
 
 export interface Game {
@@ -129,6 +148,7 @@ export interface Game {
   homePitcherId: string;
   homeTeamId: string;
   id: string;
+  modelProbability: number;
   odds: {
     moneyline: Odds;
     spread: Odds;
@@ -137,5 +157,6 @@ export interface Game {
   scheduledAt: string;
   status: GameStatus;
   venue: string;
+  value?: ValueAssessment;
   weatherId: string;
 }

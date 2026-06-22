@@ -68,6 +68,10 @@ export function GameCard({
         <GameLine label="Away SP" value={awayPitcher.fullName} />
         <GameLine label="Home SP" value={homePitcher.fullName} />
         <GameLine label="Moneyline" value={game.odds.moneyline.displayLine} />
+        <GameLine label="DailyEdge fair line" value={game.value?.display.fairLine ?? "Pending"} />
+        <GameLine label="Edge" value={game.value?.display.edgePercent ?? "0.0%"} />
+        <GameLine label="Value rating" value={game.value?.valueRating ?? "No Edge"} />
+        <GameLine label="Recommended units" value={game.value?.recommendation ?? "Pass"} />
         <GameLine label="Spread" value={game.odds.spread.displayLine} />
         <GameLine label="Total" value={game.odds.total.displayLine} />
         <GameLine label="Weather" value={weather.summary} />

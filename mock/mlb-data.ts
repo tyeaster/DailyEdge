@@ -87,6 +87,7 @@ export const games: Game[] = [
     homePitcherId: "pitcher-strider",
     homeTeamId: "team-atl",
     id: "game-lad-atl",
+    modelProbability: 0.573,
     odds: {
       moneyline: { displayLine: "LAD -118 / ATL +100", id: "odds-lad-atl-ml", line: -118, market: "moneyline", movement: "+9 cents", openingLine: -127, price: -118, sportsbook: "Consensus" },
       spread: { displayLine: "LAD -1.5 (+142)", id: "odds-lad-atl-spread", line: -1.5, market: "spread", movement: "+4 cents", openingLine: -1.5, price: 142, sportsbook: "Consensus" },
@@ -105,6 +106,7 @@ export const games: Game[] = [
     homePitcherId: "pitcher-bello",
     homeTeamId: "team-bos",
     id: "game-nyy-bos",
+    modelProbability: 0.535,
     odds: {
       moneyline: { displayLine: "NYY -104 / BOS -112", id: "odds-nyy-bos-ml", line: -104, market: "moneyline", movement: "+3 cents", openingLine: -107, price: -104, sportsbook: "Consensus" },
       spread: { displayLine: "NYY -1.5 (+158)", id: "odds-nyy-bos-spread", line: -1.5, market: "spread", movement: "-2 cents", openingLine: -1.5, price: 158, sportsbook: "Consensus" },
@@ -123,6 +125,7 @@ export const games: Game[] = [
     homePitcherId: "pitcher-senga",
     homeTeamId: "team-nym",
     id: "game-phi-nym",
+    modelProbability: 0.512,
     odds: {
       moneyline: { displayLine: "PHI +102 / NYM -120", id: "odds-phi-nym-ml", line: 102, market: "moneyline", movement: "+5 cents", openingLine: 97, price: 102, sportsbook: "Consensus" },
       spread: { displayLine: "PHI +1.5 (-184)", id: "odds-phi-nym-spread", line: 1.5, market: "spread", movement: "Flat", openingLine: 1.5, price: -184, sportsbook: "Consensus" },
@@ -141,6 +144,7 @@ export const games: Game[] = [
     homePitcherId: "pitcher-valdez",
     homeTeamId: "team-hou",
     id: "game-tex-hou",
+    modelProbability: 0.463,
     odds: {
       moneyline: { displayLine: "TEX +116 / HOU -136", id: "odds-tex-hou-ml", line: 116, market: "moneyline", movement: "+6 cents", openingLine: 110, price: 116, sportsbook: "Consensus" },
       spread: { displayLine: "TEX +1.5 (-170)", id: "odds-tex-hou-spread", line: 1.5, market: "spread", movement: "-5 cents", openingLine: 1.5, price: -170, sportsbook: "Consensus" },
@@ -159,6 +163,7 @@ export const games: Game[] = [
     homePitcherId: "pitcher-detmers",
     homeTeamId: "team-laa",
     id: "game-sea-laa",
+    modelProbability: 0.584,
     odds: {
       moneyline: { displayLine: "SEA -126 / LAA +108", id: "odds-sea-laa-ml", line: -126, market: "moneyline", movement: "-4 cents", openingLine: -122, price: -126, sportsbook: "Consensus" },
       spread: { displayLine: "SEA -1.5 (+132)", id: "odds-sea-laa-spread", line: -1.5, market: "spread", movement: "+8 cents", openingLine: -1.5, price: 132, sportsbook: "Consensus" },
@@ -177,6 +182,7 @@ export const games: Game[] = [
     homePitcherId: "pitcher-webb",
     homeTeamId: "team-sf",
     id: "game-sd-sf",
+    modelProbability: 0.459,
     odds: {
       moneyline: { displayLine: "SD +136 / SF -162", id: "odds-sd-sf-ml", line: 136, market: "moneyline", movement: "+7 cents", openingLine: 129, price: 136, sportsbook: "Consensus" },
       spread: { displayLine: "SD +1.5 (-152)", id: "odds-sd-sf-spread", line: 1.5, market: "spread", movement: "Flat", openingLine: 1.5, price: -152, sportsbook: "Consensus" },
@@ -211,16 +217,16 @@ export const playerProps: PlayerProp[] = [
 ];
 
 export const betRecommendations: BetRecommendation[] = [
-  { confidence: { label: "Elite", value: 84 }, edge: { percentage: 7.1, rating: "S" }, gameId: "game-phi-nym", id: "bet-wheeler-k", odds: playerProps[0].odds, playerId: "pitcher-wheeler", prediction: predictions[0], rank: 1, recommendedUnits: 1.15, selection: "Over 6.5 strikeouts" },
-  { confidence: { label: "Elite", value: 80 }, edge: { percentage: 6.4, rating: "A" }, gameId: "game-lad-atl", id: "bet-lad-ml", odds: games[0].odds.moneyline, prediction: predictions[1], rank: 2, recommendedUnits: 1.2, selection: "Moneyline", teamId: "team-lad" },
-  { confidence: { label: "High", value: 77 }, edge: { percentage: 5.6, rating: "A" }, gameId: "game-tex-hou", id: "bet-tex-tt", odds: { displayLine: "Over 4.5", id: "odds-tex-tt", line: 4.5, market: "team-total", movement: "-4 cents", price: -105, sportsbook: "Consensus" }, prediction: predictions[2], rank: 3, recommendedUnits: 1, selection: "Over 4.5 team runs", teamId: "team-tex" },
-  { confidence: { label: "High", value: 76 }, edge: { percentage: 5.4, rating: "A" }, gameId: "game-lad-atl", id: "bet-betts-tb", odds: playerProps[10].odds, playerId: "player-betts", prediction: { confidence: playerProps[10].confidence, edge: playerProps[10].edge, gameId: "game-lad-atl", id: "pred-betts-tb", market: "player-prop", playerId: "player-betts", projection: "2.2 TB", reasoning: playerProps[10].reasoning }, rank: 4, recommendedUnits: 0.9, selection: "Over 1.5 total bases" },
-  { confidence: { label: "High", value: 72 }, edge: { percentage: 4.9, rating: "A" }, gameId: "game-nyy-bos", id: "bet-judge-hr", odds: playerProps[8].odds, playerId: "player-judge", prediction: { confidence: playerProps[8].confidence, edge: playerProps[8].edge, gameId: "game-nyy-bos", id: "pred-judge-hr", market: "player-prop", playerId: "player-judge", projection: "18.4%", reasoning: playerProps[8].reasoning }, rank: 5, recommendedUnits: 0.45, selection: "Home run" },
-  { confidence: { label: "High", value: 72 }, edge: { percentage: 4.7, rating: "B" }, gameId: "game-sd-sf", id: "bet-gilbert-ha", odds: { displayLine: "Under 5.5", id: "odds-gilbert-ha", line: 5.5, market: "player-prop", movement: "-3 cents", price: -118, sportsbook: "DraftKings" }, playerId: "pitcher-gilbert", prediction: { confidence: { label: "High", value: 72 }, edge: { percentage: 4.7, rating: "B" }, gameId: "game-sd-sf", id: "pred-gilbert-ha", market: "player-prop", playerId: "pitcher-gilbert", projection: "4.7 H", reasoning: "San Francisco's contact model falls below market expectation in cold air." }, rank: 6, recommendedUnits: 0.7, selection: "Under 5.5 hits allowed" },
-  { confidence: { label: "High", value: 71 }, edge: { percentage: 4.4, rating: "B" }, gameId: "game-lad-atl", id: "bet-riley-rbi", odds: playerProps[6].odds, playerId: "player-riley", prediction: { confidence: playerProps[6].confidence, edge: playerProps[6].edge, gameId: "game-lad-atl", id: "pred-riley-rbi", market: "player-prop", playerId: "player-riley", projection: "0.71 RBI", reasoning: playerProps[6].reasoning }, rank: 7, recommendedUnits: 0.65, selection: "Over 0.5 RBI" },
-  { confidence: { label: "High", value: 70 }, edge: { percentage: 4.1, rating: "B" }, gameId: "game-sea-laa", id: "bet-rodriguez-run", odds: playerProps[4].odds, playerId: "player-rodriguez", prediction: { confidence: playerProps[4].confidence, edge: playerProps[4].edge, gameId: "game-sea-laa", id: "pred-rodriguez-run", market: "player-prop", playerId: "player-rodriguez", projection: "0.76 R", reasoning: playerProps[4].reasoning }, rank: 8, recommendedUnits: 0.55, selection: "Over 0.5 runs" },
-  { confidence: { label: "Medium", value: 69 }, edge: { percentage: 3.8, rating: "B" }, gameId: "game-sd-sf", id: "bet-sd-ml", odds: games[5].odds.moneyline, prediction: { confidence: { label: "Medium", value: 69 }, edge: { percentage: 3.8, rating: "B" }, gameId: "game-sd-sf", id: "pred-sd-ml", market: "moneyline", projection: "+118", reasoning: "The model prices this as closer to a coin-flip than the market suggests.", teamId: "team-sd" }, rank: 9, recommendedUnits: 0.5, selection: "Moneyline", teamId: "team-sd" },
-  { confidence: { label: "Medium", value: 68 }, edge: { percentage: 3.5, rating: "C" }, gameId: "game-sea-laa", id: "bet-kirby-er", odds: { displayLine: "Under 2.5", id: "odds-kirby-er", line: 2.5, market: "player-prop", movement: "+1 cent", price: -108, sportsbook: "FanDuel" }, playerId: "pitcher-kirby", prediction: { confidence: { label: "Medium", value: 68 }, edge: { percentage: 3.5, rating: "C" }, gameId: "game-sea-laa", id: "pred-kirby-er", market: "player-prop", playerId: "pitcher-kirby", projection: "2.1 ER", reasoning: "Kirby's command profile limits free passes against a thin Angels lineup." }, rank: 10, recommendedUnits: 0.45, selection: "Under 2.5 earned runs" },
+  { confidence: { label: "Elite", value: 84 }, edge: { percentage: 7.1, rating: "S" }, gameId: "game-phi-nym", id: "bet-wheeler-k", modelProbability: 0.56, odds: playerProps[0].odds, playerId: "pitcher-wheeler", prediction: predictions[0], rank: 1, recommendedUnits: 1.15, selection: "Over 6.5 strikeouts" },
+  { confidence: { label: "Elite", value: 80 }, edge: { percentage: 6.4, rating: "A" }, gameId: "game-lad-atl", id: "bet-lad-ml", modelProbability: 0.573, odds: games[0].odds.moneyline, prediction: predictions[1], rank: 2, recommendedUnits: 1.2, selection: "Moneyline", teamId: "team-lad" },
+  { confidence: { label: "High", value: 77 }, edge: { percentage: 5.6, rating: "A" }, gameId: "game-tex-hou", id: "bet-tex-tt", modelProbability: 0.545, odds: { displayLine: "Over 4.5", id: "odds-tex-tt", line: 4.5, market: "team-total", movement: "-4 cents", price: -105, sportsbook: "Consensus" }, prediction: predictions[2], rank: 3, recommendedUnits: 1, selection: "Over 4.5 team runs", teamId: "team-tex" },
+  { confidence: { label: "High", value: 76 }, edge: { percentage: 5.4, rating: "A" }, gameId: "game-lad-atl", id: "bet-betts-tb", modelProbability: 0.556, odds: playerProps[10].odds, playerId: "player-betts", prediction: { confidence: playerProps[10].confidence, edge: playerProps[10].edge, gameId: "game-lad-atl", id: "pred-betts-tb", market: "player-prop", playerId: "player-betts", projection: "2.2 TB", reasoning: playerProps[10].reasoning }, rank: 4, recommendedUnits: 0.9, selection: "Over 1.5 total bases" },
+  { confidence: { label: "High", value: 72 }, edge: { percentage: 4.9, rating: "A" }, gameId: "game-nyy-bos", id: "bet-judge-hr", modelProbability: 0.31, odds: playerProps[8].odds, playerId: "player-judge", prediction: { confidence: playerProps[8].confidence, edge: playerProps[8].edge, gameId: "game-nyy-bos", id: "pred-judge-hr", market: "player-prop", playerId: "player-judge", projection: "18.4%", reasoning: playerProps[8].reasoning }, rank: 5, recommendedUnits: 0.45, selection: "Home run" },
+  { confidence: { label: "High", value: 72 }, edge: { percentage: 4.7, rating: "B" }, gameId: "game-sd-sf", id: "bet-gilbert-ha", modelProbability: 0.588, odds: { displayLine: "Under 5.5", id: "odds-gilbert-ha", line: 5.5, market: "player-prop", movement: "-3 cents", price: -118, sportsbook: "DraftKings" }, playerId: "pitcher-gilbert", prediction: { confidence: { label: "High", value: 72 }, edge: { percentage: 4.7, rating: "B" }, gameId: "game-sd-sf", id: "pred-gilbert-ha", market: "player-prop", playerId: "pitcher-gilbert", projection: "4.7 H", reasoning: "San Francisco's contact model falls below market expectation in cold air." }, rank: 6, recommendedUnits: 0.7, selection: "Under 5.5 hits allowed" },
+  { confidence: { label: "High", value: 71 }, edge: { percentage: 4.4, rating: "B" }, gameId: "game-lad-atl", id: "bet-riley-rbi", modelProbability: 0.49, odds: playerProps[6].odds, playerId: "player-riley", prediction: { confidence: playerProps[6].confidence, edge: playerProps[6].edge, gameId: "game-lad-atl", id: "pred-riley-rbi", market: "player-prop", playerId: "player-riley", projection: "0.71 RBI", reasoning: playerProps[6].reasoning }, rank: 7, recommendedUnits: 0.65, selection: "Over 0.5 RBI" },
+  { confidence: { label: "High", value: 70 }, edge: { percentage: 4.1, rating: "B" }, gameId: "game-sea-laa", id: "bet-rodriguez-run", modelProbability: 0.535, odds: playerProps[4].odds, playerId: "player-rodriguez", prediction: { confidence: playerProps[4].confidence, edge: playerProps[4].edge, gameId: "game-sea-laa", id: "pred-rodriguez-run", market: "player-prop", playerId: "player-rodriguez", projection: "0.76 R", reasoning: playerProps[4].reasoning }, rank: 8, recommendedUnits: 0.55, selection: "Over 0.5 runs" },
+  { confidence: { label: "Medium", value: 69 }, edge: { percentage: 3.8, rating: "B" }, gameId: "game-sd-sf", id: "bet-sd-ml", modelProbability: 0.459, odds: games[5].odds.moneyline, prediction: { confidence: { label: "Medium", value: 69 }, edge: { percentage: 3.8, rating: "B" }, gameId: "game-sd-sf", id: "pred-sd-ml", market: "moneyline", projection: "+118", reasoning: "The model prices this as closer to a coin-flip than the market suggests.", teamId: "team-sd" }, rank: 9, recommendedUnits: 0.5, selection: "Moneyline", teamId: "team-sd" },
+  { confidence: { label: "Medium", value: 68 }, edge: { percentage: 3.5, rating: "C" }, gameId: "game-sea-laa", id: "bet-kirby-er", modelProbability: 0.55, odds: { displayLine: "Under 2.5", id: "odds-kirby-er", line: 2.5, market: "player-prop", movement: "+1 cent", price: -108, sportsbook: "FanDuel" }, playerId: "pitcher-kirby", prediction: { confidence: { label: "Medium", value: 68 }, edge: { percentage: 3.5, rating: "C" }, gameId: "game-sea-laa", id: "pred-kirby-er", market: "player-prop", playerId: "pitcher-kirby", projection: "2.1 ER", reasoning: "Kirby's command profile limits free passes against a thin Angels lineup." }, rank: 10, recommendedUnits: 0.45, selection: "Under 2.5 earned runs" },
 ];
 
 export const injuries: Injury[] = [
