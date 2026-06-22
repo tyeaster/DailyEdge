@@ -53,6 +53,8 @@ export interface DailySlateInjury {
 export interface DailySlateViewModel {
   bets: DailySlateBet[];
   dashboardNavItems: DashboardNavItem[];
+  dataSource: "live" | "mock";
+  error?: string;
   games: DailySlateGame[];
   injuries: DailySlateInjury[];
   kpiMetrics: KpiMetric[];

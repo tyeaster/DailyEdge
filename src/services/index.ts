@@ -9,7 +9,7 @@ export type {
   DailySlateWeather,
 } from "./daily-slate";
 export { getMlbSlate } from "./mlb";
-export { MockDataProvider, mockDataProvider } from "./providers";
+export { LiveMLBProvider, liveMLBProvider, MockDataProvider, mockDataProvider } from "./providers";
 export type {
   BetsProvider,
   DailyEdgeDataProvider,

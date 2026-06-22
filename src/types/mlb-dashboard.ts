@@ -9,6 +9,8 @@ export type DashboardNavItem = {
 export type SlateMeta = {
   averageConfidence: string;
   currentDate: string;
+  dataSource?: "live" | "mock";
+  dataSourceMessage?: string;
   firstPitchCountdown: string;
   gamesToday: number;
   lastUpdated: string;
