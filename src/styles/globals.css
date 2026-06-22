@@ -1,0 +1,71 @@
+@import "tailwindcss";
+
+:root {
+  --background: #020617;
+  --foreground: #f8fafc;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: Inter, ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+}
+
+::selection {
+  background: rgba(147, 197, 253, 0.28);
+  color: #f8fafc;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  [href^="#"] {
+    transition-duration: 180ms;
+  }
+
+  .edge-orb {
+    animation: edge-orb-drift 12s ease-in-out infinite alternate;
+  }
+
+  .edge-orb-delayed {
+    animation-delay: -5s;
+  }
+
+  .edge-panel {
+    animation: edge-panel-rise 700ms ease-out both;
+  }
+}
+
+@keyframes edge-orb-drift {
+  from {
+    opacity: 0.72;
+    filter: saturate(1);
+  }
+
+  to {
+    opacity: 1;
+    filter: saturate(1.3);
+  }
+}
+
+@keyframes edge-panel-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
