@@ -41,6 +41,11 @@ function DailySlatePage({ slate }: { slate: DailySlateViewModel }) {
                     <p className="text-xs font-semibold uppercase tracking-[0.24em] text-blue-200/80">
                       Daily Slate Dashboard
                     </p>
+                    {slate.dataSource === "mock" ? (
+                      <div className="mt-4 inline-flex rounded-full border border-amber-300/20 bg-amber-400/10 px-3 py-1 text-xs font-semibold text-amber-100">
+                        {slate.slateMeta.dataSourceMessage ?? "Using Mock Data"}
+                      </div>
+                    ) : null}
                     <h1 className="mt-4 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
                       Today&apos;s MLB Slate
                     </h1>
@@ -87,7 +92,9 @@ function DailySlatePage({ slate }: { slate: DailySlateViewModel }) {
                       <div className="h-2 w-[74%] rounded-full bg-blue-300" />
                     </div>
                     <p className="mt-4 text-sm leading-6 text-slate-400">
-                      Mock slate data only. Refresh is wired as a visual control for now.
+                      {slate.error
+                        ? `Live MLB schedule unavailable: ${slate.error}`
+                        : "Live schedule refreshes automatically every 5 minutes."}
                     </p>
                   </div>
                 </div>

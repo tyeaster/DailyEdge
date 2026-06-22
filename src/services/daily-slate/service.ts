@@ -8,7 +8,7 @@ import type {
   Team,
   Weather,
 } from "@/src/models/mlb";
-import { mockDataProvider } from "@/src/services/providers";
+import { liveMLBProvider, mockDataProvider } from "@/src/services/providers";
 import type { DailyEdgeDataProvider } from "@/src/services/providers";
 import type { DashboardNavItem, KpiMetric } from "@/src/types/mlb-dashboard";
 
@@ -31,7 +31,32 @@ const propCategoryOrder: PlayerPropCategory[] = [
 ];
 
 export async function getDailySlate(
-  provider: DailyEdgeDataProvider = mockDataProvider,
+  provider: DailyEdgeDataProvider = liveMLBProvider,
+): Promise<DailySlateViewModel> {
+  if (provider !== liveMLBProvider) {
+    return buildDailySlate(provider, "mock");
+  }
+
+  try {
+    return await buildDailySlate(provider, "live");
+  } catch (error) {
+    const fallbackSlate = await buildDailySlate(mockDataProvider, "mock");
+
+    return {
+      ...fallbackSlate,
+      error: error instanceof Error ? error.message : "Live MLB data unavailable",
+      slateMeta: {
+        ...fallbackSlate.slateMeta,
+        dataSource: "mock",
+        dataSourceMessage: "Using Mock Data",
+      },
+    };
+  }
+}
+
+async function buildDailySlate(
+  provider: DailyEdgeDataProvider,
+  dataSource: "live" | "mock",
 ): Promise<DailySlateViewModel> {
   const [
     slateMeta,
@@ -64,6 +89,7 @@ export async function getDailySlate(
   return {
     bets: buildBets(bets, playerById, teamById),
     dashboardNavItems: buildDashboardNavItems(games.length, bets.length),
+    dataSource,
     games: buildGames(games, teamById, pitcherById, weatherById),
     injuries: injuries.map((injury): DailySlateInjury => {
       const player = getRequired(playerById, injury.playerId, "player");
@@ -78,6 +104,7 @@ export async function getDailySlate(
     propCategories: buildPropCategories(props, playerById, teamById),
     slateMeta: {
       ...slateMeta,
+      dataSource,
       gamesToday: games.length,
     },
     weatherReports: weatherReports.map((report): DailySlateWeather => {

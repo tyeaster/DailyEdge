@@ -1,3 +1,4 @@
+export { LiveMLBProvider, liveMLBProvider } from "./live-mlb-provider";
 export { MockDataProvider, mockDataProvider } from "./mock-data-provider";
 export type {
   BetsProvider,
