@@ -1,67 +1,77 @@
 export type DashboardNavItem = {
   active?: boolean;
+  badge?: string;
   href: string;
   icon: string;
   label: string;
 };
 
+export type SlateMeta = {
+  averageConfidence: string;
+  currentDate: string;
+  firstPitchCountdown: string;
+  gamesToday: number;
+  lastUpdated: string;
+};
+
 export type KpiMetric = {
   label: string;
   meta: string;
+  tone?: "blue" | "emerald" | "amber";
   value: string;
 };
 
 export type GamePreview = {
+  awayPitcher: string;
   awayTeam: string;
-  confidence: string;
+  confidence: number;
+  detail: string;
+  gameTime: string;
+  homePitcher: string;
   homeTeam: string;
   moneyline: string;
   spread: string;
-  starters: string;
-  time: string;
+  status: "Confirmed" | "Line Watch" | "Weather Watch" | "Roof Watch";
   total: string;
-  weatherIcon: string;
+  venue: string;
+  weather: string;
 };
 
 export type BetPreview = {
-  betType: string;
-  confidence: string;
+  bet: string;
+  confidence: number;
   edge: string;
   modelProjection: string;
   player: string;
+  reasoning: string;
   recommendedUnits: string;
   sportsbookLine: string;
 };
 
-export type HomeRunPick = {
-  ballpark: string;
-  hrProbability: string;
-  pitcher: string;
-  player: string;
-  valueRating: string;
-  wind: string;
-};
+export type PropCategory =
+  | "Strikeouts"
+  | "Hits"
+  | "Runs"
+  | "RBI"
+  | "Home Runs"
+  | "Total Bases";
 
 export type PlayerProp = {
-  confidence: string;
+  category: PropCategory;
+  confidence: number;
   edge: string;
   line: string;
   player: string;
   projection: string;
-  propType: string;
-};
-
-export type PitcherProp = {
-  confidence: string;
-  edge: string;
-  opponentKRate: string;
-  pitcher: string;
-  projection: string;
-  vegasLine: string;
+  reasoning: string;
+  team: string;
 };
 
 export type WeatherReport = {
-  environment: "Hitter Friendly" | "Pitcher Friendly" | "Neutral";
+  game: string;
+  hitterFriendlyRating: number;
+  humidity: string;
+  pitcherFriendlyRating: number;
   rainChance: string;
   stadium: string;
   temperature: string;
@@ -71,20 +81,8 @@ export type WeatherReport = {
 
 export type InjuryReport = {
   expectedReturn: string;
+  impactRating: number;
   player: string;
   status: string;
   team: string;
-};
-
-export type TrendRow = {
-  label: string;
-  note: string;
-  value: string;
-};
-
-export type OddsRow = {
-  bestPrice: string;
-  market: string;
-  move: string;
-  open: string;
 };

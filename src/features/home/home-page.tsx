@@ -14,20 +14,13 @@ import {
 import {
   dashboardNavItems,
   games,
-  homeRunPicks,
   injuries,
   kpiMetrics,
-  oddsRows,
-  playerProps,
-  pitcherProps,
-  teamTrends,
+  propCategories,
+  slateMeta,
   topBets,
   weatherReports,
 } from "./mlb-dashboard-data";
-
-const currentDate = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "full",
-}).format(new Date());
 
 export function HomePage() {
   return (
@@ -35,22 +28,76 @@ export function HomePage() {
       <Sidebar items={dashboardNavItems} />
 
       <div className="min-h-screen md:pl-20 xl:pl-72">
-        <TopNav currentDate={currentDate} />
+        <TopNav currentDate={slateMeta.currentDate} />
         <MobileNavigation />
 
         <div className="mx-auto max-w-[1680px] px-4 py-6 sm:px-6 lg:px-8">
-          <section
-            id="dashboard"
-            className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5"
-          >
+          <section id="daily-slate" className="edge-panel">
+            <DashboardCard className="overflow-hidden p-0">
+              <div className="relative">
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.2),transparent_34%),linear-gradient(135deg,rgba(15,23,42,0.95),rgba(2,6,23,0.98))]" />
+                <div className="relative grid gap-6 p-5 sm:p-6 xl:grid-cols-[1fr_26rem] xl:p-8">
+                  <div className="max-w-4xl">
+                    <p className="text-xs font-semibold uppercase tracking-[0.24em] text-blue-200/80">
+                      Daily Slate Dashboard
+                    </p>
+                    <h1 className="mt-4 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+                      Today&apos;s MLB Slate
+                    </h1>
+                    <p className="mt-4 max-w-2xl text-sm leading-6 text-slate-300 sm:text-base">
+                      A focused command center for today&apos;s games, top model edges,
+                      weather shifts, player props, and injury impact.
+                    </p>
+                    <div className="mt-6 flex flex-wrap gap-3">
+                      <HeroPill label="Current date" value={slateMeta.currentDate} />
+                      <HeroPill label="Games today" value={String(slateMeta.gamesToday)} />
+                      <HeroPill
+                        label="First pitch"
+                        value={slateMeta.firstPitchCountdown}
+                      />
+                      <HeroPill label="Last updated" value={slateMeta.lastUpdated} />
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <p className="text-sm text-slate-400">Slate confidence</p>
+                        <p className="mt-2 text-4xl font-semibold tracking-tight text-white">
+                          {slateMeta.averageConfidence}
+                        </p>
+                      </div>
+                      <button
+                        className="rounded-xl border border-blue-300/25 bg-blue-400/10 px-4 py-2 text-sm font-semibold text-blue-100 transition hover:bg-blue-400/15"
+                        type="button"
+                      >
+                        Quick Refresh
+                      </button>
+                    </div>
+                    <div className="mt-5 h-2 rounded-full bg-slate-900">
+                      <div className="h-2 w-[74%] rounded-full bg-blue-300" />
+                    </div>
+                    <p className="mt-4 text-sm leading-6 text-slate-400">
+                      Mock slate data only. Refresh is wired as a visual control for now.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </DashboardCard>
+          </section>
+
+          <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
             {kpiMetrics.map((metric) => (
               <StatCard key={metric.label} metric={metric} />
             ))}
           </section>
 
-          <section id="slate" className="mt-8 space-y-4">
-            <SectionHeader eyebrow="Section 1" title="Today's Slate" />
-            <div className="grid gap-4 xl:grid-cols-4">
+          <section id="games" className="mt-8 space-y-4">
+            <SectionHeader
+              eyebrow="Today's Games"
+              title={`${slateMeta.gamesToday} games on the board`}
+            />
+            <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
               {games.map((game) => (
                 <GameCard game={game} key={`${game.awayTeam}-${game.homeTeam}`} />
               ))}
@@ -58,125 +105,68 @@ export function HomePage() {
           </section>
 
           <section id="best-bets" className="mt-8 space-y-4">
-            <SectionHeader eyebrow="Section 2" title="Top Bets" />
-            <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-5">
+            <SectionHeader eyebrow="Best Bets" title="Top 10 model edges" />
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
               {topBets.map((bet) => (
-                <BetCard bet={bet} key={`${bet.player}-${bet.betType}`} />
+                <BetCard bet={bet} key={`${bet.player}-${bet.bet}`} />
               ))}
             </div>
           </section>
 
           <section id="player-props" className="mt-8 space-y-4">
-            <SectionHeader eyebrow="Player Props" title="Hitter Prop Watchlist" />
-            <div className="grid gap-4 lg:grid-cols-3">
-              {playerProps.map((prop) => (
-                <ModelPanel
-                  key={`${prop.player}-${prop.propType}`}
-                  label={prop.player}
-                  rows={[
-                    ["Prop Type", prop.propType],
-                    ["Sportsbook Line", prop.line],
-                    ["Projection", prop.projection],
-                    ["Edge", prop.edge],
-                    ["Confidence", prop.confidence],
-                  ]}
-                />
+            <SectionHeader eyebrow="Player Props" title="Highest-edge prop board" />
+            <div className="grid gap-5 xl:grid-cols-2 2xl:grid-cols-3">
+              {propCategories.map((category) => (
+                <div key={category.label} className="space-y-3">
+                  <div className="flex items-center justify-between gap-4">
+                    <h3 className="text-lg font-semibold text-white">{category.label}</h3>
+                    <span className="rounded-full border border-white/10 px-3 py-1 text-xs text-slate-300">
+                      {category.props.length} signals
+                    </span>
+                  </div>
+                  <div className="grid gap-3">
+                    {category.props.map((prop) => (
+                      <PropCard key={`${prop.category}-${prop.player}`} prop={prop} />
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
           </section>
 
-          <section className="mt-8 grid gap-6 2xl:grid-cols-[1.1fr_0.9fr]">
-            <DashboardCard id="home-run-model" className="p-5">
-              <SectionHeader eyebrow="Section 3" title="Home Run Model" />
-              <div className="mt-5 grid gap-4 lg:grid-cols-3">
-                {homeRunPicks.map((pick) => (
-                  <ModelPanel
-                    key={pick.player}
-                    label={pick.player}
-                    rows={[
-                      ["HR Probability", pick.hrProbability],
-                      ["Pitcher", pick.pitcher],
-                      ["Ballpark", pick.ballpark],
-                      ["Wind", pick.wind],
-                      ["Value Rating", pick.valueRating],
-                    ]}
-                  />
-                ))}
-              </div>
-            </DashboardCard>
-
-            <DashboardCard id="pitcher-props" className="p-5">
-              <SectionHeader eyebrow="Section 4" title="Pitcher Props" />
-              <div className="mt-5 grid gap-4 lg:grid-cols-2">
-                {pitcherProps.map((prop) => (
-                  <PropCard key={prop.pitcher} prop={prop} />
-                ))}
-              </div>
-            </DashboardCard>
-          </section>
-
-          <section className="mt-8 grid gap-6 2xl:grid-cols-[1fr_0.85fr]">
-            <DashboardCard id="weather" className="p-5">
-              <SectionHeader eyebrow="Section 5" title="Weather" />
-              <div className="mt-5 grid gap-4 lg:grid-cols-2">
+          <section className="mt-8 grid gap-6 2xl:grid-cols-[1fr_0.72fr]">
+            <section id="weather" className="space-y-4">
+              <SectionHeader eyebrow="Weather Center" title="Conditions that matter" />
+              <div className="grid gap-4 lg:grid-cols-2">
                 {weatherReports.map((report) => (
                   <WeatherCard key={report.stadium} report={report} />
                 ))}
               </div>
-            </DashboardCard>
+            </section>
 
             <DashboardCard id="injuries" className="p-5">
-              <SectionHeader eyebrow="Section 6" title="Injuries" />
-              <div className="mt-5 max-h-[430px] space-y-3 overflow-y-auto pr-1">
+              <SectionHeader eyebrow="Injury Tracker" title="Lineup impact watch" />
+              <div className="mt-5 max-h-[640px] space-y-3 overflow-y-auto pr-1">
                 {injuries.map((injury) => (
                   <InjuryCard key={`${injury.team}-${injury.player}`} injury={injury} />
                 ))}
               </div>
             </DashboardCard>
           </section>
-
-          <section className="mt-8 grid gap-6 xl:grid-cols-2">
-            <DashboardCard id="team-trends" className="p-5">
-              <SectionHeader eyebrow="Market Context" title="Team Trends" />
-              <div className="mt-5 space-y-3">
-                {teamTrends.map((trend) => (
-                  <DataRow
-                    key={trend.label}
-                    label={trend.label}
-                    meta={trend.note}
-                    value={trend.value}
-                  />
-                ))}
-              </div>
-            </DashboardCard>
-
-            <DashboardCard id="odds" className="p-5">
-              <SectionHeader eyebrow="Market Board" title="Odds Movement" />
-              <div className="mt-5 space-y-3">
-                {oddsRows.map((row) => (
-                  <DataRow
-                    key={row.market}
-                    label={row.market}
-                    meta={`Open ${row.open} - Move ${row.move}`}
-                    value={row.bestPrice}
-                  />
-                ))}
-              </div>
-            </DashboardCard>
-          </section>
-
-          <section id="settings" className="mt-8">
-            <DashboardCard className="p-5">
-              <SectionHeader eyebrow="Workspace" title="Settings" />
-              <p className="mt-4 max-w-2xl text-sm leading-6 text-slate-400">
-                Settings are mocked for now. Future controls will manage odds
-                sources, unit preferences, table density, and alert thresholds.
-              </p>
-            </DashboardCard>
-          </section>
         </div>
       </div>
     </main>
+  );
+}
+
+function HeroPill({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/[0.045] px-4 py-3">
+      <p className="text-xs font-medium uppercase tracking-[0.16em] text-slate-500">
+        {label}
+      </p>
+      <p className="mt-2 text-sm font-semibold text-white">{value}</p>
+    </div>
   );
 }
 
@@ -192,54 +182,14 @@ function MobileNavigation() {
           >
             <span>{item.icon}</span>
             <span>{item.label}</span>
+            {item.badge ? (
+              <span className="rounded-full bg-white/[0.08] px-2 py-0.5 text-xs">
+                {item.badge}
+              </span>
+            ) : null}
           </a>
         ))}
       </div>
-    </div>
-  );
-}
-
-function ModelPanel({
-  label,
-  rows,
-}: {
-  label: string;
-  rows: Array<[string, string]>;
-}) {
-  return (
-    <div className="rounded-2xl border border-slate-800 bg-white/[0.025] p-4">
-      <h3 className="text-lg font-semibold text-white">{label}</h3>
-      <div className="mt-4 space-y-2 text-sm">
-        {rows.map(([rowLabel, value]) => (
-          <div
-            key={rowLabel}
-            className="flex items-center justify-between gap-4 rounded-xl bg-slate-950/60 px-3 py-2"
-          >
-            <span className="text-slate-500">{rowLabel}</span>
-            <span className="text-right font-medium text-slate-200">{value}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function DataRow({
-  label,
-  meta,
-  value,
-}: {
-  label: string;
-  meta: string;
-  value: string;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-4 rounded-2xl border border-slate-800 bg-white/[0.025] p-4">
-      <div className="min-w-0">
-        <p className="truncate font-medium text-white">{label}</p>
-        <p className="mt-1 truncate text-sm text-slate-500">{meta}</p>
-      </div>
-      <p className="shrink-0 text-sm font-semibold text-blue-200">{value}</p>
     </div>
   );
 }

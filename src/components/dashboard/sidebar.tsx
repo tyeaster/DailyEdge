@@ -29,7 +29,12 @@ export function Sidebar({ items }: { items: DashboardNavItem[] }) {
               <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-white/[0.04] text-sm transition group-hover:bg-white/[0.08]">
                 {item.icon}
               </span>
-              <span className="hidden xl:inline">{item.label}</span>
+              <span className="hidden min-w-0 flex-1 xl:inline">{item.label}</span>
+              {item.badge ? (
+                <span className="hidden rounded-full border border-white/10 bg-white/[0.05] px-2 py-0.5 text-xs text-slate-300 xl:inline">
+                  {item.badge}
+                </span>
+              ) : null}
             </a>
           ))}
         </nav>

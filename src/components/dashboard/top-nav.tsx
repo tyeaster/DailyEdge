@@ -13,7 +13,7 @@ export function TopNav({ currentDate }: { currentDate: string }) {
               DailyEdge
             </p>
             <h1 className="truncate text-lg font-semibold text-white sm:text-xl">
-              MLB Command Center
+              Daily Slate
             </h1>
           </div>
         </div>

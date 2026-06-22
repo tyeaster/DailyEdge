@@ -1,9 +1,7 @@
-import type { HTMLAttributes } from "react";
-
-import { Card } from "@/src/components/ui";
+import { Card, type CardProps } from "@/src/components/ui";
 import { cn } from "@/src/lib/cn";
 
-export function DashboardCard({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
+export function DashboardCard({ className, ...props }: CardProps) {
   return (
     <Card
       className={cn(

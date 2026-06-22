@@ -1,28 +1,30 @@
-import type { PitcherProp } from "@/src/types/mlb-dashboard";
+import type { PlayerProp } from "@/src/types/mlb-dashboard";
 
 import { DashboardCard } from "./dashboard-card";
 
-export function PropCard({ prop }: { prop: PitcherProp }) {
+export function PropCard({ prop }: { prop: PlayerProp }) {
   return (
-    <DashboardCard className="p-5">
+    <DashboardCard as="article" className="p-5">
       <div className="flex items-start justify-between gap-4">
-        <div>
+        <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-            Pitcher Prop
+            {prop.category}
           </p>
-          <h3 className="mt-3 text-lg font-semibold text-white">{prop.pitcher}</h3>
+          <h3 className="mt-3 truncate text-lg font-semibold text-white">{prop.player}</h3>
+          <p className="mt-1 text-sm text-slate-500">{prop.team}</p>
         </div>
         <span className="rounded-full border border-blue-300/20 bg-blue-400/10 px-3 py-1 text-sm font-semibold text-blue-100">
-          {prop.confidence}
+          {prop.confidence}%
         </span>
       </div>
 
       <div className="mt-5 space-y-2 text-sm">
         <PropLine label="Projection" value={prop.projection} />
-        <PropLine label="Vegas line" value={prop.vegasLine} />
+        <PropLine label="Sportsbook line" value={prop.line} />
         <PropLine label="Edge" value={prop.edge} />
-        <PropLine label="Opponent K%" value={prop.opponentKRate} />
       </div>
+
+      <p className="mt-4 text-sm leading-6 text-slate-400">{prop.reasoning}</p>
     </DashboardCard>
   );
 }

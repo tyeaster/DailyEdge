@@ -8,10 +8,12 @@ export function InjuryCard({ injury }: { injury: InjuryReport }) {
       </span>
       <div className="min-w-0">
         <p className="truncate font-medium text-white">{injury.player}</p>
-        <p className="mt-1 text-sm text-slate-500">{injury.expectedReturn}</p>
+        <p className="mt-1 text-sm text-slate-500">
+          {injury.status} · {injury.expectedReturn}
+        </p>
       </div>
-      <span className="rounded-full border border-white/10 px-3 py-1 text-xs font-medium text-slate-300">
-        {injury.status}
+      <span className="rounded-full border border-amber-300/20 bg-amber-400/10 px-3 py-1 text-xs font-semibold text-amber-100">
+        {injury.impactRating}
       </span>
     </div>
   );

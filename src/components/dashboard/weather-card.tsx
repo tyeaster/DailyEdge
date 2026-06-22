@@ -4,19 +4,21 @@ import { DashboardCard } from "./dashboard-card";
 
 export function WeatherCard({ report }: { report: WeatherReport }) {
   return (
-    <DashboardCard className="p-5">
+    <DashboardCard as="article" className="p-5">
       <div className="flex items-start justify-between gap-4">
-        <div>
+        <div className="min-w-0">
           <h3 className="font-semibold text-white">{report.stadium}</h3>
-          <p className="mt-1 text-sm text-slate-400">{report.environment}</p>
+          <p className="mt-1 truncate text-sm text-slate-400">{report.game}</p>
         </div>
         <p className="text-2xl font-semibold text-white">{report.temperature}</p>
       </div>
       <div className="mt-5 grid grid-cols-2 gap-2 text-sm">
         <WeatherLine label="Wind" value={report.windSpeed} />
         <WeatherLine label="Direction" value={report.windDirection} />
+        <WeatherLine label="Humidity" value={report.humidity} />
         <WeatherLine label="Rain" value={report.rainChance} />
-        <WeatherLine label="Impact" value={report.environment} />
+        <WeatherLine label="Hitter rating" value={`${report.hitterFriendlyRating}/100`} />
+        <WeatherLine label="Pitcher rating" value={`${report.pitcherFriendlyRating}/100`} />
       </div>
     </DashboardCard>
   );
