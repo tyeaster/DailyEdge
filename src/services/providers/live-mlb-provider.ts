@@ -254,6 +254,7 @@ async function fetchSchedule(): Promise<LiveSchedule> {
       ).id,
       homeTeamId: homeTeam.id,
       id: `game-${game.gamePk}`,
+      modelProbability: 0.5,
       odds: {
         moneyline: {
           displayLine: "Pending",

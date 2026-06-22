@@ -31,9 +31,14 @@ export function BetCard({
       </div>
 
       <div className="mt-5 grid grid-cols-3 gap-2">
-        <MiniMetric label="Projection" value={bet.prediction.projection} />
-        <MiniMetric label="Edge" value={`+${bet.edge.percentage.toFixed(1)}%`} />
-        <MiniMetric label="Conf." value={`${bet.confidence.value}%`} />
+        <MiniMetric label="Sportsbook" value={bet.value?.sportsbookLine ?? bet.odds.displayLine} />
+        <MiniMetric label="Fair Line" value={bet.value?.display.fairLine ?? "Pending"} />
+        <MiniMetric label="Edge" value={bet.value?.display.edgePercent ?? "0.0%"} />
+      </div>
+
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        <MiniMetric label="Value" value={bet.value?.valueRating ?? "No Edge"} />
+        <MiniMetric label="Units" value={bet.recommendedUnits.toFixed(2)} />
       </div>
 
       <p className="mt-4 text-sm leading-6 text-slate-400">{bet.prediction.reasoning}</p>

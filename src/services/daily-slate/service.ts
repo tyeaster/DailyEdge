@@ -8,6 +8,7 @@ import type {
   Team,
   Weather,
 } from "@/src/models/mlb";
+import { buildValueAssessment } from "@/src/lib/odds";
 import { liveMLBProvider, mockDataProvider } from "@/src/services/providers";
 import type { DailyEdgeDataProvider } from "@/src/services/providers";
 import type { DashboardNavItem, KpiMetric } from "@/src/types/mlb-dashboard";
@@ -84,13 +85,15 @@ async function buildDailySlate(
   const playerById = toRecord(players);
   const pitcherById = toRecord(pitchers);
   const weatherById = toRecord(weatherReports);
-  const gameById = toRecord(games);
+  const valuedGames = games.map(addGameValue);
+  const valuedBets = bets.map(addBetValue);
+  const valuedGameById = toRecord(valuedGames);
 
   return {
-    bets: buildBets(bets, playerById, teamById),
-    dashboardNavItems: buildDashboardNavItems(games.length, bets.length),
+    bets: buildBets(valuedBets, playerById, teamById),
+    dashboardNavItems: buildDashboardNavItems(valuedGames.length, valuedBets.length),
     dataSource,
-    games: buildGames(games, teamById, pitcherById, weatherById),
+    games: buildGames(valuedGames, teamById, pitcherById, weatherById),
     injuries: injuries.map((injury): DailySlateInjury => {
       const player = getRequired(playerById, injury.playerId, "player");
 
@@ -100,15 +103,15 @@ async function buildDailySlate(
         team: getRequired(teamById, injury.teamId, "team"),
       };
     }),
-    kpiMetrics: buildKpis(slateMeta.averageConfidence, games, bets),
+    kpiMetrics: buildKpis(slateMeta.averageConfidence, valuedGames, valuedBets),
     propCategories: buildPropCategories(props, playerById, teamById),
     slateMeta: {
       ...slateMeta,
       dataSource,
-      gamesToday: games.length,
+      gamesToday: valuedGames.length,
     },
     weatherReports: weatherReports.map((report): DailySlateWeather => {
-      const game = getRequired(gameById, report.gameId, "game");
+      const game = getRequired(valuedGameById, report.gameId, "game");
 
       return {
         awayTeam: getRequired(teamById, game.awayTeamId, "team"),
@@ -116,6 +119,30 @@ async function buildDailySlate(
         homeTeam: getRequired(teamById, game.homeTeamId, "team"),
         report,
       };
+    }),
+  };
+}
+
+function addGameValue(game: Game): Game {
+  return {
+    ...game,
+    value: buildValueAssessment({
+      modelProbability: game.modelProbability,
+      recommendation: game.confidence.value >= 75 ? "0.75u" : "0.25u",
+      sportsbookLine: game.odds.moneyline.displayLine,
+      sportsbookOdds: game.odds.moneyline.price,
+    }),
+  };
+}
+
+function addBetValue(bet: BetRecommendation): BetRecommendation {
+  return {
+    ...bet,
+    value: buildValueAssessment({
+      modelProbability: bet.modelProbability,
+      recommendation: `${bet.recommendedUnits.toFixed(2)}u`,
+      sportsbookLine: bet.odds.displayLine,
+      sportsbookOdds: bet.odds.price,
     }),
   };
 }
