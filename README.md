@@ -1,5 +1,14 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## DailyEdge Docs
+
+- [Roadmap](docs/ROADMAP.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [API Providers](docs/API_PROVIDERS.md)
+- [Model Spec](docs/MODEL_SPEC.md)
+- [Scoring](docs/SCORING.md)
+- [Style Guide](docs/STYLE_GUIDE.md)
+
 ## Getting Started
 
 First, run the development server:
