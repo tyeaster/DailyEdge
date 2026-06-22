@@ -12,29 +12,24 @@ import {
 } from "@/src/components/dashboard";
 
 import {
-  betRecommendations,
-  dashboardNavItems,
-  getGame,
-  getPitcher,
-  getPlayer,
-  getTeam,
-  getWeather,
-  games,
-  injuries,
-  kpiMetrics,
-  propCategories,
-  slateMeta,
-  weatherReports,
-} from "@/mock";
+  getDailySlate,
+  type DailySlateViewModel,
+} from "@/src/services";
 
-export function HomePage() {
+export async function HomePage() {
+  const slate = await getDailySlate();
+
+  return <DailySlatePage slate={slate} />;
+}
+
+function DailySlatePage({ slate }: { slate: DailySlateViewModel }) {
   return (
     <main className="min-h-screen bg-[#030812] text-white">
-      <Sidebar items={dashboardNavItems} />
+      <Sidebar items={slate.dashboardNavItems} />
 
       <div className="min-h-screen md:pl-20 xl:pl-72">
-        <TopNav currentDate={slateMeta.currentDate} />
-        <MobileNavigation />
+        <TopNav currentDate={slate.slateMeta.currentDate} />
+        <MobileNavigation items={slate.dashboardNavItems} />
 
         <div className="mx-auto max-w-[1680px] px-4 py-6 sm:px-6 lg:px-8">
           <section id="daily-slate" className="edge-panel">
@@ -54,13 +49,22 @@ export function HomePage() {
                       weather shifts, player props, and injury impact.
                     </p>
                     <div className="mt-6 flex flex-wrap gap-3">
-                      <HeroPill label="Current date" value={slateMeta.currentDate} />
-                      <HeroPill label="Games today" value={String(slateMeta.gamesToday)} />
+                      <HeroPill
+                        label="Current date"
+                        value={slate.slateMeta.currentDate}
+                      />
+                      <HeroPill
+                        label="Games today"
+                        value={String(slate.slateMeta.gamesToday)}
+                      />
                       <HeroPill
                         label="First pitch"
-                        value={slateMeta.firstPitchCountdown}
+                        value={slate.slateMeta.firstPitchCountdown}
                       />
-                      <HeroPill label="Last updated" value={slateMeta.lastUpdated} />
+                      <HeroPill
+                        label="Last updated"
+                        value={slate.slateMeta.lastUpdated}
+                      />
                     </div>
                   </div>
 
@@ -69,7 +73,7 @@ export function HomePage() {
                       <div>
                         <p className="text-sm text-slate-400">Slate confidence</p>
                         <p className="mt-2 text-4xl font-semibold tracking-tight text-white">
-                          {slateMeta.averageConfidence}
+                          {slate.slateMeta.averageConfidence}
                         </p>
                       </div>
                       <button
@@ -92,7 +96,7 @@ export function HomePage() {
           </section>
 
           <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
-            {kpiMetrics.map((metric) => (
+            {slate.kpiMetrics.map((metric) => (
               <StatCard key={metric.label} metric={metric} />
             ))}
           </section>
@@ -100,18 +104,18 @@ export function HomePage() {
           <section id="games" className="mt-8 space-y-4">
             <SectionHeader
               eyebrow="Today's Games"
-              title={`${slateMeta.gamesToday} games on the board`}
+              title={`${slate.slateMeta.gamesToday} games on the board`}
             />
             <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
-              {games.map((game) => (
+              {slate.games.map((game) => (
                 <GameCard
-                  awayPitcher={getPitcher(game.awayPitcherId)}
-                  awayTeam={getTeam(game.awayTeamId)}
-                  game={game}
-                  homePitcher={getPitcher(game.homePitcherId)}
-                  homeTeam={getTeam(game.homeTeamId)}
-                  key={game.id}
-                  weather={getWeather(game.weatherId)}
+                  awayPitcher={game.awayPitcher}
+                  awayTeam={game.awayTeam}
+                  game={game.game}
+                  homePitcher={game.homePitcher}
+                  homeTeam={game.homeTeam}
+                  key={game.game.id}
+                  weather={game.weather}
                 />
               ))}
             </div>
@@ -120,12 +124,12 @@ export function HomePage() {
           <section id="best-bets" className="mt-8 space-y-4">
             <SectionHeader eyebrow="Best Bets" title="Top 10 model edges" />
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
-              {betRecommendations.map((bet) => (
+              {slate.bets.map((bet) => (
                 <BetCard
-                  bet={bet}
-                  key={bet.id}
-                  player={bet.playerId ? getPlayer(bet.playerId) : undefined}
-                  team={bet.teamId ? getTeam(bet.teamId) : undefined}
+                  bet={bet.bet}
+                  key={bet.bet.id}
+                  player={bet.player}
+                  team={bet.team}
                 />
               ))}
             </div>
@@ -134,7 +138,7 @@ export function HomePage() {
           <section id="player-props" className="mt-8 space-y-4">
             <SectionHeader eyebrow="Player Props" title="Highest-edge prop board" />
             <div className="grid gap-5 xl:grid-cols-2 2xl:grid-cols-3">
-              {propCategories.map((category) => (
+              {slate.propCategories.map((category) => (
                 <div key={category.label} className="space-y-3">
                   <div className="flex items-center justify-between gap-4">
                     <h3 className="text-lg font-semibold text-white">{category.label}</h3>
@@ -145,10 +149,10 @@ export function HomePage() {
                   <div className="grid gap-3">
                     {category.props.map((prop) => (
                       <PropCard
-                        key={prop.id}
-                        player={getPlayer(prop.playerId)}
-                        prop={prop}
-                        team={getTeam(getPlayer(prop.playerId).teamId)}
+                        key={prop.prop.id}
+                        player={prop.player}
+                        prop={prop.prop}
+                        team={prop.team}
                       />
                     ))}
                   </div>
@@ -161,13 +165,13 @@ export function HomePage() {
             <section id="weather" className="space-y-4">
               <SectionHeader eyebrow="Weather Center" title="Conditions that matter" />
               <div className="grid gap-4 lg:grid-cols-2">
-                {weatherReports.map((report) => (
+                {slate.weatherReports.map((weather) => (
                   <WeatherCard
-                    awayTeam={getTeam(getGame(report.gameId).awayTeamId)}
-                    game={getGame(report.gameId)}
-                    homeTeam={getTeam(getGame(report.gameId).homeTeamId)}
-                    key={report.id}
-                    report={report}
+                    awayTeam={weather.awayTeam}
+                    game={weather.game}
+                    homeTeam={weather.homeTeam}
+                    key={weather.report.id}
+                    report={weather.report}
                   />
                 ))}
               </div>
@@ -176,12 +180,12 @@ export function HomePage() {
             <DashboardCard id="injuries" className="p-5">
               <SectionHeader eyebrow="Injury Tracker" title="Lineup impact watch" />
               <div className="mt-5 max-h-[640px] space-y-3 overflow-y-auto pr-1">
-                {injuries.map((injury) => (
+                {slate.injuries.map((injury) => (
                   <InjuryCard
-                    injury={injury}
-                    key={injury.id}
-                    player={getPlayer(injury.playerId)}
-                    team={getTeam(injury.teamId)}
+                    injury={injury.injury}
+                    key={injury.injury.id}
+                    player={injury.player}
+                    team={injury.team}
                   />
                 ))}
               </div>
@@ -204,11 +208,11 @@ function HeroPill({ label, value }: { label: string; value: string }) {
   );
 }
 
-function MobileNavigation() {
+function MobileNavigation({ items }: { items: DailySlateViewModel["dashboardNavItems"] }) {
   return (
     <div className="border-b border-slate-800 bg-[#050915] px-4 py-3 md:hidden">
       <div className="flex gap-2 overflow-x-auto">
-        {dashboardNavItems.map((item) => (
+        {items.map((item) => (
           <a
             key={item.label}
             href={item.href}
