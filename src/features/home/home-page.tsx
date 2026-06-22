@@ -12,15 +12,20 @@ import {
 } from "@/src/components/dashboard";
 
 import {
+  betRecommendations,
   dashboardNavItems,
+  getGame,
+  getPitcher,
+  getPlayer,
+  getTeam,
+  getWeather,
   games,
   injuries,
   kpiMetrics,
   propCategories,
   slateMeta,
-  topBets,
   weatherReports,
-} from "./mlb-dashboard-data";
+} from "@/mock";
 
 export function HomePage() {
   return (
@@ -99,7 +104,15 @@ export function HomePage() {
             />
             <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
               {games.map((game) => (
-                <GameCard game={game} key={`${game.awayTeam}-${game.homeTeam}`} />
+                <GameCard
+                  awayPitcher={getPitcher(game.awayPitcherId)}
+                  awayTeam={getTeam(game.awayTeamId)}
+                  game={game}
+                  homePitcher={getPitcher(game.homePitcherId)}
+                  homeTeam={getTeam(game.homeTeamId)}
+                  key={game.id}
+                  weather={getWeather(game.weatherId)}
+                />
               ))}
             </div>
           </section>
@@ -107,8 +120,13 @@ export function HomePage() {
           <section id="best-bets" className="mt-8 space-y-4">
             <SectionHeader eyebrow="Best Bets" title="Top 10 model edges" />
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
-              {topBets.map((bet) => (
-                <BetCard bet={bet} key={`${bet.player}-${bet.bet}`} />
+              {betRecommendations.map((bet) => (
+                <BetCard
+                  bet={bet}
+                  key={bet.id}
+                  player={bet.playerId ? getPlayer(bet.playerId) : undefined}
+                  team={bet.teamId ? getTeam(bet.teamId) : undefined}
+                />
               ))}
             </div>
           </section>
@@ -126,7 +144,12 @@ export function HomePage() {
                   </div>
                   <div className="grid gap-3">
                     {category.props.map((prop) => (
-                      <PropCard key={`${prop.category}-${prop.player}`} prop={prop} />
+                      <PropCard
+                        key={prop.id}
+                        player={getPlayer(prop.playerId)}
+                        prop={prop}
+                        team={getTeam(getPlayer(prop.playerId).teamId)}
+                      />
                     ))}
                   </div>
                 </div>
@@ -139,7 +162,13 @@ export function HomePage() {
               <SectionHeader eyebrow="Weather Center" title="Conditions that matter" />
               <div className="grid gap-4 lg:grid-cols-2">
                 {weatherReports.map((report) => (
-                  <WeatherCard key={report.stadium} report={report} />
+                  <WeatherCard
+                    awayTeam={getTeam(getGame(report.gameId).awayTeamId)}
+                    game={getGame(report.gameId)}
+                    homeTeam={getTeam(getGame(report.gameId).homeTeamId)}
+                    key={report.id}
+                    report={report}
+                  />
                 ))}
               </div>
             </section>
@@ -148,7 +177,12 @@ export function HomePage() {
               <SectionHeader eyebrow="Injury Tracker" title="Lineup impact watch" />
               <div className="mt-5 max-h-[640px] space-y-3 overflow-y-auto pr-1">
                 {injuries.map((injury) => (
-                  <InjuryCard key={`${injury.team}-${injury.player}`} injury={injury} />
+                  <InjuryCard
+                    injury={injury}
+                    key={injury.id}
+                    player={getPlayer(injury.playerId)}
+                    team={getTeam(injury.teamId)}
+                  />
                 ))}
               </div>
             </DashboardCard>

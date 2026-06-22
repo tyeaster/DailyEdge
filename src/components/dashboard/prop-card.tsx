@@ -1,8 +1,16 @@
-import type { PlayerProp } from "@/src/types/mlb-dashboard";
+import type { Player, PlayerProp, Team } from "@/src/models/mlb";
 
 import { DashboardCard } from "./dashboard-card";
 
-export function PropCard({ prop }: { prop: PlayerProp }) {
+export function PropCard({
+  player,
+  prop,
+  team,
+}: {
+  player: Player;
+  prop: PlayerProp;
+  team: Team;
+}) {
   return (
     <DashboardCard as="article" className="p-5">
       <div className="flex items-start justify-between gap-4">
@@ -10,18 +18,20 @@ export function PropCard({ prop }: { prop: PlayerProp }) {
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
             {prop.category}
           </p>
-          <h3 className="mt-3 truncate text-lg font-semibold text-white">{prop.player}</h3>
-          <p className="mt-1 text-sm text-slate-500">{prop.team}</p>
+          <h3 className="mt-3 truncate text-lg font-semibold text-white">
+            {player.fullName}
+          </h3>
+          <p className="mt-1 text-sm text-slate-500">{team.abbreviation}</p>
         </div>
         <span className="rounded-full border border-blue-300/20 bg-blue-400/10 px-3 py-1 text-sm font-semibold text-blue-100">
-          {prop.confidence}%
+          {prop.confidence.value}%
         </span>
       </div>
 
       <div className="mt-5 space-y-2 text-sm">
         <PropLine label="Projection" value={prop.projection} />
-        <PropLine label="Sportsbook line" value={prop.line} />
-        <PropLine label="Edge" value={prop.edge} />
+        <PropLine label="Sportsbook line" value={prop.odds.displayLine} />
+        <PropLine label="Edge" value={`+${prop.edge.percentage.toFixed(1)}%`} />
       </div>
 
       <p className="mt-4 text-sm leading-6 text-slate-400">{prop.reasoning}</p>
