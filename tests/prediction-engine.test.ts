@@ -4,10 +4,14 @@ import test from "node:test";
 import {
   buildPredictionRecommendations,
   calculateConfidence,
+  calculateDataQuality,
   calculateExpectedValuePercent,
+  calculateModelBreakdown,
   getRecommendation,
   PredictionEngine,
 } from "../src/services/predictions/PredictionEngine.ts";
+import { PREDICTION_ENGINE_V1_CONFIG } from "../src/services/predictions/config.ts";
+import { PredictionDiagnosticsService } from "../src/services/predictions/PredictionDiagnosticsService.ts";
 import type { Game, Pitcher, Team } from "../src/models/mlb.ts";
 
 const homeTeam: Team = {
@@ -197,6 +201,9 @@ test("produces a deterministic V1 prediction result", () => {
   assert.equal(prediction.recommendation, "Strong Play");
   assert.equal(prediction.predictedWinnerTeamId, homeTeam.id);
   assert.ok(prediction.explanations.length >= 4);
+  assert.equal(prediction.predictionVersion, "1.2.0");
+  assert.equal(prediction.dataQuality.score, 90);
+  assert.ok(prediction.modelBreakdown.totalContributionPercent > 0);
 });
 
 test("calculates expected value per one unit risked", () => {
@@ -216,9 +223,10 @@ test("confidence rises with clearer advantage, larger edge, and factor agreement
     factors: {
       bullpen: 0.5,
       homeField: 0.5,
-      offense: 0.5,
-      sportsbook: 0.5,
+      recentForm: 0.5,
+      sportsbookMarket: 0.5,
       startingPitcher: 0.5,
+      teamOffense: 0.5,
       teamPitching: 0.5,
     },
     homeWinProbability: 0.51,
@@ -228,9 +236,10 @@ test("confidence rises with clearer advantage, larger edge, and factor agreement
     factors: {
       bullpen: 0.63,
       homeField: 0.54,
-      offense: 0.65,
-      sportsbook: 0.58,
+      recentForm: 0.5,
+      sportsbookMarket: 0.58,
       startingPitcher: 0.65,
+      teamOffense: 0.65,
       teamPitching: 0.66,
     },
     homeWinProbability: 0.64,
@@ -263,14 +272,109 @@ test("team strength inputs change the model probability", () => {
   );
   assert.ok(
     strongHomePrediction.explanations.some((explanation) =>
-      explanation.includes("Offensive advantage"),
+      explanation.includes("Better Team Offense"),
     ),
   );
   assert.ok(
     strongHomePrediction.explanations.some((explanation) =>
-      explanation.includes("Team pitching advantage"),
+      explanation.includes("Better Team Pitching"),
     ),
   );
+});
+
+test("keeps every model weight in one documented configuration", () => {
+  assert.deepEqual(Object.keys(PREDICTION_ENGINE_V1_CONFIG.weights).sort(), [
+    "bullpen",
+    "homeField",
+    "recentForm",
+    "sportsbookMarket",
+    "startingPitcher",
+    "teamOffense",
+    "teamPitching",
+  ]);
+  assert.equal(
+    Object.values(PREDICTION_ENGINE_V1_CONFIG.weights).reduce<number>(
+      (total, weight) => total + weight,
+      0,
+    ),
+    1,
+  );
+  assert.equal(PREDICTION_ENGINE_V1_CONFIG.weights.recentForm, 0);
+});
+
+test("calculates a deterministic per-factor model breakdown", () => {
+  const breakdown = calculateModelBreakdown({
+    bullpen: 0.55,
+    homeField: 0.54,
+    recentForm: 0.5,
+    sportsbookMarket: 0.48,
+    startingPitcher: 0.7,
+    teamOffense: 0.6,
+    teamPitching: 0.55,
+  });
+
+  assert.equal(
+    breakdown.factors.startingPitcher.contributionPercent,
+    6,
+  );
+  assert.equal(breakdown.factors.teamOffense.contributionPercent, 2.5);
+  assert.equal(breakdown.factors.sportsbookMarket.contributionPercent, -0.1);
+  assert.equal(breakdown.factors.recentForm.contributionPercent, 0);
+  assert.equal(breakdown.totalContributionPercent, 10.3);
+});
+
+test("scores data quality from available normalized inputs", () => {
+  const quality = calculateDataQuality({
+    awayPitcher,
+    awayTeam,
+    game,
+    homePitcher,
+    homeTeam,
+  });
+
+  assert.equal(quality.score, 90);
+  assert.equal(quality.inputs.pitchers.status, "available");
+  assert.equal(quality.inputs.teamStats.status, "available");
+  assert.equal(quality.inputs.bullpen.status, "available");
+  assert.equal(quality.inputs.weather.status, "missing");
+  assert.deepEqual(quality.missingInputs, ["Recent Form", "Weather"]);
+});
+
+test("missing data lowers quality, caps confidence, and emits no missing-data explanations", () => {
+  const prediction = new PredictionEngine().predictGame({
+    awayTeam: { ...awayTeam, strength: undefined },
+    game,
+    homeTeam: { ...homeTeam, strength: undefined },
+  });
+
+  assert.equal(prediction.dataQuality.score, 15);
+  assert.equal(prediction.confidenceScore, 15);
+  assert.equal(prediction.modelBreakdown.factors.startingPitcher.available, false);
+  assert.equal(prediction.modelBreakdown.factors.teamOffense.available, false);
+  assert.ok(
+    prediction.explanations.every(
+      (explanation) =>
+        !explanation.toLowerCase().includes("missing") &&
+        !explanation.toLowerCase().includes("unavailable") &&
+        !explanation.toLowerCase().includes("incomplete"),
+    ),
+  );
+});
+
+test("developer diagnostics expose version, weights, sources, and missing inputs", () => {
+  const prediction = new PredictionEngine().predictGame({
+    awayPitcher,
+    awayTeam,
+    game,
+    homePitcher,
+    homeTeam,
+  });
+  const diagnostics = new PredictionDiagnosticsService().create(prediction);
+
+  assert.equal(diagnostics.predictionVersion, "1.2.0");
+  assert.equal(diagnostics.weights.startingPitcher, 0.3);
+  assert.equal(diagnostics.inputSources["Sportsbook Market"], "OddsPipe");
+  assert.deepEqual(diagnostics.missingInputs, ["Recent Form", "Weather"]);
 });
 
 test("applies recommendation thresholds deterministically", () => {

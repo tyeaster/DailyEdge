@@ -7,8 +7,12 @@ import {
 import type {
   BetRecommendation,
   ConfidenceScore,
+  DataQuality,
+  DataQualityInput,
   EdgeScore,
   Game,
+  ModelBreakdown,
+  ModelFactorKey,
   Pitcher,
   Prediction,
   PredictionRecommendation,
@@ -35,11 +39,14 @@ export type PredictionEngineInput = {
 export type PredictionModelFactors = {
   bullpen: number;
   homeField: number;
-  offense: number;
-  sportsbook: number;
+  recentForm: number;
+  sportsbookMarket: number;
   startingPitcher: number;
+  teamOffense: number;
   teamPitching: number;
 };
+
+type FactorAvailability = Record<ModelFactorKey, boolean>;
 
 export class PredictionEngine {
   predictSlate({ games, pitcherById, teamById }: PredictionEngineInput) {
@@ -71,6 +78,24 @@ export class PredictionEngine {
     homeTeam,
   }: PredictionEngineGameInput): PredictionResult {
     const factors = buildFactors({
+      awayPitcher,
+      awayTeam,
+      game,
+      homePitcher,
+      homeTeam,
+    });
+    const factorAvailability = getFactorAvailability({
+      awayPitcher,
+      awayTeam,
+      game,
+      homePitcher,
+      homeTeam,
+    });
+    const modelBreakdown = calculateModelBreakdown(
+      factors,
+      factorAvailability,
+    );
+    const dataQuality = calculateDataQuality({
       awayPitcher,
       awayTeam,
       game,
@@ -119,6 +144,7 @@ export class PredictionEngine {
       edgePercent,
       factors,
       homeWinProbability,
+      dataQualityScore: dataQuality.score,
     });
     const recommendation = getRecommendation({
       confidenceScore,
@@ -136,11 +162,13 @@ export class PredictionEngine {
       awayProjectedRuns,
       awayWinProbability,
       confidenceScore,
+      dataQuality,
       edgePercent: roundToTenth(edgePercent),
       expectedValuePercent: roundToTenth(expectedValuePercent),
       explanations: buildExplanations({
         awayPitcher,
         awayTeam,
+        factorAvailability,
         factors,
         homePitcher,
         homeTeam,
@@ -151,7 +179,9 @@ export class PredictionEngine {
       homeProjectedRuns,
       homeWinProbability,
       impliedSportsbookProbability,
+      modelBreakdown,
       predictedWinnerTeamId,
+      predictionVersion: PREDICTION_ENGINE_V1_CONFIG.version,
       projectedTotalRuns,
       recommendation,
       selectedFairMoneyline: selectHomeSide
@@ -190,22 +220,24 @@ export function calculateExpectedValuePercent(
 }
 
 export function calculateConfidence({
+  dataQualityScore = 100,
   edgePercent,
   factors,
   homeWinProbability,
 }: {
+  dataQualityScore?: number;
   edgePercent: number;
   factors: PredictionModelFactors;
   homeWinProbability: number;
 }) {
   const clarity = Math.min(1, Math.abs(homeWinProbability - 0.5) / 0.2);
   const edgeStrength = Math.min(1, Math.max(0, edgePercent) / 10);
-  const factorDirections = Object.values(factors).map((factor) => {
+  const factorDirections = Object.values(factors).flatMap((factor) => {
     if (Math.abs(factor - 0.5) < 0.02) {
-      return 0;
+      return [];
     }
 
-    return factor > 0.5 ? 1 : -1;
+    return [factor > 0.5 ? 1 : -1];
   });
   const positiveFactors = factorDirections.filter((direction) => direction > 0).length;
   const negativeFactors = factorDirections.filter((direction) => direction < 0).length;
@@ -215,15 +247,16 @@ export function calculateConfidence({
       : Math.abs(positiveFactors - negativeFactors) / factorDirections.length;
   const config = PREDICTION_ENGINE_V1_CONFIG.confidence;
 
-  return Math.round(
-    Math.min(
-      100,
-      config.base +
-        clarity * config.clarityWeight +
-        edgeStrength * config.edgeWeight +
-        agreement * config.agreementWeight,
-    ),
+  const rawConfidence = Math.min(
+    100,
+    config.base +
+      clarity * config.clarityWeight +
+      edgeStrength * config.edgeWeight +
+      agreement * config.agreementWeight,
   );
+
+  // Confidence can never exceed the completeness of the inputs supporting it.
+  return Math.round(Math.min(rawConfidence, clampScore(dataQualityScore)));
 }
 
 export function getRecommendation({
@@ -348,14 +381,15 @@ function buildFactors({
       awayTeam.strength?.bullpen.value,
     ),
     homeField: PREDICTION_ENGINE_V1_CONFIG.homeFieldWinProbability,
-    offense: getTeamRatingHomeProbability(
-      homeTeam.strength?.offense.value,
-      awayTeam.strength?.offense.value,
-    ),
-    sportsbook: getSportsbookHomeProbability(game),
+    recentForm: 0.5,
+    sportsbookMarket: getSportsbookHomeProbability(game),
     startingPitcher: getStartingPitcherHomeProbability(
       homePitcher,
       awayPitcher,
+    ),
+    teamOffense: getTeamRatingHomeProbability(
+      homeTeam.strength?.offense.value,
+      awayTeam.strength?.offense.value,
     ),
     teamPitching: getTeamRatingHomeProbability(
       homeTeam.strength?.pitching.value,
@@ -366,20 +400,140 @@ function buildFactors({
 
 function weightFactors(factors: PredictionModelFactors) {
   const weights = PREDICTION_ENGINE_V1_CONFIG.weights;
-  const totalWeight = Object.values(weights).reduce(
+  const totalWeight = Object.values(weights).reduce<number>(
     (total, weight) => total + weight,
     0,
   );
 
   return (
     (factors.startingPitcher * weights.startingPitcher +
-      factors.offense * weights.offense +
+      factors.teamOffense * weights.teamOffense +
       factors.teamPitching * weights.teamPitching +
       factors.bullpen * weights.bullpen +
       factors.homeField * weights.homeField +
-      factors.sportsbook * weights.sportsbook) /
+      factors.sportsbookMarket * weights.sportsbookMarket +
+      factors.recentForm * weights.recentForm) /
     totalWeight
   );
+}
+
+export function calculateModelBreakdown(
+  factors: PredictionModelFactors,
+  availability: FactorAvailability = getDefaultFactorAvailability(),
+): ModelBreakdown {
+  const weights = PREDICTION_ENGINE_V1_CONFIG.weights;
+  const labels = PREDICTION_ENGINE_V1_CONFIG.factorLabels;
+  const totalWeight = Object.values(weights).reduce<number>(
+    (total, weight) => total + weight,
+    0,
+  );
+  const factorKeys = Object.keys(weights) as ModelFactorKey[];
+  const breakdownFactors = Object.fromEntries(
+    factorKeys.map((key) => {
+      const contributionPercent = availability[key]
+        ? roundToTenth(
+            ((factors[key] - 0.5) * weights[key] * 100) / totalWeight,
+          )
+        : 0;
+
+      return [
+        key,
+        {
+          available: availability[key],
+          contributionPercent,
+          label: labels[key],
+          probability: factors[key],
+          weight: weights[key],
+        },
+      ];
+    }),
+  ) as ModelBreakdown["factors"];
+
+  return {
+    factors: breakdownFactors,
+    totalContributionPercent: roundToTenth(
+      Object.values(breakdownFactors).reduce(
+        (total, factor) => total + factor.contributionPercent,
+        0,
+      ),
+    ),
+  };
+}
+
+export function calculateDataQuality({
+  awayPitcher,
+  awayTeam,
+  game,
+  homePitcher,
+  homeTeam,
+}: PredictionEngineGameInput): DataQuality {
+  const weights = PREDICTION_ENGINE_V1_CONFIG.dataQuality.weights;
+  const inputs = {
+    bullpen: buildQualityInput({
+      label: "Bullpen",
+      scores: [
+        getAvailabilityScore(homeTeam.strength?.bullpen.available),
+        getAvailabilityScore(awayTeam.strength?.bullpen.available),
+      ],
+      source: getTeamStrengthSource(homeTeam, awayTeam),
+      weight: weights.bullpen,
+    }),
+    pitchers: buildQualityInput({
+      label: "Starting Pitchers",
+      scores: [
+        getAvailabilityScore(hasPitcherMetrics(homePitcher)),
+        getAvailabilityScore(hasPitcherMetrics(awayPitcher)),
+      ],
+      source: getPitcherSource(homePitcher, awayPitcher),
+      weight: weights.pitchers,
+    }),
+    recentForm: buildQualityInput({
+      label: "Recent Form",
+      scores: [0],
+      source: "not connected",
+      weight: weights.recentForm,
+    }),
+    sportsbook: buildQualityInput({
+      label: "Sportsbook Market",
+      scores: [getAvailabilityScore(hasSportsbookMoneyline(game))],
+      source: game.odds.moneyline.sportsbook || "unavailable",
+      weight: weights.sportsbook,
+    }),
+    teamStats: buildQualityInput({
+      label: "Team Stats",
+      scores: [
+        getTeamStatsAvailabilityScore(homeTeam),
+        getTeamStatsAvailabilityScore(awayTeam),
+      ],
+      source: getTeamStrengthSource(homeTeam, awayTeam),
+      weight: weights.teamStats,
+    }),
+    weather: buildQualityInput({
+      label: "Weather",
+      scores: [0],
+      source: "not connected",
+      weight: weights.weather,
+    }),
+  } satisfies DataQuality["inputs"];
+  const totalWeight = Object.values(inputs).reduce(
+    (total, input) => total + input.weight,
+    0,
+  );
+  const score =
+    totalWeight === 0
+      ? 0
+      : Object.values(inputs).reduce(
+          (total, input) => total + input.score * input.weight,
+          0,
+        ) / totalWeight;
+
+  return {
+    inputs,
+    missingInputs: Object.values(inputs)
+      .filter((input) => input.status !== "available")
+      .map((input) => input.label),
+    score: Math.round(score),
+  };
 }
 
 function getStartingPitcherHomeProbability(
@@ -489,6 +643,7 @@ function getProjectedTotalRuns(game: Game) {
 function buildExplanations({
   awayPitcher,
   awayTeam,
+  factorAvailability,
   factors,
   homePitcher,
   homeTeam,
@@ -496,6 +651,7 @@ function buildExplanations({
 }: {
   awayPitcher?: Pitcher;
   awayTeam: Team;
+  factorAvailability: FactorAvailability;
   factors: PredictionModelFactors;
   homePitcher?: Pitcher;
   homeTeam: Team;
@@ -504,50 +660,91 @@ function buildExplanations({
   const selectedTeam = selectHomeSide ? homeTeam : awayTeam;
   const explanations: string[] = [];
 
-  if (Math.abs(factors.startingPitcher - 0.5) >= 0.02) {
+  if (
+    factorAvailability.startingPitcher &&
+    Math.abs(factors.startingPitcher - 0.5) >= 0.02
+  ) {
     explanations.push(
       factors.startingPitcher > 0.5
-        ? `Starting pitcher advantage: ${homePitcher?.fullName ?? homeTeam.abbreviation}`
-        : `Starting pitcher advantage: ${awayPitcher?.fullName ?? awayTeam.abbreviation}`,
+        ? `Better Starting Pitcher: ${homePitcher?.fullName ?? homeTeam.abbreviation}`
+        : `Better Starting Pitcher: ${awayPitcher?.fullName ?? awayTeam.abbreviation}`,
     );
-  } else {
-    explanations.push("Starting pitcher input is neutral or incomplete");
   }
 
-  if (Math.abs(factors.offense - 0.5) >= 0.02) {
+  if (
+    factorAvailability.teamOffense &&
+    Math.abs(factors.teamOffense - 0.5) >= 0.02
+  ) {
     explanations.push(
-      factors.offense > 0.5
-        ? `Offensive advantage: ${homeTeam.abbreviation}`
-        : `Offensive advantage: ${awayTeam.abbreviation}`,
+      factors.teamOffense > 0.5
+        ? `Better Team Offense: ${homeTeam.abbreviation}`
+        : `Better Team Offense: ${awayTeam.abbreviation}`,
     );
-  } else {
-    explanations.push("Team offense ratings are closely matched or unavailable");
   }
 
-  if (Math.abs(factors.teamPitching - 0.5) >= 0.02) {
+  if (
+    factorAvailability.teamPitching &&
+    Math.abs(factors.teamPitching - 0.5) >= 0.02
+  ) {
     explanations.push(
       factors.teamPitching > 0.5
-        ? `Team pitching advantage: ${homeTeam.abbreviation}`
-        : `Team pitching advantage: ${awayTeam.abbreviation}`,
+        ? `Better Team Pitching: ${homeTeam.abbreviation}`
+        : `Better Team Pitching: ${awayTeam.abbreviation}`,
     );
-  } else {
-    explanations.push("Team pitching ratings are closely matched or unavailable");
   }
 
-  if (Math.abs(factors.bullpen - 0.5) >= 0.02) {
+  if (
+    factorAvailability.bullpen &&
+    Math.abs(factors.bullpen - 0.5) >= 0.02
+  ) {
     explanations.push(
       factors.bullpen > 0.5
-        ? `Bullpen advantage: ${homeTeam.abbreviation}`
-        : `Bullpen advantage: ${awayTeam.abbreviation}`,
+        ? `Better Bullpen: ${homeTeam.abbreviation}`
+        : `Better Bullpen: ${awayTeam.abbreviation}`,
     );
-  } else {
-    explanations.push("Bullpen ratings are neutral or unavailable");
   }
 
-  explanations.push(`Home field advantage: ${homeTeam.abbreviation}`);
-  explanations.push(
-    `Sportsbook probability is used as a low-weight market reference`,
-  );
+  const runDifferentialDifference =
+    (homeTeam.strength?.overall.runDifferential ?? 0) -
+    (awayTeam.strength?.overall.runDifferential ?? 0);
+  if (
+    homeTeam.strength?.overall.available &&
+    awayTeam.strength?.overall.available &&
+    Math.abs(runDifferentialDifference) >= 10
+  ) {
+    explanations.push(
+      runDifferentialDifference > 0
+        ? `Better Run Differential: ${homeTeam.abbreviation}`
+        : `Better Run Differential: ${awayTeam.abbreviation}`,
+    );
+  }
+
+  const overallDifference =
+    (homeTeam.strength?.overall.value ?? 50) -
+    (awayTeam.strength?.overall.value ?? 50);
+  if (
+    homeTeam.strength?.overall.available &&
+    awayTeam.strength?.overall.available &&
+    Math.abs(overallDifference) >= 3
+  ) {
+    explanations.push(
+      overallDifference > 0
+        ? `Better Overall Rating: ${homeTeam.abbreviation}`
+        : `Better Overall Rating: ${awayTeam.abbreviation}`,
+    );
+  }
+
+  if (factorAvailability.homeField) {
+    explanations.push(`Strong Home Field Advantage: ${homeTeam.abbreviation}`);
+  }
+
+  if (
+    factorAvailability.sportsbookMarket &&
+    Math.abs(factors.sportsbookMarket - 0.5) >= 0.02
+  ) {
+    explanations.push("Sportsbook Market provides a low-weight reference");
+  }
+
   explanations.push(`Value side: ${selectedTeam.abbreviation}`);
 
   return explanations;
@@ -609,6 +806,128 @@ function getRecommendedUnits(recommendation: PredictionRecommendation) {
 
 function isKnownStarter(pitcher: Pitcher | undefined): pitcher is Pitcher {
   return Boolean(pitcher && pitcher.fullName !== "Probable starter TBD");
+}
+
+function getFactorAvailability({
+  awayPitcher,
+  awayTeam,
+  game,
+  homePitcher,
+  homeTeam,
+}: PredictionEngineGameInput): FactorAvailability {
+  return {
+    bullpen: Boolean(
+      homeTeam.strength?.bullpen.available &&
+        awayTeam.strength?.bullpen.available,
+    ),
+    homeField: true,
+    recentForm: false,
+    sportsbookMarket: hasSportsbookMoneyline(game),
+    startingPitcher: Boolean(
+      hasPitcherMetrics(homePitcher) && hasPitcherMetrics(awayPitcher),
+    ),
+    teamOffense: Boolean(
+      homeTeam.strength?.offense.available &&
+        awayTeam.strength?.offense.available,
+    ),
+    teamPitching: Boolean(
+      homeTeam.strength?.pitching.available &&
+        awayTeam.strength?.pitching.available,
+    ),
+  };
+}
+
+function getDefaultFactorAvailability(): FactorAvailability {
+  return {
+    bullpen: true,
+    homeField: true,
+    recentForm: false,
+    sportsbookMarket: true,
+    startingPitcher: true,
+    teamOffense: true,
+    teamPitching: true,
+  };
+}
+
+function hasPitcherMetrics(pitcher: Pitcher | undefined) {
+  return Boolean(
+    isKnownStarter(pitcher) &&
+      (pitcher.era > 0 || pitcher.whip > 0 || pitcher.strikeoutRate > 0),
+  );
+}
+
+function hasSportsbookMoneyline(game: Game) {
+  return Boolean(
+    game.odds.moneyline.price !== 0 ||
+      game.odds.moneyline.outcomes?.some(
+        (outcome) => outcome.side === "home" || outcome.side === "away",
+      ),
+  );
+}
+
+function getTeamStatsAvailabilityScore(team: Team) {
+  const availableSections = [
+    team.strength?.offense.available,
+    team.strength?.pitching.available,
+    team.strength?.overall.available,
+  ].filter(Boolean).length;
+
+  return (availableSections / 3) * 100;
+}
+
+function getAvailabilityScore(available: boolean | undefined) {
+  return available ? 100 : 0;
+}
+
+function buildQualityInput({
+  label,
+  scores,
+  source,
+  weight,
+}: {
+  label: string;
+  scores: number[];
+  source: string;
+  weight: number;
+}): DataQualityInput {
+  const score =
+    scores.length === 0
+      ? 0
+      : scores.reduce((total, value) => total + value, 0) / scores.length;
+
+  return {
+    label,
+    score: Math.round(score),
+    source,
+    status: score >= 100 ? "available" : score > 0 ? "partial" : "missing",
+    weight,
+  };
+}
+
+function getPitcherSource(
+  homePitcher: Pitcher | undefined,
+  awayPitcher: Pitcher | undefined,
+) {
+  return joinSources([
+    homePitcher?.statsSource,
+    awayPitcher?.statsSource,
+  ]);
+}
+
+function getTeamStrengthSource(homeTeam: Team, awayTeam: Team) {
+  return joinSources([homeTeam.strength?.source, awayTeam.strength?.source]);
+}
+
+function joinSources(sources: Array<string | undefined>) {
+  const availableSources = [...new Set(sources.filter(Boolean))] as string[];
+
+  return availableSources.length > 0
+    ? availableSources.join(", ")
+    : "unavailable";
+}
+
+function clampScore(score: number) {
+  return Math.min(100, Math.max(0, score));
 }
 
 function clampProbability(probability: number) {

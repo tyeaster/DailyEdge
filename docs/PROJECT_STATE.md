@@ -14,6 +14,8 @@ TrueLine is an MLB-first sports betting analytics dashboard with:
 - Deterministic Prediction Engine V1.
 - Fair lines, edge, expected value, confidence, and recommendations.
 - Explainable game-card outputs.
+- Per-factor model breakdowns and input data-quality scoring.
+- Developer diagnostics for model version, weights, sources, and missing inputs.
 
 ## Active Branch Context
 
@@ -132,6 +134,9 @@ The engine produces:
 - Confidence.
 - Recommendation.
 - Explanation factors.
+- Per-factor contribution breakdown.
+- Data Quality score and input availability.
+- Prediction version.
 
 Current configurable weights:
 
@@ -143,6 +148,19 @@ Current configurable weights:
 | Bullpen | 10% |
 | Home field | 10% |
 | Sportsbook implied probability | 5% |
+| Recent form | 0% (reserved) |
+
+Model intelligence behavior:
+
+- Each factor reports its probability-like value, configured weight,
+  availability, and percentage-point contribution.
+- Explanations are generated only for meaningful, available inputs.
+- Data Quality scores pitchers, team statistics, bullpen, sportsbook, recent
+  form, and weather from `0` to `100`.
+- Confidence is capped by Data Quality so incomplete inputs cannot produce
+  inflated certainty.
+- `PredictionDiagnosticsService` exposes the prediction version, weights,
+  sources, and missing inputs without adding user-interface clutter.
 
 ## UI Status
 
@@ -173,6 +191,10 @@ Automated tests cover:
 - Team missing-data behavior.
 - Team live, replay, and mock providers.
 - Prediction changes caused by team-strength inputs.
+- Central weight configuration.
+- Per-factor breakdown calculations.
+- Data-quality calculations and missing-data behavior.
+- Confidence quality caps and developer diagnostics.
 
 ## Known Limitations
 
@@ -183,10 +205,15 @@ Automated tests cover:
 - Props remain mock.
 - The projected run model still uses sportsbook totals or a neutral fallback.
 - Team rating ranges and Prediction Engine weights are deterministic V1 assumptions, not historically calibrated coefficients.
+- Recent form is configured at zero weight until a normalized provider exists.
+- Data Quality currently marks weather and recent form as missing.
 - Historical prediction storage, ROI, and closing line value tracking are not implemented.
 
 ## Recommended Next Task
 
-Add a reliable bullpen provider or aggregation pipeline, then incorporate bullpen availability and recent workload.
+Add a reliable bullpen provider or aggregation pipeline, then incorporate
+bullpen availability and recent workload.
 
-This would replace the remaining neutral team-strength factor and improve both game probability and explanation quality.
+This would replace the largest remaining neutral team-strength factor, raise
+Data Quality, and improve game probability, confidence, and explanation
+quality.

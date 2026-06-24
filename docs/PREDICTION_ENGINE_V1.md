@@ -31,6 +31,9 @@ It produces:
 - Confidence score
 - Recommendation
 - Explainable model factors
+- Per-factor model breakdown
+- Data Quality score
+- Prediction version
 
 The engine consumes normalized TrueLine models. It does not call MLB or sportsbook APIs directly.
 
@@ -80,8 +83,10 @@ All V1 weights live in `src/services/predictions/config.ts`.
 | Bullpen | 10% |
 | Home field | 10% |
 | Sportsbook implied probability | 5% |
+| Recent form | 0% |
 
-The weights sum to 100%.
+The active weights sum to 100%. Recent form is reserved at zero weight until a
+normalized input is available.
 
 Starting pitcher receives the highest weight. The sportsbook is a low-weight market reference and does not replace the model.
 
@@ -164,7 +169,8 @@ home probability =
   team pitching factor * 0.20 +
   bullpen factor * 0.10 +
   home field factor * 0.10 +
-  sportsbook factor * 0.05
+  sportsbook factor * 0.05 +
+  recent form factor * 0.00
 ```
 
 The implementation divides by total configured weight so future weight changes remain normalized.
@@ -280,7 +286,7 @@ agreement =
   abs(positive factor count - negative factor count) /
   total factor count
 
-confidence =
+raw confidence =
   min(
     100,
     35 +
@@ -288,9 +294,45 @@ confidence =
     edge strength * 20 +
     agreement * 20
   )
+
+final confidence =
+  min(raw confidence, data quality)
 ```
 
 Teams close to `50%`, small edges, and conflicting factors produce lower confidence.
+Incomplete inputs cap confidence even when the raw signals appear strong.
+
+## Model Breakdown
+
+Every factor reports its normalized value, configured weight, availability,
+and percentage-point contribution relative to a neutral `50%` input.
+
+```text
+factor contribution =
+  (factor probability - 0.50) *
+  factor weight /
+  total configured weight *
+  100
+```
+
+Unavailable inputs report zero contribution. See
+[MODEL_INTELLIGENCE.md](MODEL_INTELLIGENCE.md) for the full diagnostics
+contract.
+
+## Data Quality
+
+Every prediction receives a `0` to `100` Data Quality score based on the
+availability of:
+
+- Starting pitchers.
+- Team statistics.
+- Bullpen.
+- Sportsbook market.
+- Recent form.
+- Weather.
+
+Each group reports an availability status and source. This score is separate
+from model probability, edge, and sportsbook odds.
 
 ## Recommendation Thresholds
 
@@ -312,15 +354,18 @@ Every `PredictionResult` includes an explanation array.
 
 V1 explanations identify:
 
-- Starting pitcher advantage or missing pitcher data.
-- Team offense advantage or unavailable offense data.
-- Team pitching advantage or unavailable pitching data.
-- Bullpen advantage or unavailable bullpen data.
-- Home field advantage.
+- Better starting pitcher.
+- Better team offense.
+- Better team pitching.
+- Better bullpen.
+- Better run differential.
+- Better overall rating.
+- Strong home field advantage.
 - Sportsbook probability as a low-weight reference.
 - Selected value side.
 
-React components render these explanations but do not create them.
+Explanations are emitted only when the required data is available. React
+components render them but do not create them.
 
 ## Testing
 
@@ -335,6 +380,11 @@ Automated tests cover:
 - Recommendation thresholds.
 - Deterministic complete prediction output.
 - Recommendation record generation.
+- Weight configuration.
+- Model breakdown calculations.
+- Data Quality and missing-data behavior.
+- Confidence quality caps.
+- Developer diagnostics.
 
 ## Current Limitations
 

@@ -8,6 +8,25 @@ export const PREDICTION_ENGINE_V1_CONFIG = {
     edgeWeight: 20,
   },
   homeFieldWinProbability: 0.54,
+  dataQuality: {
+    weights: {
+      bullpen: 15,
+      pitchers: 30,
+      recentForm: 5,
+      sportsbook: 15,
+      teamStats: 30,
+      weather: 5,
+    },
+  },
+  factorLabels: {
+    bullpen: "Bullpen",
+    homeField: "Home Field",
+    recentForm: "Recent Form",
+    sportsbookMarket: "Sportsbook Market",
+    startingPitcher: "Starting Pitcher",
+    teamOffense: "Team Offense",
+    teamPitching: "Team Pitching",
+  },
   neutralProjectedRuns: 8.6,
   probabilityBounds: {
     maximum: 0.75,
@@ -47,9 +66,11 @@ export const PREDICTION_ENGINE_V1_CONFIG = {
   weights: {
     bullpen: 0.1,
     homeField: 0.1,
-    offense: 0.25,
-    sportsbook: 0.05,
+    recentForm: 0,
+    sportsbookMarket: 0.05,
     startingPitcher: 0.3,
+    teamOffense: 0.25,
     teamPitching: 0.2,
   },
+  version: "1.2.0",
 } as const;

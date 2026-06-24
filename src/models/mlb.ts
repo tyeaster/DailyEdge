@@ -11,6 +11,15 @@ export type PredictionRecommendation =
   | "Play"
   | "Strong Play"
   | "Best Bet";
+export type ModelFactorKey =
+  | "startingPitcher"
+  | "teamOffense"
+  | "teamPitching"
+  | "bullpen"
+  | "homeField"
+  | "sportsbookMarket"
+  | "recentForm";
+export type DataQualityStatus = "available" | "partial" | "missing";
 export type PlayerPropCategory =
   | "Strikeouts"
   | "Hits"
@@ -190,11 +199,42 @@ export interface Prediction {
   teamId?: string;
 }
 
+export interface ModelFactorContribution {
+  available: boolean;
+  contributionPercent: number;
+  label: string;
+  probability: number;
+  weight: number;
+}
+
+export interface ModelBreakdown {
+  factors: Record<ModelFactorKey, ModelFactorContribution>;
+  totalContributionPercent: number;
+}
+
+export interface DataQualityInput {
+  label: string;
+  score: number;
+  source: string;
+  status: DataQualityStatus;
+  weight: number;
+}
+
+export interface DataQuality {
+  inputs: Record<
+    "bullpen" | "pitchers" | "recentForm" | "sportsbook" | "teamStats" | "weather",
+    DataQualityInput
+  >;
+  missingInputs: string[];
+  score: number;
+}
+
 export interface PredictionResult {
   awayFairMoneyline: number;
   awayProjectedRuns: number;
   awayWinProbability: number;
   confidenceScore: number;
+  dataQuality: DataQuality;
   edgePercent: number;
   expectedValuePercent: number;
   explanations: string[];
@@ -203,7 +243,9 @@ export interface PredictionResult {
   homeProjectedRuns: number;
   homeWinProbability: number;
   impliedSportsbookProbability: number;
+  modelBreakdown: ModelBreakdown;
   predictedWinnerTeamId: string;
+  predictionVersion: string;
   projectedTotalRuns: number;
   recommendation: PredictionRecommendation;
   selectedFairMoneyline: number;
