@@ -33,10 +33,12 @@ export type PredictionEngineInput = {
 };
 
 export type PredictionModelFactors = {
+  bullpen: number;
   homeField: number;
+  offense: number;
   sportsbook: number;
   startingPitcher: number;
-  teamRecord: number;
+  teamPitching: number;
 };
 
 export class PredictionEngine {
@@ -341,13 +343,24 @@ function buildFactors({
   homeTeam,
 }: PredictionEngineGameInput): PredictionModelFactors {
   return {
+    bullpen: getTeamRatingHomeProbability(
+      homeTeam.strength?.bullpen.value,
+      awayTeam.strength?.bullpen.value,
+    ),
     homeField: PREDICTION_ENGINE_V1_CONFIG.homeFieldWinProbability,
+    offense: getTeamRatingHomeProbability(
+      homeTeam.strength?.offense.value,
+      awayTeam.strength?.offense.value,
+    ),
     sportsbook: getSportsbookHomeProbability(game),
     startingPitcher: getStartingPitcherHomeProbability(
       homePitcher,
       awayPitcher,
     ),
-    teamRecord: getTeamRecordHomeProbability(homeTeam, awayTeam),
+    teamPitching: getTeamRatingHomeProbability(
+      homeTeam.strength?.pitching.value,
+      awayTeam.strength?.pitching.value,
+    ),
   };
 }
 
@@ -360,7 +373,9 @@ function weightFactors(factors: PredictionModelFactors) {
 
   return (
     (factors.startingPitcher * weights.startingPitcher +
-      factors.teamRecord * weights.teamRecord +
+      factors.offense * weights.offense +
+      factors.teamPitching * weights.teamPitching +
+      factors.bullpen * weights.bullpen +
       factors.homeField * weights.homeField +
       factors.sportsbook * weights.sportsbook) /
     totalWeight
@@ -406,12 +421,15 @@ function getPitcherScore(pitcher: Pitcher | undefined) {
   );
 }
 
-function getTeamRecordHomeProbability(homeTeam: Team, awayTeam: Team) {
-  const homeRecord = homeTeam.record?.winPercentage ?? 0.5;
-  const awayRecord = awayTeam.record?.winPercentage ?? 0.5;
-  const combined = homeRecord + awayRecord;
+function getTeamRatingHomeProbability(
+  homeRating: number | undefined,
+  awayRating: number | undefined,
+) {
+  const normalizedHomeRating = homeRating ?? 50;
+  const normalizedAwayRating = awayRating ?? 50;
+  const combined = normalizedHomeRating + normalizedAwayRating;
 
-  return combined > 0 ? homeRecord / combined : 0.5;
+  return combined > 0 ? normalizedHomeRating / combined : 0.5;
 }
 
 function getSportsbookHomeProbability(game: Game) {
@@ -496,14 +514,34 @@ function buildExplanations({
     explanations.push("Starting pitcher input is neutral or incomplete");
   }
 
-  if (Math.abs(factors.teamRecord - 0.5) >= 0.02) {
+  if (Math.abs(factors.offense - 0.5) >= 0.02) {
     explanations.push(
-      factors.teamRecord > 0.5
-        ? `Better team record: ${homeTeam.abbreviation}`
-        : `Better team record: ${awayTeam.abbreviation}`,
+      factors.offense > 0.5
+        ? `Offensive advantage: ${homeTeam.abbreviation}`
+        : `Offensive advantage: ${awayTeam.abbreviation}`,
     );
   } else {
-    explanations.push("Team records are closely matched");
+    explanations.push("Team offense ratings are closely matched or unavailable");
+  }
+
+  if (Math.abs(factors.teamPitching - 0.5) >= 0.02) {
+    explanations.push(
+      factors.teamPitching > 0.5
+        ? `Team pitching advantage: ${homeTeam.abbreviation}`
+        : `Team pitching advantage: ${awayTeam.abbreviation}`,
+    );
+  } else {
+    explanations.push("Team pitching ratings are closely matched or unavailable");
+  }
+
+  if (Math.abs(factors.bullpen - 0.5) >= 0.02) {
+    explanations.push(
+      factors.bullpen > 0.5
+        ? `Bullpen advantage: ${homeTeam.abbreviation}`
+        : `Bullpen advantage: ${awayTeam.abbreviation}`,
+    );
+  } else {
+    explanations.push("Bullpen ratings are neutral or unavailable");
   }
 
   explanations.push(`Home field advantage: ${homeTeam.abbreviation}`);

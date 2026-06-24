@@ -646,7 +646,7 @@ Implementation and current-state decisions are governed by companion documents:
 
 - [PROJECT_PRINCIPLES.md](../PROJECT_PRINCIPLES.md) defines the engineering constitution and enduring development principles.
 - [MODEL_SPEC.md](MODEL_SPEC.md) defines the intended model inputs, outputs, and domain requirements.
-- `PROJECT_STATE.md` should define the current implementation status, active providers, known limitations, and immediate next work once that document is added to the repository.
+- [PROJECT_STATE.md](PROJECT_STATE.md) defines the current implementation status, active providers, known limitations, and immediate next work.
 
 These documents serve different purposes:
 

@@ -8,4 +8,5 @@ export const CACHE_TTL_SECONDS = {
   odds: 60,
   pitcher: 3600,
   schedule: 300,
+  teamStrength: 3600,
 } as const;

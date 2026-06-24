@@ -45,10 +45,53 @@ export interface ValueAssessment {
   valueRating: ValueRating;
 }
 
+export interface OffensiveRating {
+  available: boolean;
+  battingAverage: number;
+  ops: number;
+  runsPerGame: number;
+  value: number;
+  walkRate: number;
+  strikeoutRate: number;
+}
+
+export interface PitchingRating {
+  available: boolean;
+  era: number;
+  runsAllowedPerGame: number;
+  value: number;
+  whip: number;
+}
+
+export interface BullpenRating {
+  available: boolean;
+  era?: number;
+  value: number;
+  whip?: number;
+}
+
+export interface OverallTeamRating {
+  available: boolean;
+  runDifferential: number;
+  value: number;
+}
+
+export interface TeamStrength {
+  bullpen: BullpenRating;
+  fetchedAt: string;
+  offense: OffensiveRating;
+  overall: OverallTeamRating;
+  pitching: PitchingRating;
+  source: "live" | "mock" | "replay" | "unavailable";
+}
+
 export interface Team {
   abbreviation: string;
   city: string;
   division: MlbDivision;
+  externalIds?: {
+    mlb?: number;
+  };
   id: string;
   league: MlbLeague;
   record?: {
@@ -56,6 +99,7 @@ export interface Team {
     winPercentage: number;
     wins: number;
   };
+  strength?: TeamStrength;
   name: string;
 }
 

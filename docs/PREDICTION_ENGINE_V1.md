@@ -57,7 +57,9 @@ V1 uses:
 
 - Home team
 - Away team
-- Team win percentages
+- Team offense rating
+- Team pitching rating
+- Bullpen rating when available
 - Home field advantage
 - Starting pitcher ERA, WHIP, and strikeout rate when available
 - Sportsbook moneyline
@@ -72,10 +74,12 @@ All V1 weights live in `src/services/predictions/config.ts`.
 
 | Factor | Weight |
 | --- | ---: |
-| Starting pitcher | 45% |
-| Team record | 25% |
-| Home field | 20% |
-| Sportsbook implied probability | 10% |
+| Starting pitcher | 30% |
+| Team offense | 25% |
+| Team pitching | 20% |
+| Bullpen | 10% |
+| Home field | 10% |
+| Sportsbook implied probability | 5% |
 
 The weights sum to 100%.
 
@@ -106,15 +110,22 @@ If pitcher statistics are unavailable, that pitcher receives a neutral `0.50` qu
 
 These ranges are transparent V1 normalization bounds, not a trained baseball model.
 
-### Team Record
+### Team Strength
 
 ```text
-Team record factor =
-  home win percentage /
-  (home win percentage + away win percentage)
+home factor =
+  home rating /
+  (home rating + away rating)
 ```
 
-Missing records use `0.50`.
+This comparison is applied independently to offense, team pitching, and
+bullpen ratings.
+
+Missing or unavailable ratings use `50`, producing a neutral factor when both
+teams lack the same input.
+
+See [TEAM_STRENGTH_MODEL.md](TEAM_STRENGTH_MODEL.md) for raw metrics and rating
+formulas.
 
 ### Home Field
 
@@ -148,10 +159,12 @@ V1 uses the normalized home-side implied probability as a low-weight factor.
 
 ```text
 home probability =
-  pitcher factor * 0.45 +
-  team record factor * 0.25 +
-  home field factor * 0.20 +
-  sportsbook factor * 0.10
+  pitcher factor * 0.30 +
+  offense factor * 0.25 +
+  team pitching factor * 0.20 +
+  bullpen factor * 0.10 +
+  home field factor * 0.10 +
+  sportsbook factor * 0.05
 ```
 
 The implementation divides by total configured weight so future weight changes remain normalized.
@@ -300,7 +313,9 @@ Every `PredictionResult` includes an explanation array.
 V1 explanations identify:
 
 - Starting pitcher advantage or missing pitcher data.
-- Better team record or closely matched records.
+- Team offense advantage or unavailable offense data.
+- Team pitching advantage or unavailable pitching data.
+- Bullpen advantage or unavailable bullpen data.
 - Home field advantage.
 - Sportsbook probability as a low-weight reference.
 - Selected value side.
@@ -324,7 +339,8 @@ Automated tests cover:
 ## Current Limitations
 
 - Starting pitcher data from the live schedule may include identity without ERA, WHIP, or strikeout rate. Missing fields remain neutral.
-- Team records depend on the live schedule response and use neutral values when absent.
+- Team strength uses season-to-date official MLB totals and deterministic V1 rating ranges.
+- Bullpen-only metrics are currently unavailable and remain neutral.
 - Projected runs use the sportsbook total rather than an independent run model.
 - V1 does not remove vig from every live market pairing before the sportsbook factor is used.
 - No historical training, backtesting, calibration, or model fitting is included.
@@ -336,7 +352,7 @@ Automated tests cover:
 The inputs most likely to improve accuracy are:
 
 1. Starting pitcher advanced metrics and projected workload.
-2. Team offensive quality and handedness splits.
+2. Team offensive handedness splits and lineup-level quality.
 3. Bullpen quality, availability, and recent workload.
 4. Confirmed lineups and injuries.
 5. Park factors.

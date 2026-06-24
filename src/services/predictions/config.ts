@@ -45,9 +45,11 @@ export const PREDICTION_ENGINE_V1_CONFIG = {
     recommendation: Exclude<PredictionRecommendation, "Pass">;
   }>,
   weights: {
-    homeField: 0.2,
-    sportsbook: 0.1,
-    startingPitcher: 0.45,
-    teamRecord: 0.25,
+    bullpen: 0.1,
+    homeField: 0.1,
+    offense: 0.25,
+    sportsbook: 0.05,
+    startingPitcher: 0.3,
+    teamPitching: 0.2,
   },
 } as const;

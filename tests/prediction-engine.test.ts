@@ -22,6 +22,28 @@ const homeTeam: Team = {
     winPercentage: 0.62,
     wins: 57,
   },
+  strength: {
+    bullpen: { available: true, era: 3.4, value: 72, whip: 1.18 },
+    fetchedAt: "2026-06-24T12:00:00.000Z",
+    offense: {
+      available: true,
+      battingAverage: 0.261,
+      ops: 0.783,
+      runsPerGame: 5.24,
+      strikeoutRate: 0.205,
+      value: 70,
+      walkRate: 0.106,
+    },
+    overall: { available: true, runDifferential: 143, value: 81 },
+    pitching: {
+      available: true,
+      era: 3.42,
+      runsAllowedPerGame: 3.45,
+      value: 85,
+      whip: 1.1,
+    },
+    source: "live",
+  },
 };
 
 const awayTeam: Team = {
@@ -35,6 +57,28 @@ const awayTeam: Team = {
     losses: 48,
     winPercentage: 0.47,
     wins: 42,
+  },
+  strength: {
+    bullpen: { available: true, era: 4.4, value: 42, whip: 1.36 },
+    fetchedAt: "2026-06-24T12:00:00.000Z",
+    offense: {
+      available: true,
+      battingAverage: 0.235,
+      ops: 0.69,
+      runsPerGame: 3.9,
+      strikeoutRate: 0.25,
+      value: 38,
+      walkRate: 0.075,
+    },
+    overall: { available: true, runDifferential: -40, value: 42 },
+    pitching: {
+      available: true,
+      era: 4.3,
+      runsAllowedPerGame: 4.7,
+      value: 43,
+      whip: 1.32,
+    },
+    source: "live",
   },
 };
 
@@ -140,17 +184,17 @@ test("produces a deterministic V1 prediction result", () => {
     homeTeam,
   });
 
-  assert.equal(Number(prediction.homeWinProbability.toFixed(3)), 0.583);
-  assert.equal(Number(prediction.awayWinProbability.toFixed(3)), 0.417);
-  assert.equal(prediction.homeProjectedRuns, 5);
-  assert.equal(prediction.awayProjectedRuns, 3.5);
+  assert.equal(Number(prediction.homeWinProbability.toFixed(3)), 0.625);
+  assert.equal(Number(prediction.awayWinProbability.toFixed(3)), 0.375);
+  assert.equal(prediction.homeProjectedRuns, 5.3);
+  assert.equal(prediction.awayProjectedRuns, 3.2);
   assert.equal(prediction.projectedTotalRuns, 8.5);
-  assert.equal(prediction.homeFairMoneyline, -140);
-  assert.equal(prediction.awayFairMoneyline, 140);
-  assert.equal(prediction.edgePercent, 3.8);
-  assert.equal(prediction.expectedValuePercent, 7);
-  assert.equal(prediction.confidenceScore, 73);
-  assert.equal(prediction.recommendation, "Play");
+  assert.equal(prediction.homeFairMoneyline, -167);
+  assert.equal(prediction.awayFairMoneyline, 167);
+  assert.equal(prediction.edgePercent, 8);
+  assert.equal(prediction.expectedValuePercent, 14.6);
+  assert.equal(prediction.confidenceScore, 87);
+  assert.equal(prediction.recommendation, "Strong Play");
   assert.equal(prediction.predictedWinnerTeamId, homeTeam.id);
   assert.ok(prediction.explanations.length >= 4);
 });
@@ -170,26 +214,63 @@ test("confidence rises with clearer advantage, larger edge, and factor agreement
   const evenConfidence = calculateConfidence({
     edgePercent: 0.5,
     factors: {
+      bullpen: 0.5,
       homeField: 0.5,
+      offense: 0.5,
       sportsbook: 0.5,
       startingPitcher: 0.5,
-      teamRecord: 0.5,
+      teamPitching: 0.5,
     },
     homeWinProbability: 0.51,
   });
   const clearConfidence = calculateConfidence({
     edgePercent: 8,
     factors: {
+      bullpen: 0.63,
       homeField: 0.54,
+      offense: 0.65,
       sportsbook: 0.58,
       startingPitcher: 0.65,
-      teamRecord: 0.62,
+      teamPitching: 0.66,
     },
     homeWinProbability: 0.64,
   });
 
   assert.ok(clearConfidence > evenConfidence);
   assert.ok(clearConfidence <= 100);
+});
+
+test("team strength inputs change the model probability", () => {
+  const engine = new PredictionEngine();
+  const strongHomePrediction = engine.predictGame({
+    awayPitcher,
+    awayTeam,
+    game,
+    homePitcher,
+    homeTeam,
+  });
+  const neutralHomePrediction = engine.predictGame({
+    awayPitcher,
+    awayTeam: { ...awayTeam, strength: undefined },
+    game,
+    homePitcher,
+    homeTeam: { ...homeTeam, strength: undefined },
+  });
+
+  assert.ok(
+    strongHomePrediction.homeWinProbability >
+      neutralHomePrediction.homeWinProbability,
+  );
+  assert.ok(
+    strongHomePrediction.explanations.some((explanation) =>
+      explanation.includes("Offensive advantage"),
+    ),
+  );
+  assert.ok(
+    strongHomePrediction.explanations.some((explanation) =>
+      explanation.includes("Team pitching advantage"),
+    ),
+  );
 });
 
 test("applies recommendation thresholds deterministically", () => {
@@ -259,7 +340,7 @@ test("builds recommendation records from prediction results", () => {
 
   assert.equal(recommendations.length, 1);
   assert.equal(recommendations[0].selection, "LAD moneyline");
-  assert.equal(recommendations[0].prediction.projection, "-140");
+  assert.equal(recommendations[0].prediction.projection, "-167");
   assert.equal(recommendations[0].rank, 1);
-  assert.equal(recommendations[0].recommendedUnits, 0.75);
+  assert.equal(recommendations[0].recommendedUnits, 1);
 });

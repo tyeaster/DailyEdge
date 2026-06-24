@@ -16,6 +16,8 @@ Current examples include:
 
 - `getDailySlate()` for the homepage view model.
 - `OddsService` for odds provider selection, odds retrieval, replay support, and cache usage.
+- `PitcherService` for cached probable-starter enrichment.
+- `TeamStrengthService` for cached offense, pitching, bullpen, and overall team ratings.
 
 Services should be the only place where provider selection happens.
 

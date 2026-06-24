@@ -91,6 +91,21 @@ MLB_PEOPLE_API_URL=https://statsapi.mlb.com/api/v1/people
 Pitcher mode follows `ODDS_MODE=replay` or `ODDS_MODE=mock` when
 `PITCHER_MODE` is not set. Live pitcher lookups are cached for one hour.
 
+Current team-strength configuration:
+
+```text
+TEAM_STRENGTH_MODE=live
+TEAM_STRENGTH_MODE=replay
+TEAM_STRENGTH_MODE=mock
+TEAM_STRENGTH_RECORD=true
+TEAM_STRENGTH_REPLAY_DIR=replay/team-strength
+TEAM_STRENGTH_REPLAY_FILE=replay/team-strength/example.json
+MLB_TEAMS_API_URL=https://statsapi.mlb.com/api/v1/teams
+```
+
+Team-strength mode follows pitcher or odds replay/mock mode when no
+team-specific mode is configured. Team-season lookups are cached for one hour.
+
 ## Future Providers
 
 Potential future providers:

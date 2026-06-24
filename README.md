@@ -10,6 +10,8 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 - [Model Spec](docs/MODEL_SPEC.md)
 - [MLB Prediction Model V1](docs/MODEL_SPEC_V1.md)
 - [Prediction Engine V1](docs/PREDICTION_ENGINE_V1.md)
+- [Team Strength Model](docs/TEAM_STRENGTH_MODEL.md)
+- [Project State](docs/PROJECT_STATE.md)
 - [Scoring](docs/SCORING.md)
 - [Style Guide](docs/STYLE_GUIDE.md)
 

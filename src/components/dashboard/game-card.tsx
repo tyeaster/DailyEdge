@@ -89,6 +89,19 @@ export function GameCard({
         </div>
       </div>
 
+      <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.025] p-3">
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+          Team Comparison
+        </p>
+        <div className="mt-3 grid grid-cols-[1fr_auto_1fr] items-start gap-3">
+          <TeamSummary team={awayTeam} />
+          <span className="pt-1 text-xs font-semibold uppercase text-slate-600">
+            vs
+          </span>
+          <TeamSummary align="right" team={homeTeam} />
+        </div>
+      </div>
+
       <div className="mt-5 grid gap-2 text-sm">
         <GameLine
           label="Predicted winner"
@@ -167,6 +180,38 @@ export function GameCard({
       </div>
     </DashboardCard>
   );
+}
+
+function TeamSummary({
+  align = "left",
+  team,
+}: {
+  align?: "left" | "right";
+  team: Team;
+}) {
+  const alignment = align === "right" ? "text-right" : "text-left";
+
+  return (
+    <div className={cn("min-w-0", alignment)}>
+      <p className="text-sm font-semibold text-white">{team.abbreviation}</p>
+      <div className="mt-2 space-y-1 text-xs text-slate-400">
+        <p>Offense {formatRating(team.strength?.offense.value)}</p>
+        <p>Pitching {formatRating(team.strength?.pitching.value)}</p>
+        <p>
+          Bullpen{" "}
+          {formatRating(
+            team.strength?.bullpen.value,
+            team.strength?.bullpen.available,
+          )}
+        </p>
+        <p>Overall {formatRating(team.strength?.overall.value)}</p>
+      </div>
+    </div>
+  );
+}
+
+function formatRating(value: number | undefined, available = true) {
+  return available && value !== undefined ? String(value) : "—";
 }
 
 function PitcherSummary({

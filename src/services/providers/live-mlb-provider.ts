@@ -12,6 +12,7 @@ import type {
 import { formatAmericanOdds } from "@/src/lib/odds";
 import { pitcherService } from "@/src/services/PitcherService";
 import { predictionEngine } from "@/src/services/predictions";
+import { teamStrengthService } from "@/src/services/TeamStrengthService";
 import type { SlateMeta } from "@/src/types/mlb-dashboard";
 
 import { mockDataProvider } from "./mock-data-provider";
@@ -275,11 +276,15 @@ async function fetchSchedule(): Promise<LiveSchedule> {
     throw new Error("MLB schedule returned no games for today");
   }
 
-  const teams = uniqueById(
+  const baseTeams = uniqueById(
     apiGames.flatMap((game) => [
       normalizeTeam(game.teams.away.team, game.teams.away.leagueRecord),
       normalizeTeam(game.teams.home.team, game.teams.home.leagueRecord),
     ]),
+  );
+  const teams = await teamStrengthService.enrichTeams(
+    baseTeams,
+    date.getFullYear(),
   );
   const basePitchers = uniqueById(
     apiGames.flatMap((game) => [
@@ -381,6 +386,9 @@ function normalizeTeam(team: MlbScheduleTeam, record?: MlbScheduleRecord): Team 
     abbreviation: metadata.abbreviation,
     city: getCity(team.name),
     division: metadata.division,
+    externalIds: {
+      mlb: team.id,
+    },
     id: `mlb-team-${team.id}`,
     league: metadata.league,
     name: getNickname(team.name),
