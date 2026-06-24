@@ -9,6 +9,13 @@ import type {
   Weather,
 } from "@/src/models/mlb";
 import { buildValueAssessment } from "@/src/lib/odds";
+import { oddsService } from "@/src/services/OddsService";
+import { applyOddsToGames } from "@/src/services/odds";
+import {
+  applyPredictionsToGames,
+  buildPredictionRecommendations,
+  predictionEngine,
+} from "@/src/services/predictions";
 import { liveMLBProvider, mockDataProvider } from "@/src/services/providers";
 import type { DailyEdgeDataProvider } from "@/src/services/providers";
 import type { DashboardNavItem, KpiMetric } from "@/src/types/mlb-dashboard";
@@ -68,7 +75,6 @@ async function buildDailySlate(
     props,
     weatherReports,
     injuries,
-    bets,
   ] = await Promise.all([
     provider.getSlateMeta(),
     provider.games.list(),
@@ -78,16 +84,31 @@ async function buildDailySlate(
     provider.props.list(),
     provider.weather.list(),
     provider.injuries.list(),
-    provider.bets.list(),
   ]);
 
   const teamById = toRecord(teams);
   const playerById = toRecord(players);
   const pitcherById = toRecord(pitchers);
   const weatherById = toRecord(weatherReports);
-  const valuedGames = games.map(addGameValue);
-  const valuedBets = bets.map(addBetValue);
+  const oddsRecords = await loadGameOddsRecords();
+  const oddsBackedGames = applyOddsToGames({ games, oddsRecords, teamById });
+  const gamePredictions = predictionEngine.predictSlate({
+    games: oddsBackedGames,
+    pitcherById,
+    teamById,
+  });
+  const predictedGames = applyPredictionsToGames({
+    games: oddsBackedGames,
+    predictions: gamePredictions,
+  });
+  const valuedGames = predictedGames.map(addGameValue);
+  const valuedBets = buildPredictionRecommendations({
+    games: valuedGames,
+    predictions: gamePredictions,
+    teamById,
+  }).map(addBetValue);
   const valuedGameById = toRecord(valuedGames);
+  const averageConfidence = getAverageConfidence(valuedGames);
 
   return {
     bets: buildBets(valuedBets, playerById, teamById),
@@ -103,10 +124,11 @@ async function buildDailySlate(
         team: getRequired(teamById, injury.teamId, "team"),
       };
     }),
-    kpiMetrics: buildKpis(slateMeta.averageConfidence, valuedGames, valuedBets),
+    kpiMetrics: buildKpis(averageConfidence, valuedGames, valuedBets),
     propCategories: buildPropCategories(props, playerById, teamById),
     slateMeta: {
       ...slateMeta,
+      averageConfidence,
       dataSource,
       gamesToday: valuedGames.length,
     },
@@ -123,14 +145,43 @@ async function buildDailySlate(
   };
 }
 
+function getAverageConfidence(games: Game[]) {
+  if (games.length === 0) {
+    return "0%";
+  }
+
+  const average =
+    games.reduce((total, game) => total + game.confidence.value, 0) / games.length;
+
+  return `${Math.round(average)}%`;
+}
+
+async function loadGameOddsRecords() {
+  try {
+    const response = await oddsService.getOdds({
+      markets: ["moneyline", "spread", "total"],
+      sport: "mlb",
+    });
+
+    return response.records;
+  } catch {
+    return [];
+  }
+}
+
 function addGameValue(game: Game): Game {
+  const prediction = game.prediction;
+
   return {
     ...game,
     value: buildValueAssessment({
-      modelProbability: game.modelProbability,
-      recommendation: game.confidence.value >= 75 ? "0.75u" : "0.25u",
-      sportsbookLine: game.odds.moneyline.displayLine,
-      sportsbookOdds: game.odds.moneyline.price,
+      modelProbability:
+        prediction?.selectedWinProbability ?? game.modelProbability,
+      recommendation: prediction?.recommendation ?? "Pass",
+      sportsbookLine:
+        prediction?.sportsbookLine ?? game.odds.moneyline.displayLine,
+      sportsbookOdds:
+        prediction?.sportsbookMoneyline ?? game.odds.moneyline.price,
     }),
   };
 }

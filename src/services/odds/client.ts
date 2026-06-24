@@ -15,6 +15,7 @@ export async function getOddsQuotes(): Promise<ServiceResult<OddsQuote[]>> {
           sport: "MLB",
           type: record.market,
         },
+        impliedProbability: record.impliedProbability,
         price: record.americanOdds,
         sportsbook: {
           id: record.sportsbook.toLowerCase().replaceAll(" ", "-"),

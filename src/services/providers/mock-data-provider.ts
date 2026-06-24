@@ -5,11 +5,11 @@ import {
   pitchers,
   playerProps,
   players,
-  predictions,
   slateMeta,
   teams,
   weatherReports,
 } from "@/mock";
+import { formatAmericanOdds } from "@/src/lib/odds";
 import type {
   BetRecommendation,
   Game,
@@ -21,6 +21,7 @@ import type {
   Team,
   Weather,
 } from "@/src/models/mlb";
+import { predictionEngine } from "@/src/services/predictions";
 
 import type {
   BetsProvider,
@@ -79,7 +80,7 @@ export class MockDataProvider implements DailyEdgeDataProvider {
   readonly players: PlayersProvider = new StaticPlayersProvider(players, pitchers);
 
   readonly predictions: PredictionsProvider = new StaticDataProvider<Prediction>(
-    predictions,
+    buildMockPredictions(),
   );
 
   readonly props: PropsProvider = new StaticDataProvider<PlayerProp>(playerProps);
@@ -94,3 +95,53 @@ export class MockDataProvider implements DailyEdgeDataProvider {
 }
 
 export const mockDataProvider = new MockDataProvider();
+
+function buildMockPredictions(): Prediction[] {
+  const teamById = Object.fromEntries(teams.map((team) => [team.id, team]));
+  const pitcherById = Object.fromEntries(
+    pitchers.map((pitcher) => [pitcher.id, pitcher]),
+  );
+
+  return predictionEngine
+    .predictSlate({
+      games,
+      pitcherById,
+      teamById,
+    })
+    .map((result) => ({
+      confidence: toConfidenceScore(result.confidenceScore),
+      edge: {
+        percentage: result.edgePercent,
+        rating:
+          result.edgePercent >= 8
+            ? "S"
+            : result.edgePercent >= 5
+              ? "A"
+              : result.edgePercent >= 3
+                ? "B"
+                : "C",
+      },
+      gameId: result.gameId,
+      id: `prediction-${result.gameId}-${result.selectedTeamId}-moneyline`,
+      market: "moneyline",
+      projection: formatAmericanOdds(result.selectedFairMoneyline),
+      reasoning: result.explanations.join(". "),
+      teamId: result.selectedTeamId,
+    }));
+}
+
+function toConfidenceScore(value: number): Prediction["confidence"] {
+  if (value >= 82) {
+    return { label: "Elite", value };
+  }
+
+  if (value >= 72) {
+    return { label: "High", value };
+  }
+
+  if (value >= 58) {
+    return { label: "Medium", value };
+  }
+
+  return { label: "Low", value };
+}

@@ -5,9 +5,12 @@ import type {
   MlbLeague,
   Pitcher,
   Player,
+  Prediction,
   Team,
   Weather,
 } from "@/src/models/mlb";
+import { formatAmericanOdds } from "@/src/lib/odds";
+import { predictionEngine } from "@/src/services/predictions";
 import type { SlateMeta } from "@/src/types/mlb-dashboard";
 
 import { mockDataProvider } from "./mock-data-provider";
@@ -33,6 +36,12 @@ type MlbScheduleTeam = {
   name: string;
 };
 
+type MlbScheduleRecord = {
+  losses?: number;
+  pct?: string;
+  wins?: number;
+};
+
 type MlbSchedulePitcher = {
   fullName: string;
   id: number;
@@ -48,10 +57,12 @@ type MlbScheduleGame = {
   };
   teams: {
     away: {
+      leagueRecord?: MlbScheduleRecord;
       probablePitcher?: MlbSchedulePitcher;
       team: MlbScheduleTeam;
     };
     home: {
+      leagueRecord?: MlbScheduleRecord;
       probablePitcher?: MlbSchedulePitcher;
       team: MlbScheduleTeam;
     };
@@ -159,6 +170,45 @@ class LiveTeamsProvider extends LiveScheduleProvider<Team> implements TeamsProvi
   }
 }
 
+class LivePredictionsProvider
+  extends LiveScheduleProvider<Prediction>
+  implements PredictionsProvider
+{
+  constructor(loadSchedule: () => Promise<LiveSchedule>) {
+    super(loadSchedule, (schedule) => {
+      const teamById = toRecord(schedule.teams);
+      const pitcherById = toRecord(schedule.pitchers);
+
+      return predictionEngine
+        .predictSlate({
+          games: schedule.games,
+          pitcherById,
+          teamById,
+        })
+        .map((prediction): Prediction => ({
+          confidence: toConfidenceScore(prediction.confidenceScore),
+          edge: {
+            percentage: prediction.edgePercent,
+            rating:
+              prediction.edgePercent >= 8
+                ? "S"
+                : prediction.edgePercent >= 5
+                  ? "A"
+                  : prediction.edgePercent >= 3
+                    ? "B"
+                    : "C",
+          },
+          gameId: prediction.gameId,
+          id: `prediction-${prediction.gameId}-${prediction.selectedTeamId}-moneyline`,
+          market: "moneyline",
+          projection: formatAmericanOdds(prediction.selectedFairMoneyline),
+          reasoning: prediction.explanations.join(". "),
+          teamId: prediction.selectedTeamId,
+        }));
+    });
+  }
+}
+
 export class LiveMLBProvider implements DailyEdgeDataProvider {
   readonly bets: BetsProvider = mockDataProvider.bets;
 
@@ -174,7 +224,9 @@ export class LiveMLBProvider implements DailyEdgeDataProvider {
     mockDataProvider.players,
   );
 
-  readonly predictions: PredictionsProvider = mockDataProvider.predictions;
+  readonly predictions: PredictionsProvider = new LivePredictionsProvider(
+    () => this.loadSchedule(),
+  );
 
   readonly props: PropsProvider = mockDataProvider.props;
 
@@ -224,8 +276,8 @@ async function fetchSchedule(): Promise<LiveSchedule> {
 
   const teams = uniqueById(
     apiGames.flatMap((game) => [
-      normalizeTeam(game.teams.away.team),
-      normalizeTeam(game.teams.home.team),
+      normalizeTeam(game.teams.away.team, game.teams.away.leagueRecord),
+      normalizeTeam(game.teams.home.team, game.teams.home.leagueRecord),
     ]),
   );
   const pitchers = uniqueById(
@@ -236,8 +288,8 @@ async function fetchSchedule(): Promise<LiveSchedule> {
   );
   const weather = apiGames.map(normalizeWeather);
   const games = apiGames.map((game): Game => {
-    const awayTeam = normalizeTeam(game.teams.away.team);
-    const homeTeam = normalizeTeam(game.teams.home.team);
+    const awayTeam = normalizeTeam(game.teams.away.team, game.teams.away.leagueRecord);
+    const homeTeam = normalizeTeam(game.teams.home.team, game.teams.home.leagueRecord);
 
     return {
       awayPitcherId: normalizePitcher(
@@ -313,7 +365,7 @@ async function fetchSchedule(): Promise<LiveSchedule> {
   };
 }
 
-function normalizeTeam(team: MlbScheduleTeam): Team {
+function normalizeTeam(team: MlbScheduleTeam, record?: MlbScheduleRecord): Team {
   const metadata = teamMetadata[team.id] ?? {
     abbreviation: getAbbreviation(team.name),
     division: "East" satisfies MlbDivision,
@@ -327,6 +379,7 @@ function normalizeTeam(team: MlbScheduleTeam): Team {
     id: `mlb-team-${team.id}`,
     league: metadata.league,
     name: getNickname(team.name),
+    record: normalizeRecord(record),
   };
 }
 
@@ -366,6 +419,20 @@ function normalizePitcher(
     teamId,
     throws: "R",
     whip: 0,
+  };
+}
+
+function normalizeRecord(record: MlbScheduleRecord | undefined) {
+  const wins = record?.wins ?? 0;
+  const losses = record?.losses ?? 0;
+  const parsedPct = record?.pct ? Number(record.pct) : Number.NaN;
+  const winPercentage =
+    Number.isFinite(parsedPct) ? parsedPct : wins + losses > 0 ? wins / (wins + losses) : 0.5;
+
+  return {
+    losses,
+    winPercentage,
+    wins,
   };
 }
 
@@ -450,6 +517,29 @@ function mergeById<TData extends { id: string }>(primary: TData[], fallback: TDa
 
 function uniqueById<TData extends { id: string }>(items: TData[]) {
   return Array.from(new Map(items.map((item) => [item.id, item])).values());
+}
+
+function toRecord<TData extends { id: string }>(items: TData[]) {
+  return Object.fromEntries(items.map((item) => [item.id, item])) as Record<
+    string,
+    TData
+  >;
+}
+
+function toConfidenceScore(value: number): Prediction["confidence"] {
+  if (value >= 82) {
+    return { label: "Elite", value };
+  }
+
+  if (value >= 72) {
+    return { label: "High", value };
+  }
+
+  if (value >= 58) {
+    return { label: "Medium", value };
+  }
+
+  return { label: "Low", value };
 }
 
 const teamMetadata: Record<

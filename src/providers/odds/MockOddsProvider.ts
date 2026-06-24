@@ -1,4 +1,5 @@
 import { betRecommendations, games } from "@/mock";
+import { americanOddsToImpliedProbability } from "@/src/lib/odds";
 
 import type {
   NormalizedOddsRecord,
@@ -17,6 +18,7 @@ export class MockOddsProvider implements OddsProvider {
         americanOdds: game.odds.moneyline.price,
         eventId: game.id,
         id: `${game.odds.moneyline.id}-mock`,
+        impliedProbability: americanOddsToImpliedProbability(game.odds.moneyline.price),
         line: game.odds.moneyline.line,
         market: game.odds.moneyline.market,
         selection: game.odds.moneyline.displayLine,
@@ -27,6 +29,7 @@ export class MockOddsProvider implements OddsProvider {
         americanOdds: game.odds.spread.price,
         eventId: game.id,
         id: `${game.odds.spread.id}-mock`,
+        impliedProbability: americanOddsToImpliedProbability(game.odds.spread.price),
         line: game.odds.spread.line,
         market: game.odds.spread.market,
         selection: game.odds.spread.displayLine,
@@ -37,6 +40,7 @@ export class MockOddsProvider implements OddsProvider {
         americanOdds: game.odds.total.price,
         eventId: game.id,
         id: `${game.odds.total.id}-mock`,
+        impliedProbability: americanOddsToImpliedProbability(game.odds.total.price),
         line: game.odds.total.line,
         market: game.odds.total.market,
         selection: game.odds.total.displayLine,
@@ -48,6 +52,7 @@ export class MockOddsProvider implements OddsProvider {
       americanOdds: bet.odds.price,
       eventId: bet.gameId,
       id: `${bet.odds.id}-mock`,
+      impliedProbability: americanOddsToImpliedProbability(bet.odds.price),
       line: bet.odds.line,
       market: bet.odds.market,
       selection: bet.selection,

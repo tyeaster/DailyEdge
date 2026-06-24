@@ -57,7 +57,7 @@ function getOddsMode(): OddsProviderMode {
     return mode;
   }
 
-  return "mock";
+  return "live";
 }
 
 function getCacheKey(providerId: string, request: OddsProviderRequest) {

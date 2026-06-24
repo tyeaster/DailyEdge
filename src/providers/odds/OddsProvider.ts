@@ -11,12 +11,17 @@ export type OddsProviderRequest = {
 
 export type NormalizedOddsRecord = {
   americanOdds: number;
+  awayTeam?: string;
   eventId?: string;
+  homeTeam?: string;
   id: string;
+  impliedProbability: number;
   line?: number;
   market: OddsMarket;
   selection: string;
+  side?: "away" | "home" | "over" | "under";
   sportsbook: string;
+  teamName?: string;
   updatedAt: string;
 };
 

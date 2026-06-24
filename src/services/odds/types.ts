@@ -6,6 +6,7 @@ export type Sportsbook = {
 };
 
 export type OddsQuote = {
+  impliedProbability: number;
   market: BettingMarket;
   price: number;
   sportsbook: Sportsbook;

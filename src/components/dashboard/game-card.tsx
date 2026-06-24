@@ -6,6 +6,7 @@ import type { Game, Pitcher, Team, Weather } from "@/src/models/mlb";
 
 import { Badge } from "@/src/components/ui";
 import { cn } from "@/src/lib/cn";
+import { formatAmericanOdds, formatPercentage } from "@/src/lib/odds";
 
 import { DashboardCard } from "./dashboard-card";
 
@@ -29,6 +30,16 @@ export function GameCard({
     .split("-")
     .map((part) => part[0].toUpperCase() + part.slice(1))
     .join(" ");
+  const prediction = game.prediction;
+  const predictedWinner = prediction
+    ? prediction.predictedWinnerTeamId === homeTeam.id
+      ? homeTeam
+      : awayTeam
+    : undefined;
+  const predictedWinnerProbability =
+    prediction?.predictedWinnerTeamId === homeTeam.id
+      ? prediction.homeWinProbability
+      : prediction?.awayWinProbability;
 
   return (
     <DashboardCard
@@ -59,19 +70,67 @@ export function GameCard({
           </h3>
           <p className="mt-1 text-sm text-slate-400">{game.venue}</p>
         </div>
-        <Badge className="border-emerald-300/20 bg-emerald-400/10 text-emerald-200">
-          {game.confidence.value}%
+        <Badge
+          className="border-emerald-300/20 bg-emerald-400/10 text-emerald-200"
+          variant={prediction?.recommendation === "Pass" ? "neutral" : "success"}
+        >
+          {prediction?.recommendation ?? "Pending"}
         </Badge>
       </div>
 
       <div className="mt-5 grid gap-2 text-sm">
         <GameLine label="Away SP" value={awayPitcher.fullName} />
         <GameLine label="Home SP" value={homePitcher.fullName} />
-        <GameLine label="Moneyline" value={game.odds.moneyline.displayLine} />
-        <GameLine label="DailyEdge fair line" value={game.value?.display.fairLine ?? "Pending"} />
-        <GameLine label="Edge" value={game.value?.display.edgePercent ?? "0.0%"} />
-        <GameLine label="Value rating" value={game.value?.valueRating ?? "No Edge"} />
-        <GameLine label="Recommended units" value={game.value?.recommendation ?? "Pass"} />
+        <GameLine
+          label="Predicted winner"
+          value={predictedWinner?.name ?? "Pending"}
+        />
+        <GameLine
+          label="Win probability"
+          value={
+            predictedWinnerProbability === undefined
+              ? "Pending"
+              : formatPercentage(predictedWinnerProbability * 100)
+          }
+        />
+        <GameLine
+          label="Projected score"
+          value={
+            prediction
+              ? `${awayTeam.abbreviation} ${prediction.awayProjectedRuns.toFixed(1)} - ${homeTeam.abbreviation} ${prediction.homeProjectedRuns.toFixed(1)}`
+              : "Pending"
+          }
+        />
+        <GameLine
+          label="Model fair line"
+          value={
+            prediction
+              ? formatAmericanOdds(prediction.selectedFairMoneyline)
+              : "Pending"
+          }
+        />
+        <GameLine
+          label="Sportsbook line"
+          value={prediction?.sportsbookLine ?? game.odds.moneyline.displayLine}
+        />
+        <GameLine
+          label="Edge"
+          value={
+            prediction ? formatPercentage(prediction.edgePercent) : "0.0%"
+          }
+        />
+        <GameLine
+          label="Expected value"
+          value={
+            prediction
+              ? formatPercentage(prediction.expectedValuePercent)
+              : "0.0%"
+          }
+        />
+        <GameLine
+          label="Confidence"
+          value={`${prediction?.confidenceScore ?? game.confidence.value}%`}
+        />
         <GameLine label="Spread" value={game.odds.spread.displayLine} />
         <GameLine label="Total" value={game.odds.total.displayLine} />
         <GameLine label="Weather" value={weather.summary} />
@@ -85,7 +144,15 @@ export function GameCard({
       >
         <div className="min-h-0">
           <div className="mt-4 rounded-xl border border-white/10 bg-slate-950/70 p-4">
-            <p className="text-sm leading-6 text-slate-300">{game.detail}</p>
+            {prediction ? (
+              <ul className="space-y-2 text-sm leading-6 text-slate-300">
+                {prediction.explanations.map((explanation) => (
+                  <li key={explanation}>{explanation}</li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm leading-6 text-slate-300">{game.detail}</p>
+            )}
           </div>
         </div>
       </div>

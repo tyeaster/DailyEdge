@@ -5,6 +5,12 @@ export type ThrowingHand = "L" | "R";
 export type GameStatus = "scheduled" | "confirmed" | "line-watch" | "weather-watch" | "roof-watch";
 export type OddsMarket = "moneyline" | "spread" | "total" | "team-total" | "player-prop";
 export type ValueRating = "No Edge" | "Lean" | "Play" | "Strong Play" | "Elite";
+export type PredictionRecommendation =
+  | "Pass"
+  | "Lean"
+  | "Play"
+  | "Strong Play"
+  | "Best Bet";
 export type PlayerPropCategory =
   | "Strikeouts"
   | "Hits"
@@ -45,6 +51,11 @@ export interface Team {
   division: MlbDivision;
   id: string;
   league: MlbLeague;
+  record?: {
+    losses: number;
+    winPercentage: number;
+    wins: number;
+  };
   name: string;
 }
 
@@ -69,12 +80,23 @@ export interface Pitcher extends Player {
 export interface Odds {
   displayLine: string;
   id: string;
+  impliedProbability?: number;
   line: number;
   market: OddsMarket;
   movement: string;
   openingLine?: number;
+  outcomes?: Array<{
+    impliedProbability: number;
+    line?: number;
+    price: number;
+    selection: string;
+    side?: "away" | "home" | "over" | "under";
+    sportsbook: string;
+    updatedAt: string;
+  }>;
   price: number;
   sportsbook: string;
+  updatedAt?: string;
 }
 
 export interface Weather {
@@ -110,6 +132,31 @@ export interface Prediction {
   projection: string;
   reasoning: string;
   teamId?: string;
+}
+
+export interface PredictionResult {
+  awayFairMoneyline: number;
+  awayProjectedRuns: number;
+  awayWinProbability: number;
+  confidenceScore: number;
+  edgePercent: number;
+  expectedValuePercent: number;
+  explanations: string[];
+  gameId: string;
+  homeFairMoneyline: number;
+  homeProjectedRuns: number;
+  homeWinProbability: number;
+  impliedSportsbookProbability: number;
+  predictedWinnerTeamId: string;
+  projectedTotalRuns: number;
+  recommendation: PredictionRecommendation;
+  selectedFairMoneyline: number;
+  selectedTeamId: string;
+  selectedWinProbability: number;
+  sportsbook: string;
+  sportsbookLine: string;
+  sportsbookMoneyline: number;
+  sportsbookUpdatedAt?: string;
 }
 
 export interface PlayerProp {
@@ -154,6 +201,7 @@ export interface Game {
     spread: Odds;
     total: Odds;
   };
+  prediction?: PredictionResult;
   scheduledAt: string;
   status: GameStatus;
   venue: string;

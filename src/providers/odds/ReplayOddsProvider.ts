@@ -68,7 +68,9 @@ export class ReplayOddsProvider implements OddsProvider {
     const explicitReplayFile = process.env.ODDS_REPLAY_FILE;
 
     if (explicitReplayFile) {
-      return readReplayFile(path.resolve(process.cwd(), explicitReplayFile));
+      return readReplayFile(
+        path.resolve(/*turbopackIgnore: true*/ process.cwd(), explicitReplayFile),
+      );
     }
 
     const files = (await readdir(this.replayDir))
@@ -93,5 +95,8 @@ async function readReplayFile(filePath: string) {
 }
 
 function getReplayDirectory() {
-  return path.resolve(process.cwd(), process.env.ODDS_REPLAY_DIR ?? DEFAULT_REPLAY_DIR);
+  return path.resolve(
+    /*turbopackIgnore: true*/ process.cwd(),
+    process.env.ODDS_REPLAY_DIR ?? DEFAULT_REPLAY_DIR,
+  );
 }

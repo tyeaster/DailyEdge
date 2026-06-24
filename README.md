@@ -8,6 +8,7 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 - [API Providers](docs/API_PROVIDERS.md)
 - [Model Spec](docs/MODEL_SPEC.md)
 - [MLB Prediction Model V1](docs/MODEL_SPEC_V1.md)
+- [Prediction Engine V1](docs/PREDICTION_ENGINE_V1.md)
 - [Scoring](docs/SCORING.md)
 - [Style Guide](docs/STYLE_GUIDE.md)
 
