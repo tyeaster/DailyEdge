@@ -1,8 +1,8 @@
-# DailyEdge Project Principles
+# TrueLine Project Principles
 
-This document is the engineering constitution for DailyEdge. It should guide every engineer, designer, product contributor, and AI coding agent working on the project.
+This document is the engineering constitution for TrueLine. It should guide every engineer, designer, product contributor, and AI coding agent working on the project.
 
-DailyEdge is a prediction and market-value product first. The application should be built so the model can improve, explain itself, and scale across sports without forcing rewrites of the user experience or data architecture.
+TrueLine is a prediction and market-value product first. The application should be built so the model can improve, explain itself, and scale across sports without forcing rewrites of the user experience or data architecture.
 
 ## 1. The Prediction Model Is the Product
 
@@ -13,13 +13,13 @@ Visual features are valuable only when they help users understand:
 - What the model believes.
 - Why the model believes it.
 - Where the market price differs from the model.
-- How confident DailyEdge is in the recommendation.
+- How confident TrueLine is in the recommendation.
 
 Prediction accuracy takes priority over visual features, cosmetic polish, and dashboard expansion. A beautiful interface that presents weak or unclear predictions is not a successful product.
 
-## 2. DailyEdge Exists to Find Market Value
+## 2. TrueLine Exists to Find Market Value
 
-DailyEdge is not simply a winner-picking application. The purpose is to identify market value, also known as edge.
+TrueLine is not simply a winner-picking application. The purpose is to identify market value, also known as edge.
 
 Every recommendation should be grounded in the relationship between:
 
@@ -29,7 +29,7 @@ Every recommendation should be grounded in the relationship between:
 - The expected value.
 - The confidence score.
 
-A team can be likely to win and still be a bad bet. A player prop can be risky and still be valuable at the right price. DailyEdge must preserve that distinction throughout the model, services, and UI.
+A team can be likely to win and still be a bad bet. A player prop can be risky and still be valuable at the right price. TrueLine must preserve that distinction throughout the model, services, and UI.
 
 ## 3. Confidence Is Separate From Odds
 
@@ -45,7 +45,7 @@ Every prediction should expose explainable reasoning.
 
 Reasoning does not need to reveal proprietary model internals, but it should communicate the key factors behind the output. Examples include pitcher matchup, lineup context, weather, park factor, injury impact, line movement, bullpen availability, or player form.
 
-Users should be able to understand why DailyEdge surfaced a recommendation without reverse-engineering the model.
+Users should be able to understand why TrueLine surfaced a recommendation without reverse-engineering the model.
 
 ## 5. Keep APIs Vendor-Agnostic
 
@@ -89,7 +89,7 @@ Given the same inputs, calculation utilities should return the same outputs. Avo
 
 ## 8. Cache Before Scaling API Usage
 
-DailyEdge should cache before scaling API usage.
+TrueLine should cache before scaling API usage.
 
 Live sports data can be expensive, rate-limited, and operationally fragile. Before increasing request volume, add or improve cache behavior, replay workflows, and provider fallbacks.
 
@@ -114,7 +114,7 @@ Provider integrations must be designed with a clear boundary between server-safe
 
 Optimize for maintainability over cleverness.
 
-DailyEdge should favor clear names, explicit types, small modules, and predictable boundaries. Avoid abstractions that exist only to appear sophisticated. Add abstractions when they reduce real duplication, protect vendor boundaries, or support multi-sport scale.
+TrueLine should favor clear names, explicit types, small modules, and predictable boundaries. Avoid abstractions that exist only to appear sophisticated. Add abstractions when they reduce real duplication, protect vendor boundaries, or support multi-sport scale.
 
 Future engineers should be able to understand the system quickly and change it safely.
 
@@ -128,7 +128,7 @@ When a feature pressures the architecture, improve the architecture instead of b
 
 ## 12. Build for Every Sport, Starting With MLB
 
-DailyEdge starts with MLB, but the architecture should support NBA, NFL, WNBA, NHL, Soccer, and future sports.
+TrueLine starts with MLB, but the architecture should support NBA, NFL, WNBA, NHL, Soccer, and future sports.
 
 Shared abstractions should be used where concepts are common:
 
@@ -150,7 +150,7 @@ Sport-specific models should exist where the domain requires them. Do not force 
 
 Design mobile-first.
 
-DailyEdge should be usable when users are scanning today's slate quickly. Layouts should adapt cleanly to narrow screens, preserve readable data density, and avoid horizontal overflow.
+TrueLine should be usable when users are scanning today's slate quickly. Layouts should adapt cleanly to narrow screens, preserve readable data density, and avoid horizontal overflow.
 
 Mobile-first does not mean simplistic. It means prioritizing clarity, hierarchy, and touch-friendly interaction before expanding into richer desktop layouts.
 

@@ -35,7 +35,7 @@ export type InjuriesProvider = DataProvider<Injury>;
 
 export type BetsProvider = DataProvider<BetRecommendation>;
 
-export interface DailyEdgeDataProvider {
+export interface TrueLineDataProvider {
   bets: BetsProvider;
   games: GamesProvider;
   getSlateMeta(): Promise<SlateMeta>;

@@ -1,6 +1,6 @@
-# DailyEdge Architecture
+# TrueLine Architecture
 
-DailyEdge uses a feature-first frontend architecture with typed models, service boundaries, and replaceable providers. The goal is for the product experience to stay stable while data sources evolve from mock data to live APIs.
+TrueLine uses a feature-first frontend architecture with typed models, service boundaries, and replaceable providers. The goal is for the product experience to stay stable while data sources evolve from mock data to live APIs.
 
 ## UI Layer
 
@@ -21,7 +21,7 @@ Services should be the only place where provider selection happens.
 
 ## Provider Layer
 
-Providers are interchangeable data source implementations. They translate external or mock data into DailyEdge domain models.
+Providers are interchangeable data source implementations. They translate external or mock data into TrueLine domain models.
 
 Provider responsibilities:
 
@@ -65,4 +65,4 @@ React component
   -> React component
 ```
 
-This keeps DailyEdge fast to iterate on while preserving a clean path to production data.
+This keeps TrueLine fast to iterate on while preserving a clean path to production data.

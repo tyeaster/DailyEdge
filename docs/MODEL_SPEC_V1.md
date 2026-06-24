@@ -1,6 +1,6 @@
-# DailyEdge MLB Prediction Model V1
+# TrueLine MLB Prediction Model V1
 
-This document defines the Version 1 design specification for the DailyEdge MLB Prediction Model.
+This document defines the Version 1 design specification for the TrueLine MLB Prediction Model.
 
 It is a planning template, not an implementation. Do not treat any placeholder as a finalized formula. Detailed calculations, coefficients, training methods, validation thresholds, and production rules should be added only after model research and review.
 
@@ -12,7 +12,7 @@ Related documents:
 
 ## 1. Purpose
 
-Define the initial MLB prediction model that powers DailyEdge recommendations.
+Define the initial MLB prediction model that powers TrueLine recommendations.
 
 V1 should establish:
 
@@ -23,7 +23,7 @@ V1 should establish:
 - The expected outputs for games and player props.
 - The relationship between model probability, fair line, market edge, confidence, and recommendation strength.
 
-The model must follow the DailyEdge principle that the prediction model is the product and the UI exists to present it. V1 should prioritize accuracy, explainability, deterministic calculations, and testability over visual expansion.
+The model must follow the TrueLine principle that the prediction model is the product and the UI exists to present it. V1 should prioritize accuracy, explainability, deterministic calculations, and testability over visual expansion.
 
 ### To Be Completed
 
@@ -93,7 +93,7 @@ Do not add production formulas here until they have been researched, validated, 
 
 ## 4. Prediction Pipeline
 
-The prediction pipeline should describe how DailyEdge turns inputs and features into model outputs.
+The prediction pipeline should describe how TrueLine turns inputs and features into model outputs.
 
 V1 should make each pipeline step observable and testable:
 
@@ -150,7 +150,7 @@ Outputs should align with [SCORING.md](SCORING.md) and the future model outputs 
 
 ## 6. Fair Line Calculation
 
-Fair line calculation converts model probability into a DailyEdge price that can be compared against sportsbook odds.
+Fair line calculation converts model probability into a TrueLine price that can be compared against sportsbook odds.
 
 This section should eventually define the approved formula, rounding behavior, probability bounds, and handling for two-sided markets.
 
@@ -168,9 +168,9 @@ Do not finalize formulas until model probability calibration has been validated.
 
 ## 7. Edge Calculation
 
-Edge calculation compares DailyEdge model probability against sportsbook implied probability.
+Edge calculation compares TrueLine model probability against sportsbook implied probability.
 
-DailyEdge exists to find market value, not simply predict winners. Edge should remain distinct from confidence and should be calculated consistently across supported markets.
+TrueLine exists to find market value, not simply predict winners. Edge should remain distinct from confidence and should be calculated consistently across supported markets.
 
 This section should eventually define how edge is calculated, displayed, thresholded, and tested.
 

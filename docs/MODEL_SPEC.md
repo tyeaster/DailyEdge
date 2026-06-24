@@ -1,6 +1,6 @@
 # MLB Model Specification
 
-The DailyEdge MLB model will transform schedule, player, team, market, weather, and context inputs into actionable probabilities and projections.
+The TrueLine MLB model will transform schedule, player, team, market, weather, and context inputs into actionable probabilities and projections.
 
 ## Inputs
 
@@ -105,7 +105,7 @@ Projected probability that each team wins the game.
 
 ### Fair Line
 
-American odds derived from DailyEdge model probability before sportsbook margin.
+American odds derived from TrueLine model probability before sportsbook margin.
 
 ### Projected Runs
 

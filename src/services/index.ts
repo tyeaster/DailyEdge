@@ -12,7 +12,7 @@ export { getMlbSlate } from "./mlb";
 export { LiveMLBProvider, liveMLBProvider, MockDataProvider, mockDataProvider } from "./providers";
 export type {
   BetsProvider,
-  DailyEdgeDataProvider,
+  TrueLineDataProvider,
   DataProvider,
   GamesProvider,
   InjuriesProvider,

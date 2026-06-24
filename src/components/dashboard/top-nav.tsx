@@ -6,11 +6,11 @@ export function TopNav({ currentDate }: { currentDate: string }) {
       <div className="flex min-h-16 items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
         <div className="flex min-w-0 items-center gap-3">
           <span className="grid h-10 w-10 place-items-center rounded-xl border border-blue-300/20 bg-blue-400/10 text-sm font-black text-blue-100 md:hidden">
-            DE
+            TL
           </span>
           <div className="min-w-0">
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-blue-300/80">
-              DailyEdge
+              TrueLine
             </p>
             <h1 className="truncate text-lg font-semibold text-white sm:text-xl">
               Daily Slate
@@ -33,7 +33,7 @@ export function TopNav({ currentDate }: { currentDate: string }) {
             Refresh
           </button>
           <div className="grid h-10 w-10 place-items-center rounded-full border border-slate-700 bg-gradient-to-br from-blue-300/25 to-slate-800 text-sm font-semibold text-white">
-            DE
+            TL
           </div>
         </div>
       </div>

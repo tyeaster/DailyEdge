@@ -19,11 +19,11 @@ export function Navbar({
     <header className="sticky top-0 z-50 border-b border-white/10 bg-slate-950/70 backdrop-blur-xl">
       <Container>
         <nav className="flex items-center justify-between py-4">
-          <a href="#" className="flex items-center gap-3" aria-label="DailyEdge home">
+          <a href="#" className="flex items-center gap-3" aria-label="TrueLine home">
             <span className="grid h-9 w-9 place-items-center rounded-lg border border-cyan-300/30 bg-cyan-300/10 text-sm font-black text-cyan-200">
-              DE
+              TL
             </span>
-            <span className="text-lg font-semibold tracking-tight">DailyEdge</span>
+            <span className="text-lg font-semibold tracking-tight">TrueLine</span>
           </a>
 
           <div className="hidden items-center gap-8 md:flex">

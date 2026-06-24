@@ -25,7 +25,7 @@ import { predictionEngine } from "@/src/services/predictions";
 
 import type {
   BetsProvider,
-  DailyEdgeDataProvider,
+  TrueLineDataProvider,
   DataProvider,
   GamesProvider,
   InjuriesProvider,
@@ -68,7 +68,7 @@ class StaticPlayersProvider
   }
 }
 
-export class MockDataProvider implements DailyEdgeDataProvider {
+export class MockDataProvider implements TrueLineDataProvider {
   readonly bets: BetsProvider = new StaticDataProvider<BetRecommendation>(
     betRecommendations,
   );

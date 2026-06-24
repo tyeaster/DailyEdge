@@ -1,6 +1,6 @@
-# DailyEdge Style Guide
+# TrueLine Style Guide
 
-DailyEdge should feel like a premium MLB analytics dashboard: fast, precise, restrained, and trustworthy.
+TrueLine should feel like a premium MLB analytics dashboard: fast, precise, restrained, and trustworthy.
 
 ## Visual Direction
 
@@ -20,7 +20,7 @@ Avoid:
 - Generic trophy or ticket motifs
 - Loud gradients that distract from data
 
-DailyEdge should feel closer to a financial terminal than a betting splash page.
+TrueLine should feel closer to a financial terminal than a betting splash page.
 
 ## Reusable Components
 

@@ -1,8 +1,8 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
-## DailyEdge Docs
+## TrueLine Docs
 
-- [Project Principles](PROJECT_PRINCIPLES.md) - primary engineering philosophy for DailyEdge.
+- [Project Principles](PROJECT_PRINCIPLES.md) - primary engineering philosophy for TrueLine.
 - [Roadmap](docs/ROADMAP.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [API Providers](docs/API_PROVIDERS.md)

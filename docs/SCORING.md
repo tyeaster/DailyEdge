@@ -1,10 +1,10 @@
 # Scoring
 
-DailyEdge scoring turns model outputs and market prices into simple, ranked decisions.
+TrueLine scoring turns model outputs and market prices into simple, ranked decisions.
 
-## Daily Edge Score
+## TrueLine Score
 
-The Daily Edge Score is the top-level ranking signal for recommendations. It should combine model edge, confidence, market quality, data freshness, and risk.
+The TrueLine Score is the top-level ranking signal for recommendations. It should combine model edge, confidence, market quality, data freshness, and risk.
 
 Future inputs may include:
 
@@ -32,7 +32,7 @@ Confidence should be based on signal strength, input completeness, model agreeme
 
 ## Edge Percentage
 
-Edge percentage compares DailyEdge model probability to sportsbook implied probability.
+Edge percentage compares TrueLine model probability to sportsbook implied probability.
 
 Example:
 
@@ -58,7 +58,7 @@ EV should be used with confidence and bankroll rules, not as the only decision i
 
 ## Value Ratings
 
-DailyEdge uses five value ratings:
+TrueLine uses five value ratings:
 
 - No Edge
 - Lean

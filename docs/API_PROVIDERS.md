@@ -1,10 +1,10 @@
 # API Providers
 
-DailyEdge uses provider interfaces so production data vendors can be swapped without rewriting the dashboard.
+TrueLine uses provider interfaces so production data vendors can be swapped without rewriting the dashboard.
 
 ## Provider Strategy
 
-Each provider implementation should conform to a generic contract and return normalized DailyEdge models. Services choose providers based on configuration. React components should never import provider classes or know which vendor supplied the data.
+Each provider implementation should conform to a generic contract and return normalized TrueLine models. Services choose providers based on configuration. React components should never import provider classes or know which vendor supplied the data.
 
 ## OddsPipe
 
@@ -19,7 +19,7 @@ The OddsPipe provider is responsible for:
 
 ## Avoiding Vendor Lock-In
 
-DailyEdge avoids vendor lock-in by depending on internal contracts instead of vendor SDKs or response shapes.
+TrueLine avoids vendor lock-in by depending on internal contracts instead of vendor SDKs or response shapes.
 
 Rules:
 
@@ -43,7 +43,7 @@ This reduces API usage, improves local speed, and makes provider bugs easier to 
 
 ## Cache Layer
 
-DailyEdge has a cache abstraction in front of scalable cache choices.
+TrueLine has a cache abstraction in front of scalable cache choices.
 
 Current implementation:
 

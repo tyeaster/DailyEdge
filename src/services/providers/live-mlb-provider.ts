@@ -16,7 +16,7 @@ import type { SlateMeta } from "@/src/types/mlb-dashboard";
 import { mockDataProvider } from "./mock-data-provider";
 import type {
   BetsProvider,
-  DailyEdgeDataProvider,
+  TrueLineDataProvider,
   DataProvider,
   GamesProvider,
   InjuriesProvider,
@@ -209,7 +209,7 @@ class LivePredictionsProvider
   }
 }
 
-export class LiveMLBProvider implements DailyEdgeDataProvider {
+export class LiveMLBProvider implements TrueLineDataProvider {
   readonly bets: BetsProvider = mockDataProvider.bets;
 
   readonly games: GamesProvider = new LiveScheduleProvider(

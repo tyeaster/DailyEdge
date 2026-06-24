@@ -1,6 +1,6 @@
-# DailyEdge Prediction Engine V1
+# TrueLine Prediction Engine V1
 
-This document describes the first production rules-based prediction engine for DailyEdge.
+This document describes the first production rules-based prediction engine for TrueLine.
 
 V1 is intentionally simple. It uses only normalized data already available in the application, produces deterministic outputs, and avoids claims of advanced baseball modeling.
 
@@ -32,7 +32,7 @@ It produces:
 - Recommendation
 - Explainable model factors
 
-The engine consumes normalized DailyEdge models. It does not call MLB or sportsbook APIs directly.
+The engine consumes normalized TrueLine models. It does not call MLB or sportsbook APIs directly.
 
 ## Architecture
 
@@ -40,7 +40,7 @@ The engine consumes normalized DailyEdge models. It does not call MLB or sportsb
 
 ```text
 Live, replay, or mock providers
-  -> normalized DailyEdge models
+  -> normalized TrueLine models
   -> PredictionEngine
   -> PredictionResult
   -> Daily Slate service

@@ -17,7 +17,7 @@ import {
   predictionEngine,
 } from "@/src/services/predictions";
 import { liveMLBProvider, mockDataProvider } from "@/src/services/providers";
-import type { DailyEdgeDataProvider } from "@/src/services/providers";
+import type { TrueLineDataProvider } from "@/src/services/providers";
 import type { DashboardNavItem, KpiMetric } from "@/src/types/mlb-dashboard";
 
 import type {
@@ -39,7 +39,7 @@ const propCategoryOrder: PlayerPropCategory[] = [
 ];
 
 export async function getDailySlate(
-  provider: DailyEdgeDataProvider = liveMLBProvider,
+  provider: TrueLineDataProvider = liveMLBProvider,
 ): Promise<DailySlateViewModel> {
   if (provider !== liveMLBProvider) {
     return buildDailySlate(provider, "mock");
@@ -63,7 +63,7 @@ export async function getDailySlate(
 }
 
 async function buildDailySlate(
-  provider: DailyEdgeDataProvider,
+  provider: TrueLineDataProvider,
   dataSource: "live" | "mock",
 ): Promise<DailySlateViewModel> {
   const [

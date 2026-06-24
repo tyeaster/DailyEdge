@@ -15,7 +15,7 @@ export function Footer({
     <footer className="border-t border-white/10 py-10">
       <Container className="flex flex-col gap-6 text-sm text-slate-400 md:flex-row md:items-center md:justify-between">
         <div>
-          <p className="font-semibold text-white">DailyEdge</p>
+          <p className="font-semibold text-white">TrueLine</p>
           <p className="mt-2">{description}</p>
         </div>
         <div className="flex flex-wrap gap-5">

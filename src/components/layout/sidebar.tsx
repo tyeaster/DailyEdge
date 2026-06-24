@@ -8,7 +8,7 @@ export type SidebarProps = {
   title?: string;
 };
 
-export function Sidebar({ className, items, title = "DailyEdge" }: SidebarProps) {
+export function Sidebar({ className, items, title = "TrueLine" }: SidebarProps) {
   return (
     <aside
       className={cn(

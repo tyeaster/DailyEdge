@@ -1,6 +1,6 @@
-# DailyEdge Roadmap
+# TrueLine Roadmap
 
-DailyEdge is being built as a premium MLB analytics dashboard that starts with today's slate and grows into a full decision platform for bets, player props, bankroll management, and subscriptions.
+TrueLine is being built as a premium MLB analytics dashboard that starts with today's slate and grows into a full decision platform for bets, player props, bankroll management, and subscriptions.
 
 ## 1. Foundation
 
@@ -19,7 +19,7 @@ DailyEdge is being built as a premium MLB analytics dashboard that starts with t
 
 - Add a vendor-agnostic odds provider architecture.
 - Integrate OddsPipe as the first production odds provider.
-- Compare sportsbook lines against DailyEdge fair lines.
+- Compare sportsbook lines against TrueLine fair lines.
 - Display edge percentage, value rating, and recommended units without coupling UI components to odds vendors.
 
 ## 4. Weather and Injuries
@@ -31,7 +31,7 @@ DailyEdge is being built as a premium MLB analytics dashboard that starts with t
 
 ## 5. Prediction Engine
 
-- Build the first DailyEdge MLB model using schedule, team, pitcher, player, odds, weather, injury, bullpen, park, and line movement inputs.
+- Build the first TrueLine MLB model using schedule, team, pitcher, player, odds, weather, injury, bullpen, park, and line movement inputs.
 - Generate win probabilities, fair lines, projected runs, player prop projections, strikeout projections, and home run probabilities.
 - Keep model outputs strongly typed so scoring and UI layers can evolve safely.
 
