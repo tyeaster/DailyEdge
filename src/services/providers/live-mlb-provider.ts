@@ -10,6 +10,7 @@ import type {
   Weather,
 } from "@/src/models/mlb";
 import { formatAmericanOdds } from "@/src/lib/odds";
+import { pitcherService } from "@/src/services/PitcherService";
 import { predictionEngine } from "@/src/services/predictions";
 import type { SlateMeta } from "@/src/types/mlb-dashboard";
 
@@ -280,11 +281,15 @@ async function fetchSchedule(): Promise<LiveSchedule> {
       normalizeTeam(game.teams.home.team, game.teams.home.leagueRecord),
     ]),
   );
-  const pitchers = uniqueById(
+  const basePitchers = uniqueById(
     apiGames.flatMap((game) => [
       normalizePitcher(game.teams.away.probablePitcher, game.teams.away.team),
       normalizePitcher(game.teams.home.probablePitcher, game.teams.home.team),
     ]),
+  );
+  const pitchers = await pitcherService.enrichPitchers(
+    basePitchers,
+    date.getFullYear(),
   );
   const weather = apiGames.map(normalizeWeather);
   const games = apiGames.map((game): Game => {
@@ -394,6 +399,7 @@ function normalizePitcher(
       arsenal: [],
       bats: "R",
       era: 0,
+      externalIds: {},
       fullName: "Probable starter TBD",
       handedness: "R",
       id: `mlb-pitcher-tbd-${team.id}`,
@@ -410,6 +416,9 @@ function normalizePitcher(
     arsenal: [],
     bats: "R",
     era: 0,
+    externalIds: {
+      mlb: pitcher.id,
+    },
     fullName: pitcher.fullName,
     handedness: "R",
     id: `mlb-pitcher-${pitcher.id}`,

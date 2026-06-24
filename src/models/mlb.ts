@@ -71,10 +71,22 @@ export interface Player {
 export interface Pitcher extends Player {
   arsenal: string[];
   era: number;
+  externalIds?: {
+    mlb?: number;
+  };
+  gamesStarted?: number;
   handedness: ThrowingHand;
+  homeRunsPer9?: number;
   inningsPitched: number;
+  losses?: number;
+  statsSource?: "live" | "mock" | "replay" | "unavailable";
+  statsUpdatedAt?: string;
+  strikeouts?: number;
+  strikeoutsPer9?: number;
   strikeoutRate: number;
+  walksPer9?: number;
   whip: number;
+  wins?: number;
 }
 
 export interface Odds {

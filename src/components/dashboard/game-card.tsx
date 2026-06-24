@@ -78,9 +78,18 @@ export function GameCard({
         </Badge>
       </div>
 
+      <div className="mt-5 rounded-xl border border-white/10 bg-white/[0.025] p-3">
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+          Starting Pitchers
+        </p>
+        <div className="mt-3 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+          <PitcherSummary pitcher={awayPitcher} />
+          <span className="text-xs font-semibold uppercase text-slate-600">vs</span>
+          <PitcherSummary align="right" pitcher={homePitcher} />
+        </div>
+      </div>
+
       <div className="mt-5 grid gap-2 text-sm">
-        <GameLine label="Away SP" value={awayPitcher.fullName} />
-        <GameLine label="Home SP" value={homePitcher.fullName} />
         <GameLine
           label="Predicted winner"
           value={predictedWinner?.name ?? "Pending"}
@@ -158,6 +167,33 @@ export function GameCard({
       </div>
     </DashboardCard>
   );
+}
+
+function PitcherSummary({
+  align = "left",
+  pitcher,
+}: {
+  align?: "left" | "right";
+  pitcher: Pitcher;
+}) {
+  const alignment = align === "right" ? "text-right" : "text-left";
+
+  return (
+    <div className={cn("min-w-0", alignment)}>
+      <p className="truncate text-sm font-semibold text-white">
+        {pitcher.fullName}
+      </p>
+      <div className="mt-2 space-y-1 text-xs text-slate-400">
+        <p>ERA {formatPitcherStat(pitcher.era, 2)}</p>
+        <p>WHIP {formatPitcherStat(pitcher.whip, 2)}</p>
+        <p>K/9 {formatPitcherStat(pitcher.strikeoutsPer9, 1)}</p>
+      </div>
+    </div>
+  );
+}
+
+function formatPitcherStat(value: number | undefined, digits: number) {
+  return value && value > 0 ? value.toFixed(digits) : "—";
 }
 
 function formatGameTime(scheduledAt: string) {

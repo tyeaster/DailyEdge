@@ -76,6 +76,21 @@ ODDS_REPLAY_FILE=replay/odds/example.json
 
 `ODDS_MODE=mock` should remain the safest local default.
 
+Current pitcher configuration:
+
+```text
+PITCHER_MODE=live
+PITCHER_MODE=replay
+PITCHER_MODE=mock
+PITCHER_RECORD=true
+PITCHER_REPLAY_DIR=replay/pitchers
+PITCHER_REPLAY_FILE=replay/pitchers/example.json
+MLB_PEOPLE_API_URL=https://statsapi.mlb.com/api/v1/people
+```
+
+Pitcher mode follows `ODDS_MODE=replay` or `ODDS_MODE=mock` when
+`PITCHER_MODE` is not set. Live pitcher lookups are cached for one hour.
+
 ## Future Providers
 
 Potential future providers:

@@ -3,6 +3,7 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 ## TrueLine Docs
 
 - [Project Principles](PROJECT_PRINCIPLES.md) - primary engineering philosophy for TrueLine.
+- [Product Blueprint](docs/PRODUCT_BLUEPRINT.md) - long-term product vision and master specification.
 - [Roadmap](docs/ROADMAP.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [API Providers](docs/API_PROVIDERS.md)
