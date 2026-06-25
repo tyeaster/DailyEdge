@@ -66,6 +66,7 @@ V1 uses:
 - Recent Form Rating
 - Momentum Score
 - Bullpen rating when available
+- Confirmed or projected lineup strength when available
 - Home field advantage
 - Starting pitcher ERA, WHIP, and strikeout rate when available
 - Sportsbook moneyline
@@ -81,14 +82,15 @@ All V1 weights live in `src/services/predictions/config.ts`.
 | Factor | Weight |
 | --- | ---: |
 | Starting pitcher | 24% |
-| Season strength | 14% |
-| Team offense | 14% |
+| Season strength | 12% |
+| Team offense | 10% |
 | Team pitching | 12% |
 | Recent form | 12% |
 | Momentum | 8% |
 | Bullpen | 6% |
-| Home field | 6% |
-| Sportsbook implied probability | 4% |
+| Lineup strength | 10% |
+| Home field | 4% |
+| Sportsbook implied probability | 2% |
 
 The weights sum to 100%.
 
@@ -127,14 +129,18 @@ home factor =
   (home rating + away rating)
 ```
 
-This comparison is applied independently to offense, team pitching, and
-bullpen ratings.
+This comparison is applied independently to offense, team pitching, bullpen,
+and lineup ratings.
 
 Missing or unavailable ratings use `50`, producing a neutral factor when both
 teams lack the same input.
 
 See [TEAM_STRENGTH_MODEL.md](TEAM_STRENGTH_MODEL.md) for raw metrics and rating
 formulas.
+
+Confirmed lineups receive full Data Quality credit. Projected lineups use the
+latest official batting order at reduced quality confidence. See
+[LINEUP_MODEL.md](LINEUP_MODEL.md).
 
 ### Recent Form and Momentum
 
@@ -186,14 +192,15 @@ V1 uses the normalized home-side implied probability as a low-weight factor.
 ```text
 home probability =
   pitcher factor * 0.24 +
-  season-strength factor * 0.14 +
-  offense factor * 0.14 +
+  season-strength factor * 0.12 +
+  offense factor * 0.10 +
   team pitching factor * 0.12 +
   recent-form factor * 0.12 +
   momentum factor * 0.08 +
   bullpen factor * 0.06 +
-  home field factor * 0.06 +
-  sportsbook factor * 0.04
+  lineup factor * 0.10 +
+  home field factor * 0.04 +
+  sportsbook factor * 0.02
 ```
 
 The implementation divides by total configured weight so future weight changes remain normalized.
@@ -415,31 +422,40 @@ Automated tests cover:
 - Confidence quality caps.
 - Developer diagnostics.
 - Recent-form and momentum integration.
+- Bullpen quality and recent workload integration.
+- Confirmed/projected lineup normalization, provider modes, caching, model
+  contribution, explanations, and Data Quality behavior.
 
 ## Current Limitations
 
-- Starting pitcher data from the live schedule may include identity without ERA, WHIP, or strikeout rate. Missing fields remain neutral.
+- Starting pitcher season data may be unavailable for newly promoted, injured,
+  or unannounced starters. Missing fields remain neutral.
 - Team strength uses season-to-date official MLB totals and deterministic V1 rating ranges.
 - Recent form uses official rolling statistics and deterministic V1 rating ranges.
 - Recent form is not opponent-adjusted.
 - Bullpen quality uses official relief-pitcher aggregates and a three-day
   workload window.
+- Projected lineups use the latest official batting order rather than a
+  dedicated lineup projection model.
+- Official MLB lineup data does not include wRC+, and V1 does not yet model
+  batter-versus-pitcher platoon quality.
 - Projected runs use the sportsbook total rather than an independent run model.
 - V1 does not remove vig from every live market pairing before the sportsbook factor is used.
 - No historical training, backtesting, calibration, or model fitting is included.
-- No weather, injury, bullpen, park, travel, rest, lineup, or advanced-stat inputs are included.
+- No live weather, injury, park, travel, rest, or advanced-stat inputs are
+  included.
 - Player prop predictions remain outside this game-level V1 engine.
 
 ## Version 2 Priorities
 
 The inputs most likely to improve accuracy are:
 
-1. Starting pitcher advanced metrics and projected workload.
-2. Team offensive handedness splits and lineup-level quality.
-3. Bullpen quality, availability, and recent workload.
-4. Confirmed lineups and injuries.
-5. Park factors.
-6. Weather, especially wind, temperature, and roof status.
+1. Weather, especially wind, temperature, precipitation, and roof status.
+2. Park factors.
+3. Injury impact and late-scratch monitoring.
+4. Batter-versus-pitcher platoon quality and advanced lineup metrics.
+5. Starting pitcher advanced metrics and projected workload.
+6. Bullpen role availability beyond aggregate recent workload.
 7. Travel and rest.
 8. Line movement and no-vig market consensus.
 9. Historical backtesting and probability calibration.

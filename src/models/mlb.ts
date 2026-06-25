@@ -16,6 +16,7 @@ export type ModelFactorKey =
   | "seasonStrength"
   | "teamOffense"
   | "teamPitching"
+  | "lineupStrength"
   | "bullpen"
   | "homeField"
   | "sportsbookMarket"
@@ -23,6 +24,7 @@ export type ModelFactorKey =
   | "momentum";
 export type RecentFormWindow = 7 | 14 | 30;
 export type DataQualityStatus = "available" | "partial" | "missing";
+export type LineupStatus = "confirmed" | "projected" | "unavailable";
 export type PlayerPropCategory =
   | "Strikeouts"
   | "Hits"
@@ -142,6 +144,50 @@ export interface TeamRecentForm {
   windows: Record<RecentFormWindow, RecentFormWindowStats>;
 }
 
+export interface LineupPlayer {
+  battingAverage: number;
+  battingHand: BattingSide | "U";
+  battingOrder: number;
+  fullName: string;
+  homeRuns: number;
+  isPinchHitter: boolean;
+  isStarting: boolean;
+  mlbId: number;
+  onBasePercentage: number;
+  ops: number;
+  plateAppearances: number;
+  position: string;
+  sluggingPercentage: number;
+  strikeoutRate: number;
+  wrcPlus: number | null;
+}
+
+export interface LineupHandednessBalance {
+  balanceRating: number;
+  left: number;
+  right: number;
+  switch: number;
+}
+
+export interface LineupProfile {
+  averageOps: number;
+  averageStrikeoutRate: number;
+  averageWrcPlus: number | null;
+  confirmedAt?: string;
+  contactRating: number;
+  fetchedAt: string;
+  handedness: LineupHandednessBalance;
+  lineupConfidence: number;
+  missingStarPlayerIds: number[];
+  missingStarterIds: number[];
+  overallStrength: number;
+  players: LineupPlayer[];
+  powerRating: number;
+  replacementQuality: number;
+  source: "live" | "mock" | "replay" | "unavailable";
+  status: LineupStatus;
+}
+
 export interface Team {
   abbreviation: string;
   city: string;
@@ -151,6 +197,7 @@ export interface Team {
   };
   id: string;
   league: MlbLeague;
+  lineup?: LineupProfile;
   record?: {
     losses: number;
     winPercentage: number;
@@ -271,7 +318,13 @@ export interface DataQualityInput {
 
 export interface DataQuality {
   inputs: Record<
-    "bullpen" | "pitchers" | "recentForm" | "sportsbook" | "teamStats" | "weather",
+    | "bullpen"
+    | "lineups"
+    | "pitchers"
+    | "recentForm"
+    | "sportsbook"
+    | "teamStats"
+    | "weather",
     DataQualityInput
   >;
   missingInputs: string[];
@@ -339,6 +392,9 @@ export interface Game {
   awayTeamId: string;
   confidence: ConfidenceScore;
   detail: string;
+  externalIds?: {
+    mlb?: number;
+  };
   homePitcherId: string;
   homeTeamId: string;
   id: string;

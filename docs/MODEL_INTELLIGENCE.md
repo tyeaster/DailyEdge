@@ -19,14 +19,15 @@ Every prediction weight lives in
 | Factor | Weight | Current status |
 | --- | ---: | --- |
 | Starting pitcher | 24% | Active |
-| Season strength | 14% | Active |
-| Team offense | 14% | Active |
+| Season strength | 12% | Active |
+| Team offense | 10% | Active |
 | Team pitching | 12% | Active |
 | Recent form | 12% | Active when rolling data is available |
 | Momentum | 8% | Active when 7-game and 30-game data are available |
 | Bullpen | 6% | Active when data is available; neutral otherwise |
-| Home field | 6% | Active |
-| Sportsbook market | 4% | Active |
+| Lineup strength | 10% | Active for confirmed or projected lineups |
+| Home field | 4% | Active |
+| Sportsbook market | 2% | Active |
 
 The weights sum to 100%. Season strength, recent form, and momentum remain
 separate so short-window performance does not replace the larger season sample.
@@ -67,6 +68,8 @@ The engine can identify:
 - Better Team Offense.
 - Better Team Pitching.
 - Better Bullpen.
+- Stronger Confirmed Lineup or Projected Lineup Edge.
+- Fewer Missing Stars.
 - Better Run Differential.
 - Better Overall Rating.
 - Better Recent Form.
@@ -89,11 +92,12 @@ Every prediction includes a deterministic `DataQuality` score from `0` to
 
 | Input group | Quality weight |
 | --- | ---: |
-| Starting pitchers | 30 |
-| Team statistics | 30 |
+| Starting pitchers | 25 |
+| Team statistics | 20 |
 | Bullpen | 15 |
-| Sportsbook market | 15 |
-| Recent form | 5 |
+| Starting lineups | 15 |
+| Sportsbook market | 10 |
+| Recent form | 10 |
 | Weather | 5 |
 
 Each input group is marked `available`, `partial`, or `missing` and includes
@@ -106,9 +110,10 @@ data quality =
   sum(quality weights)
 ```
 
-Current predictions receive recent-form quality credit only when the normalized
-rolling windows and momentum calculation are available. Live slates without
-bullpen or weather data still score lower.
+Current predictions receive lineup quality in proportion to confirmation
+confidence. Confirmed lineups receive full credit, projected lineups receive
+partial credit, and unavailable lineups receive no credit. Live slates without
+weather data still score lower.
 
 Confidence is capped at the Data Quality score:
 

@@ -15,6 +15,11 @@ export type {
 } from "./daily-slate";
 export { getMlbSlate } from "./mlb";
 export {
+  getConfiguredLineupProvider,
+  lineupService,
+  LineupService,
+} from "./LineupService";
+export {
   getConfiguredRecentFormProvider,
   recentFormService,
   RecentFormService,

@@ -11,6 +11,7 @@ import type {
 } from "@/src/models/mlb";
 import { formatAmericanOdds } from "@/src/lib/odds";
 import { bullpenService } from "@/src/services/BullpenService";
+import { lineupService } from "@/src/services/LineupService";
 import { pitcherService } from "@/src/services/PitcherService";
 import { predictionEngine } from "@/src/services/predictions";
 import { recentFormService } from "@/src/services/RecentFormService";
@@ -293,7 +294,10 @@ async function fetchSchedule(): Promise<LiveSchedule> {
     date.getFullYear(),
     dateParam,
   );
-  const teams = await recentFormService.enrichTeams(bullpenTeams, dateParam);
+  const recentFormTeams = await recentFormService.enrichTeams(
+    bullpenTeams,
+    dateParam,
+  );
   const basePitchers = uniqueById(
     apiGames.flatMap((game) => [
       normalizePitcher(game.teams.away.probablePitcher, game.teams.away.team),
@@ -318,6 +322,9 @@ async function fetchSchedule(): Promise<LiveSchedule> {
       confidence: { label: "Medium", value: 66 },
       detail:
         "Live schedule data is loaded. Betting signals continue to use the mock model layer.",
+      externalIds: {
+        mlb: game.gamePk,
+      },
       homePitcherId: normalizePitcher(
         game.teams.home.probablePitcher,
         game.teams.home.team,
@@ -360,6 +367,12 @@ async function fetchSchedule(): Promise<LiveSchedule> {
       weatherId: `weather-${game.gamePk}`,
     };
   });
+  const teams = await lineupService.enrichTeamsForGames(
+    recentFormTeams,
+    games,
+    date.getFullYear(),
+    dateParam,
+  );
 
   return {
     games,

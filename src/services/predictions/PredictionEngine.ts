@@ -39,6 +39,7 @@ export type PredictionEngineInput = {
 export type PredictionModelFactors = {
   bullpen: number;
   homeField: number;
+  lineupStrength: number;
   momentum: number;
   recentForm: number;
   seasonStrength: number;
@@ -383,6 +384,10 @@ function buildFactors({
       awayTeam.strength?.bullpen.value,
     ),
     homeField: PREDICTION_ENGINE_V1_CONFIG.homeFieldWinProbability,
+    lineupStrength: getTeamRatingHomeProbability(
+      homeTeam.lineup?.overallStrength,
+      awayTeam.lineup?.overallStrength,
+    ),
     momentum: getTeamRatingHomeProbability(
       homeTeam.recentForm?.momentum.value,
       awayTeam.recentForm?.momentum.value,
@@ -424,6 +429,7 @@ function weightFactors(factors: PredictionModelFactors) {
       factors.teamPitching * weights.teamPitching +
       factors.bullpen * weights.bullpen +
       factors.homeField * weights.homeField +
+      factors.lineupStrength * weights.lineupStrength +
       factors.sportsbookMarket * weights.sportsbookMarket +
       factors.recentForm * weights.recentForm +
       factors.momentum * weights.momentum +
@@ -492,6 +498,15 @@ export function calculateDataQuality({
       ],
       source: getBullpenSource(homeTeam, awayTeam),
       weight: weights.bullpen,
+    }),
+    lineups: buildQualityInput({
+      label: "Starting Lineups",
+      scores: [
+        homeTeam.lineup?.lineupConfidence ?? 0,
+        awayTeam.lineup?.lineupConfidence ?? 0,
+      ],
+      source: getLineupSource(homeTeam, awayTeam),
+      weight: weights.lineups,
     }),
     pitchers: buildQualityInput({
       label: "Starting Pitchers",
@@ -733,6 +748,37 @@ function buildExplanations({
     );
   }
 
+  if (
+    factorAvailability.lineupStrength &&
+    Math.abs(factors.lineupStrength - 0.5) >= 0.02
+  ) {
+    const favoredTeam =
+      factors.lineupStrength > 0.5 ? homeTeam : awayTeam;
+    const bothConfirmed =
+      homeTeam.lineup?.status === "confirmed" &&
+      awayTeam.lineup?.status === "confirmed";
+
+    explanations.push(
+      bothConfirmed
+        ? `Stronger Confirmed Lineup: ${favoredTeam.abbreviation}`
+        : `Projected Lineup Edge: ${favoredTeam.abbreviation}`,
+    );
+  }
+
+  const homeMissingStars = homeTeam.lineup?.missingStarPlayerIds.length ?? 0;
+  const awayMissingStars = awayTeam.lineup?.missingStarPlayerIds.length ?? 0;
+  if (
+    homeTeam.lineup?.status === "confirmed" &&
+    awayTeam.lineup?.status === "confirmed" &&
+    homeMissingStars !== awayMissingStars
+  ) {
+    explanations.push(
+      homeMissingStars < awayMissingStars
+        ? `Fewer Missing Stars: ${homeTeam.abbreviation}`
+        : `Fewer Missing Stars: ${awayTeam.abbreviation}`,
+    );
+  }
+
   const homeWorkload = homeTeam.strength?.bullpen.workloadRating;
   const awayWorkload = awayTeam.strength?.bullpen.workloadRating;
   if (
@@ -929,6 +975,12 @@ function getFactorAvailability({
         awayTeam.strength?.bullpen.available,
     ),
     homeField: true,
+    lineupStrength: Boolean(
+      homeTeam.lineup &&
+        awayTeam.lineup &&
+        homeTeam.lineup.status !== "unavailable" &&
+        awayTeam.lineup.status !== "unavailable",
+    ),
     momentum: Boolean(
       homeTeam.recentForm?.momentum.available &&
         awayTeam.recentForm?.momentum.available,
@@ -960,6 +1012,7 @@ function getDefaultFactorAvailability(): FactorAvailability {
   return {
     bullpen: true,
     homeField: true,
+    lineupStrength: true,
     momentum: true,
     recentForm: true,
     seasonStrength: true,
@@ -1056,6 +1109,10 @@ function getBullpenSource(homeTeam: Team, awayTeam: Team) {
     homeTeam.strength?.bullpen.source,
     awayTeam.strength?.bullpen.source,
   ]);
+}
+
+function getLineupSource(homeTeam: Team, awayTeam: Team) {
+  return joinSources([homeTeam.lineup?.source, awayTeam.lineup?.source]);
 }
 
 function getRecentFormSource(homeTeam: Team, awayTeam: Team) {

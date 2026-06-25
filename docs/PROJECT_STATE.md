@@ -1,6 +1,6 @@
 # TrueLine Project State
 
-Last updated: June 24, 2026
+Last updated: June 25, 2026
 
 ## Product Status
 
@@ -11,6 +11,7 @@ TrueLine is an MLB-first sports betting analytics dashboard with:
 - Live probable starter season statistics.
 - Live team offense and pitching strength.
 - Live bullpen season quality and recent workload.
+- Live confirmed lineups with projected fallback.
 - Live 7, 14, and 30-game recent form and momentum.
 - Live-configured sportsbook odds integration.
 - Deterministic Prediction Engine V1.
@@ -128,6 +129,29 @@ The branch is stacked on `test-codex-auth`. Pull requests remain unmerged pendin
   - Recent Form Rating.
   - Momentum Score based on underlying performance trends.
 
+### Confirmed Lineups
+
+- Default: Live official MLB schedule and active-roster statistics.
+- Replay: Supported with raw schedule/roster fixtures.
+- Mock: Supported with the same provider contract.
+- Cache:
+  - Confirmed lineups: 60 seconds.
+  - Projected lineups: 5 minutes.
+  - Active roster and season hitting data: 1 hour.
+- Confirmation:
+  - Current submitted batting order: confirmed at 100 confidence.
+  - Latest official lineup from the previous seven days: projected at 65
+    confidence.
+  - No usable lineup: unavailable and neutral.
+- Live fields:
+  - Batting order, MLB ID, name, position, handedness, and starting status.
+  - Season AVG, OBP, SLG, OPS, home runs, plate appearances, and strikeout rate.
+  - Missing starters and star hitters.
+  - Replacement quality, handedness balance, average OPS, average strikeout
+    rate, contact rating, power rating, and overall lineup strength.
+- Current limitation: wRC+ is unavailable from the selected official endpoint
+  and remains null.
+
 ### Weather
 
 - Current status: Schedule-derived placeholder.
@@ -155,6 +179,7 @@ The branch is stacked on `test-codex-auth`. Pull requests remain unmerged pendin
   - Recent Form Rating.
   - Momentum Score.
   - Bullpen strength when available.
+  - Confirmed or projected lineup strength when available.
   - Home field.
   - Sportsbook implied probability.
 - Replay and mock support are inherited from normalized input providers.
@@ -187,22 +212,23 @@ Current configurable weights:
 | Factor | Weight |
 | --- | ---: |
 | Starting pitcher | 24% |
-| Season strength | 14% |
-| Team offense | 14% |
+| Season strength | 12% |
+| Team offense | 10% |
 | Team pitching | 12% |
 | Recent form | 12% |
 | Momentum | 8% |
 | Bullpen | 6% |
-| Home field | 6% |
-| Sportsbook implied probability | 4% |
+| Lineup strength | 10% |
+| Home field | 4% |
+| Sportsbook implied probability | 2% |
 
 Model intelligence behavior:
 
 - Each factor reports its probability-like value, configured weight,
   availability, and percentage-point contribution.
 - Explanations are generated only for meaningful, available inputs.
-- Data Quality scores pitchers, team statistics, bullpen, sportsbook, recent
-  form, and weather from `0` to `100`.
+- Data Quality scores pitchers, team statistics, bullpen, lineups, sportsbook,
+  recent form, and weather from `0` to `100`.
 - Confidence is capped by Data Quality so incomplete inputs cannot produce
   inflated certainty.
 - `PredictionDiagnosticsService` exposes the prediction version, weights,
@@ -249,6 +275,10 @@ Automated tests cover:
 - Recent-form caching and Prediction Engine integration.
 - Bullpen aggregation, rating, live/replay/mock providers, and caching.
 - Prediction explanations for bullpen quality and recent workload.
+- Confirmed/projected lineup normalization and missing-data behavior.
+- Lineup live/replay/mock providers and cache behavior.
+- Prediction probability, breakdown, explanations, and Data Quality changes
+  caused by lineup inputs.
 
 ## Known Limitations
 
@@ -259,12 +289,16 @@ Automated tests cover:
 - The projected run model still uses sportsbook totals or a neutral fallback.
 - Team rating ranges and Prediction Engine weights are deterministic V1 assumptions, not historically calibrated coefficients.
 - Recent form is not opponent-adjusted and uses deterministic V1 ranges.
+- Projected lineups use the latest official batting order rather than a
+  dedicated projection model.
+- wRC+ and platoon matchup quality are not available in the lineup model.
 - Data Quality still marks weather as missing.
 - Historical prediction storage, ROI, and closing line value tracking are not implemented.
 
 ## Recommended Next Task
 
-Add confirmed starting lineups from the official MLB schedule and game feed.
+Add stadium-level live weather and roof-state data.
 
-Lineups are now the highest-value missing pregame input because the model still
-uses team-level offense without knowing which hitters are confirmed to start.
+Weather is now the highest-value missing pregame input because wind,
+temperature, precipitation, and roof state affect run environment while the
+current model still treats weather as unavailable.

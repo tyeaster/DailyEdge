@@ -13,6 +13,10 @@ import {
 import { PREDICTION_ENGINE_V1_CONFIG } from "../src/services/predictions/config.ts";
 import { PredictionDiagnosticsService } from "../src/services/predictions/PredictionDiagnosticsService.ts";
 import {
+  buildLineupProfile,
+  type LineupPlayerInput,
+} from "../src/providers/lineups/rating.ts";
+import {
   buildTeamRecentForm,
   calculateRecentFormWindow,
 } from "../src/providers/recent-form/rating.ts";
@@ -30,6 +34,7 @@ const homeTeam: Team = {
   division: "West",
   id: "team-lad",
   league: "NL",
+  lineup: createLineup("LAD", 0.76),
   name: "Dodgers",
   record: {
     losses: 35,
@@ -73,6 +78,7 @@ const awayTeam: Team = {
   division: "West",
   id: "team-sf",
   league: "NL",
+  lineup: createLineup("SF", 0.76),
   name: "Giants",
   record: {
     losses: 48,
@@ -212,17 +218,17 @@ test("produces a deterministic V1 prediction result", () => {
     homeTeam,
   });
 
-  assert.equal(Number(prediction.homeWinProbability.toFixed(3)), 0.603);
-  assert.equal(Number(prediction.awayWinProbability.toFixed(3)), 0.397);
-  assert.equal(prediction.homeProjectedRuns, 5.1);
-  assert.equal(prediction.awayProjectedRuns, 3.4);
+  assert.equal(Number(prediction.homeWinProbability.toFixed(3)), 0.593);
+  assert.equal(Number(prediction.awayWinProbability.toFixed(3)), 0.407);
+  assert.equal(prediction.homeProjectedRuns, 5);
+  assert.equal(prediction.awayProjectedRuns, 3.5);
   assert.equal(prediction.projectedTotalRuns, 8.5);
-  assert.equal(prediction.homeFairMoneyline, -152);
-  assert.equal(prediction.awayFairMoneyline, 152);
-  assert.equal(prediction.edgePercent, 5.8);
-  assert.equal(prediction.expectedValuePercent, 10.6);
-  assert.equal(prediction.confidenceScore, 79);
-  assert.equal(prediction.recommendation, "Strong Play");
+  assert.equal(prediction.homeFairMoneyline, -145);
+  assert.equal(prediction.awayFairMoneyline, 145);
+  assert.equal(prediction.edgePercent, 4.7);
+  assert.equal(prediction.expectedValuePercent, 8.6);
+  assert.equal(prediction.confidenceScore, 76);
+  assert.equal(prediction.recommendation, "Play");
   assert.equal(prediction.predictedWinnerTeamId, homeTeam.id);
   assert.ok(prediction.explanations.length >= 4);
   assert.ok(
@@ -230,8 +236,8 @@ test("produces a deterministic V1 prediction result", () => {
       explanation.includes("Fresher Bullpen"),
     ),
   );
-  assert.equal(prediction.predictionVersion, "1.3.0");
-  assert.equal(prediction.dataQuality.score, 90);
+  assert.equal(prediction.predictionVersion, "1.4.0");
+  assert.equal(prediction.dataQuality.score, 85);
   assert.ok(prediction.modelBreakdown.totalContributionPercent > 0);
 });
 
@@ -252,6 +258,7 @@ test("confidence rises with clearer advantage, larger edge, and factor agreement
     factors: {
       bullpen: 0.5,
       homeField: 0.5,
+      lineupStrength: 0.5,
       momentum: 0.5,
       recentForm: 0.5,
       seasonStrength: 0.5,
@@ -267,6 +274,7 @@ test("confidence rises with clearer advantage, larger edge, and factor agreement
     factors: {
       bullpen: 0.63,
       homeField: 0.54,
+      lineupStrength: 0.61,
       momentum: 0.61,
       recentForm: 0.5,
       seasonStrength: 0.64,
@@ -382,6 +390,7 @@ test("keeps every model weight in one documented configuration", () => {
   assert.deepEqual(Object.keys(PREDICTION_ENGINE_V1_CONFIG.weights).sort(), [
     "bullpen",
     "homeField",
+    "lineupStrength",
     "momentum",
     "recentForm",
     "seasonStrength",
@@ -404,6 +413,7 @@ test("calculates a deterministic per-factor model breakdown", () => {
   const breakdown = calculateModelBreakdown({
     bullpen: 0.55,
     homeField: 0.54,
+    lineupStrength: 0.58,
     momentum: 0.58,
     recentForm: 0.5,
     seasonStrength: 0.62,
@@ -417,12 +427,12 @@ test("calculates a deterministic per-factor model breakdown", () => {
     breakdown.factors.startingPitcher.contributionPercent,
     4.8,
   );
-  assert.equal(breakdown.factors.teamOffense.contributionPercent, 1.4);
-  assert.equal(breakdown.factors.sportsbookMarket.contributionPercent, -0.1);
+  assert.equal(breakdown.factors.teamOffense.contributionPercent, 1);
+  assert.equal(breakdown.factors.sportsbookMarket.contributionPercent, -0);
   assert.equal(breakdown.factors.recentForm.contributionPercent, 0);
   assert.equal(breakdown.factors.momentum.contributionPercent, 0.6);
-  assert.equal(breakdown.factors.seasonStrength.contributionPercent, 1.7);
-  assert.equal(breakdown.totalContributionPercent, 9.5);
+  assert.equal(breakdown.factors.seasonStrength.contributionPercent, 1.4);
+  assert.equal(breakdown.factors.lineupStrength.contributionPercent, 0.8);
 });
 
 test("scores data quality from available normalized inputs", () => {
@@ -434,13 +444,72 @@ test("scores data quality from available normalized inputs", () => {
     homeTeam,
   });
 
-  assert.equal(quality.score, 90);
+  assert.equal(quality.score, 85);
   assert.equal(quality.inputs.pitchers.status, "available");
   assert.equal(quality.inputs.teamStats.status, "available");
   assert.equal(quality.inputs.bullpen.status, "available");
   assert.equal(quality.inputs.bullpen.source, "live");
+  assert.equal(quality.inputs.lineups.status, "available");
   assert.equal(quality.inputs.weather.status, "missing");
   assert.deepEqual(quality.missingInputs, ["Recent Form", "Weather"]);
+});
+
+test("confirmed lineup strength changes probability and explainability", () => {
+  const prediction = new PredictionEngine().predictGame({
+    awayPitcher,
+    awayTeam: { ...awayTeam, lineup: createLineup("SF", 0.64) },
+    game,
+    homePitcher,
+    homeTeam: { ...homeTeam, lineup: createLineup("LAD", 0.88) },
+  });
+
+  assert.ok(prediction.homeWinProbability > 0.6);
+  assert.ok(
+    prediction.explanations.some((explanation) =>
+      explanation.includes("Stronger Confirmed Lineup: LAD"),
+    ),
+  );
+  assert.ok(
+    prediction.modelBreakdown.factors.lineupStrength.contributionPercent > 0,
+  );
+});
+
+test("projected lineups receive lower data quality than confirmed lineups", () => {
+  const engine = new PredictionEngine();
+  const confirmed = engine.predictGame({
+    awayPitcher,
+    awayTeam,
+    game,
+    homePitcher,
+    homeTeam,
+  });
+  const projected = engine.predictGame({
+    awayPitcher,
+    awayTeam: {
+      ...awayTeam,
+      lineup: {
+        ...awayTeam.lineup!,
+        confirmedAt: undefined,
+        lineupConfidence: 65,
+        status: "projected",
+      },
+    },
+    game,
+    homePitcher,
+    homeTeam: {
+      ...homeTeam,
+      lineup: {
+        ...homeTeam.lineup!,
+        confirmedAt: undefined,
+        lineupConfidence: 65,
+        status: "projected",
+      },
+    },
+  });
+
+  assert.ok(projected.dataQuality.score < confirmed.dataQuality.score);
+  assert.equal(projected.dataQuality.inputs.lineups.status, "partial");
+  assert.ok(projected.confidenceScore <= confirmed.confidenceScore);
 });
 
 test("missing data lowers quality, caps confidence, and emits no missing-data explanations", () => {
@@ -450,8 +519,8 @@ test("missing data lowers quality, caps confidence, and emits no missing-data ex
     homeTeam: { ...homeTeam, strength: undefined },
   });
 
-  assert.equal(prediction.dataQuality.score, 15);
-  assert.equal(prediction.confidenceScore, 15);
+  assert.equal(prediction.dataQuality.score, 25);
+  assert.equal(prediction.confidenceScore, 25);
   assert.equal(prediction.modelBreakdown.factors.startingPitcher.available, false);
   assert.equal(prediction.modelBreakdown.factors.teamOffense.available, false);
   assert.ok(
@@ -474,7 +543,7 @@ test("developer diagnostics expose version, weights, sources, and missing inputs
   });
   const diagnostics = new PredictionDiagnosticsService().create(prediction);
 
-  assert.equal(diagnostics.predictionVersion, "1.3.0");
+  assert.equal(diagnostics.predictionVersion, "1.4.0");
   assert.equal(diagnostics.weights.startingPitcher, 0.24);
   assert.equal(diagnostics.inputSources["Sportsbook Market"], "OddsPipe");
   assert.deepEqual(diagnostics.missingInputs, ["Recent Form", "Weather"]);
@@ -547,9 +616,9 @@ test("builds recommendation records from prediction results", () => {
 
   assert.equal(recommendations.length, 1);
   assert.equal(recommendations[0].selection, "LAD moneyline");
-  assert.equal(recommendations[0].prediction.projection, "-152");
+  assert.equal(recommendations[0].prediction.projection, "-145");
   assert.equal(recommendations[0].rank, 1);
-  assert.equal(recommendations[0].recommendedUnits, 1);
+  assert.equal(recommendations[0].recommendedUnits, 0.75);
 });
 
 function createRecentForm({
@@ -595,5 +664,36 @@ function createRecentForm({
     fetchedAt: "2026-06-24T12:00:00.000Z",
     source: "live",
     windows,
+  });
+}
+
+function createLineup(teamId: string, ops: number) {
+  const players = Array.from({ length: 9 }, (_, index) => {
+    const player: LineupPlayerInput = {
+      battingAverage: 0.25,
+      battingHand: index % 3 === 0 ? "L" : "R",
+      battingOrder: index + 1,
+      fullName: `${teamId} Batter ${index + 1}`,
+      homeRuns: 10 + index,
+      mlbId: Number(`${teamId === "LAD" ? 1 : 2}${index + 1}`),
+      onBasePercentage: 0.33,
+      ops,
+      plateAppearances: 300,
+      position: index === 8 ? "C" : "IF",
+      sluggingPercentage: 0.43,
+      strikeoutRate: 0.21,
+    };
+
+    return player;
+  });
+
+  return buildLineupProfile({
+    baselinePlayerIds: players.map((player) => player.mlbId),
+    confirmedAt: "2026-06-25T12:00:00.000Z",
+    fetchedAt: "2026-06-25T12:00:00.000Z",
+    players,
+    rosterPlayers: players,
+    source: "live",
+    status: "confirmed",
   });
 }

@@ -20,6 +20,7 @@ Current examples include:
 - `TeamStrengthService` for cached offense, pitching, and overall team ratings.
 - `BullpenService` for cached relief quality and recent workload enrichment.
 - `RecentFormService` for cached rolling team form and momentum.
+- `LineupService` for cached confirmed/projected batting-order enrichment.
 
 Services should be the only place where provider selection happens.
 

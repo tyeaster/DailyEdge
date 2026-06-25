@@ -16,6 +16,10 @@ import {
   buildTeamRecentForm,
   calculateRecentFormWindow,
 } from "@/src/providers/recent-form";
+import {
+  buildLineupProfile,
+  type LineupPlayerInput,
+} from "@/src/providers/lineups";
 import type { DashboardNavItem, KpiMetric, SlateMeta } from "@/src/types/mlb-dashboard";
 
 export const slateMeta: SlateMeta = {
@@ -62,6 +66,7 @@ function createMockTeam(
     division,
     id,
     league,
+    lineup: createMockLineup(abbreviation, battingAverage, ops),
     name,
     recentForm: createMockRecentForm({
       battingAverage,
@@ -73,6 +78,51 @@ function createMockTeam(
       whip,
     }),
   };
+}
+
+function createMockLineup(
+  abbreviation: string,
+  battingAverage: number,
+  ops: number,
+) {
+  const players: LineupPlayerInput[] = Array.from({ length: 9 }, (_, index) => {
+    const battingOrder = index + 1;
+    const onBasePercentage = Math.max(0.28, battingAverage + 0.07);
+    const sluggingPercentage = Math.max(0.3, ops - onBasePercentage);
+
+    return {
+      battingAverage: Math.max(0.18, battingAverage + (4 - index) * 0.002),
+      battingHand: index % 4 === 0 ? "L" : index % 5 === 0 ? "S" : "R",
+      battingOrder,
+      fullName: `${abbreviation} Projected Hitter ${battingOrder}`,
+      homeRuns: Math.max(2, 20 - index * 2),
+      mlbId: mockMlbId(abbreviation, battingOrder),
+      onBasePercentage,
+      ops,
+      plateAppearances: 300,
+      position: ["CF", "2B", "RF", "1B", "3B", "LF", "DH", "SS", "C"][index],
+      sluggingPercentage,
+      strikeoutRate: 0.18 + index * 0.008,
+    };
+  });
+
+  return buildLineupProfile({
+    baselinePlayerIds: players.map((player) => player.mlbId),
+    fetchedAt: "2026-06-22T15:42:00.000Z",
+    players,
+    rosterPlayers: players,
+    source: "mock",
+    status: "projected",
+  });
+}
+
+function mockMlbId(abbreviation: string, battingOrder: number) {
+  const teamCode = [...abbreviation].reduce(
+    (total, character) => total + character.charCodeAt(0),
+    0,
+  );
+
+  return teamCode * 100 + battingOrder;
 }
 
 function createMockRecentForm({

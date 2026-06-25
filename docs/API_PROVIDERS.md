@@ -122,6 +122,23 @@ Bullpen mode follows team-strength replay/mock mode when no bullpen-specific
 mode is configured. Live season quality and recent workload are sourced from
 official MLB relief-pitcher splits and cached for 30 minutes.
 
+Current lineup configuration:
+
+```text
+LINEUP_MODE=live
+LINEUP_MODE=replay
+LINEUP_MODE=mock
+LINEUP_RECORD=true
+LINEUP_REPLAY_DIR=replay/lineups
+LINEUP_REPLAY_FILE=replay/lineups/example.json
+MLB_API_URL=https://statsapi.mlb.com/api/v1
+```
+
+Lineup mode follows bullpen or team-strength replay/mock mode when no
+lineup-specific mode is configured. Current-game lineups are cached for 60
+seconds, projected lineups for 5 minutes, and active-roster hitting statistics
+for one hour.
+
 ## Future Providers
 
 Potential future providers:
