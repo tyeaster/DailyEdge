@@ -21,6 +21,9 @@ Current examples include:
 - `BullpenService` for cached relief quality and recent workload enrichment.
 - `RecentFormService` for cached rolling team form and momentum.
 - `LineupService` for cached confirmed/projected batting-order enrichment.
+- `BallparkService` for official venue metadata and rolling park factors.
+- `WeatherService` for game-time atmospheric forecasts and roof-aware
+  environmental ratings.
 
 Services should be the only place where provider selection happens.
 

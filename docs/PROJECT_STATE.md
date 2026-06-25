@@ -12,6 +12,8 @@ TrueLine is an MLB-first sports betting analytics dashboard with:
 - Live team offense and pitching strength.
 - Live bullpen season quality and recent workload.
 - Live confirmed lineups with projected fallback.
+- Live game-time weather intelligence.
+- Live MLB venue and Baseball Savant ballpark intelligence.
 - Live 7, 14, and 30-game recent form and momentum.
 - Live-configured sportsbook odds integration.
 - Deterministic Prediction Engine V1.
@@ -154,9 +156,36 @@ The branch is stacked on `test-codex-auth`. Pull requests remain unmerged pendin
 
 ### Weather
 
-- Current status: Schedule-derived placeholder.
-- Live weather API: Not implemented.
-- Values such as temperature, wind, humidity, and rain chance remain placeholders in live schedule mode.
+- Default: Live Open-Meteo hourly forecast.
+- Replay: Supported with raw hourly and normalized fixtures.
+- Mock: Supported.
+- Cache: 10 minutes; indoor or closed-roof profiles use one hour.
+- Live fields:
+  - Temperature, humidity, pressure, air density, dew point, cloud cover, and
+    visibility.
+  - Wind, gusts, direction, relative field direction, and component speeds.
+  - Rain probability and intensity, delay/cancellation probability, storm risk.
+  - Roof status, indoor/outdoor, and weather applicability.
+  - Run, home-run, strikeout, fly-ball, ground-ball, offense, pitching,
+    confidence, and severity ratings.
+- Current limitation: the public Open-Meteo endpoint is development-only for
+  non-commercial use; production requires a licensed or self-hosted endpoint.
+
+### Ballpark Intelligence
+
+- Default: Official MLB venue metadata plus Baseball Savant three-year rolling
+  park factors.
+- Replay: Supported.
+- Mock: Supported.
+- Cache: 24 hours.
+- Live fields:
+  - Name, altitude, coordinates, field azimuth, dimensions, roof, surface, and
+    league.
+  - Run, home run, singles, doubles, triples, strikeout, walk, BABIP, and
+    handedness-specific home-run factors.
+  - Hitter, pitcher, power, speed, overall, and historical-confidence ratings.
+- Current limitation: foul-territory, ground-ball, and fly-ball factors remain
+  unavailable.
 
 ### Injuries
 
@@ -182,6 +211,8 @@ The branch is stacked on `test-codex-auth`. Pull requests remain unmerged pendin
   - Confirmed or projected lineup strength when available.
   - Home field.
   - Sportsbook implied probability.
+  - Weather run environment.
+  - Ballpark run environment.
 - Replay and mock support are inherited from normalized input providers.
 
 ## Prediction Engine V1
@@ -228,7 +259,7 @@ Model intelligence behavior:
   availability, and percentage-point contribution.
 - Explanations are generated only for meaningful, available inputs.
 - Data Quality scores pitchers, team statistics, bullpen, lineups, sportsbook,
-  recent form, and weather from `0` to `100`.
+  recent form, weather, and ballpark data from `0` to `100`.
 - Confidence is capped by Data Quality so incomplete inputs cannot produce
   inflated certainty.
 - `PredictionDiagnosticsService` exposes the prediction version, weights,
@@ -245,7 +276,8 @@ The Daily Slate includes:
 - Team offense, pitching, bullpen, and overall ratings.
 - Bullpen ERA, WHIP, and strikeout rate.
 - Compact last-7 record, form rating, and momentum comparison.
-- Weather placeholder display.
+- Live weather, roof, delay-risk, and run-environment display.
+- Ballpark run and home-run factors.
 - Mock injury and prop sections.
 
 No redesign is planned during data-quality sprints.
@@ -279,12 +311,15 @@ Automated tests cover:
 - Lineup live/replay/mock providers and cache behavior.
 - Prediction probability, breakdown, explanations, and Data Quality changes
   caused by lineup inputs.
+- Weather and ballpark normalization, ratings, live/replay/mock providers,
+  caching, fixtures, and graceful degradation.
+- Environmental projected-run adjustment and PredictionEngine integration.
 
 ## Known Limitations
 
 - OddsPipe live operation requires deployment credentials.
 - Schedule replay is not implemented.
-- Weather and injuries are not live.
+- Injuries are not live.
 - Props remain mock.
 - The projected run model still uses sportsbook totals or a neutral fallback.
 - Team rating ranges and Prediction Engine weights are deterministic V1 assumptions, not historically calibrated coefficients.
@@ -292,13 +327,33 @@ Automated tests cover:
 - Projected lineups use the latest official batting order rather than a
   dedicated projection model.
 - wRC+ and platoon matchup quality are not available in the lineup model.
-- Data Quality still marks weather as missing.
+- Retractable-roof status may remain unknown before game operations publish it.
+- Environmental projected-run adjustments are deterministic and not
+  historically calibrated.
+- Baseball Savant park data is parsed from a public leaderboard contract.
 - Historical prediction storage, ROI, and closing line value tracking are not implemented.
 
 ## Recommended Next Task
 
-Add stadium-level live weather and roof-state data.
+Add live injury impact and late-scratch monitoring, then begin Pitch Matchup
+Intelligence with platoon-aware pitcher-versus-lineup inputs.
 
-Weather is now the highest-value missing pregame input because wind,
-temperature, precipitation, and roof state affect run environment while the
-current model still treats weather as unavailable.
+## Phase 3 Readiness
+
+The provider, replay, cache, normalized-model, diagnostics, and graceful
+degradation foundations are ready for Phase 3.
+
+Pitch Matchup Intelligence should not begin its scoring work until these input
+gaps are closed:
+
+1. Live pitcher throwing hand must replace the current schedule-adapter
+   placeholder.
+2. Batter performance splits versus left- and right-handed pitching must be
+   normalized.
+3. Pitcher platoon splits must be normalized.
+4. Pitch-mix or arsenal data must replace the current placeholder.
+5. Confirmed lineup players must be joined reliably to the matchup split
+   records.
+
+Once those data contracts and replay fixtures exist, Phase 3 can add matchup
+ratings without changing the Prediction Engine interface.

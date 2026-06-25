@@ -215,13 +215,73 @@ export const pitchers: Pitcher[] = [
 ];
 
 export const weatherReports: Weather[] = [
-  { gameId: "game-nyy-bos", hitterFriendlyRating: 88, humidityPercent: 58, id: "weather-fenway", pitcherFriendlyRating: 32, rainChancePercent: 18, stadium: "Fenway Park", summary: "78F, wind out to LF 12 mph", temperatureF: 78, windDirection: "Out to LF", windMph: 12 },
-  { gameId: "game-lad-atl", hitterFriendlyRating: 76, humidityPercent: 64, id: "weather-truist", pitcherFriendlyRating: 41, rainChancePercent: 15, stadium: "Truist Park", summary: "82F, wind out to RF 7 mph", temperatureF: 82, windDirection: "Out to RF", windMph: 7 },
-  { gameId: "game-phi-nym", hitterFriendlyRating: 36, humidityPercent: 51, id: "weather-citi", pitcherFriendlyRating: 82, rainChancePercent: 4, stadium: "Citi Field", summary: "70F, wind in from CF 10 mph", temperatureF: 70, windDirection: "In from CF", windMph: 10 },
-  { gameId: "game-tex-hou", hitterFriendlyRating: 55, humidityPercent: null, id: "weather-minute-maid", pitcherFriendlyRating: 56, rainChancePercent: 0, stadium: "Minute Maid Park", summary: "Roof likely closed, neutral air", temperatureF: 74, windDirection: "Roof likely closed", windMph: 0 },
-  { gameId: "game-sea-laa", hitterFriendlyRating: 42, humidityPercent: 67, id: "weather-angel", pitcherFriendlyRating: 78, rainChancePercent: 2, stadium: "Angel Stadium", summary: "68F, marine layer settling in", temperatureF: 68, windDirection: "In from RF", windMph: 6 },
-  { gameId: "game-sd-sf", hitterFriendlyRating: 30, humidityPercent: 71, id: "weather-oracle", pitcherFriendlyRating: 86, rainChancePercent: 6, stadium: "Oracle Park", summary: "61F, wind across 14 mph", temperatureF: 61, windDirection: "Across from RF", windMph: 14 },
+  createMockWeather("game-nyy-bos", "weather-fenway", "Fenway Park", 78, 58, 18, 12, "Tailwind", 82),
+  createMockWeather("game-lad-atl", "weather-truist", "Truist Park", 82, 64, 15, 7, "Tailwind", 74),
+  createMockWeather("game-phi-nym", "weather-citi", "Citi Field", 70, 51, 4, 10, "Headwind", 38),
+  createMockWeather("game-tex-hou", "weather-minute-maid", "Minute Maid Park", 0, null, 0, 0, "Not Applicable", 50, false),
+  createMockWeather("game-sea-laa", "weather-angel", "Angel Stadium", 68, 67, 2, 6, "Headwind", 43),
+  createMockWeather("game-sd-sf", "weather-oracle", "Oracle Park", 61, 71, 6, 14, "Crosswind", 34),
 ];
+
+function createMockWeather(
+  gameId: string,
+  id: string,
+  stadium: string,
+  temperatureF: number,
+  humidityPercent: number | null,
+  rainChancePercent: number,
+  windMph: number,
+  relativeWindDirection: Weather["relativeWindDirection"],
+  runEnvironment: number,
+  weatherApplicable = true,
+): Weather {
+  const offenseEnvironment = runEnvironment;
+
+  return {
+    airDensityKgM3: weatherApplicable ? 1.18 : null,
+    airPressureHpa: weatherApplicable ? 1012 : null,
+    cancellationProbability: rainChancePercent >= 70 ? 25 : 0,
+    cloudCoverPercent: weatherApplicable ? 35 : null,
+    crosswindMph: relativeWindDirection.includes("Left") || relativeWindDirection.includes("Right") || relativeWindDirection === "Crosswind" ? windMph : 0,
+    delayProbability: Math.round(rainChancePercent * 0.4),
+    dewPointF: humidityPercent === null ? null : temperatureF - 12,
+    fetchedAt: "2026-06-22T15:42:00.000Z",
+    flyBallEnvironment: runEnvironment,
+    gameId,
+    groundBallEnvironment: 100 - runEnvironment,
+    gustMph: windMph + 4,
+    headwindMph: relativeWindDirection === "Headwind" ? windMph : 0,
+    hitterFriendlyRating: offenseEnvironment,
+    homeRunEnvironment: runEnvironment,
+    humidityPercent,
+    id,
+    indoor: !weatherApplicable,
+    offenseEnvironment,
+    pitcherFriendlyRating: 100 - offenseEnvironment,
+    pitchingEnvironment: 100 - offenseEnvironment,
+    rainChancePercent,
+    rainIntensityInchesPerHour: 0,
+    relativeWindDirection,
+    roofStatus: weatherApplicable ? "open" : "closed",
+    runEnvironment,
+    source: "mock",
+    stadium,
+    stormRisk: 0,
+    strikeoutEnvironment: 100 - runEnvironment,
+    summary: weatherApplicable
+      ? `${temperatureF}F, ${windMph} MPH ${relativeWindDirection}`
+      : "Weather Not Applicable",
+    tailwindMph: relativeWindDirection === "Tailwind" ? windMph : 0,
+    temperatureF,
+    visibilityMiles: weatherApplicable ? 10 : null,
+    weatherApplicable,
+    weatherConfidence: 85,
+    weatherSeverity: 0,
+    windDirection: relativeWindDirection,
+    windDirectionDegrees: null,
+    windMph,
+  };
+}
 
 export const games: Game[] = [
   {

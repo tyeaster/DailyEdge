@@ -18,10 +18,13 @@ add prediction formulas or redesign the Prediction Engine.
 
 1. Live bullpen quality. Complete.
 2. Confirmed starting lineups. Complete.
-3. Stadium-level weather and roof state. Next.
-4. Baseball Savant park factors.
+3. Stadium-level weather and roof state. Complete.
+4. Baseball Savant park factors. Complete.
 5. Injury status and explicit impact mapping.
 6. Umpire assignments and optional historical profile.
+
+Weather and ballpark implementation details are documented in
+[ENVIRONMENTAL_INTELLIGENCE.md](ENVIRONMENTAL_INTELLIGENCE.md).
 
 Every provider should preserve live, replay, and mock modes, normalize data
 before it reaches services, use the shared cache abstraction, and degrade to an

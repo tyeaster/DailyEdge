@@ -1,5 +1,10 @@
 export { getDailySlate } from "./daily-slate";
 export {
+  ballparkService,
+  BallparkService,
+  getConfiguredBallparkProvider,
+} from "./BallparkService";
+export {
   bullpenService,
   BullpenService,
   getConfiguredBullpenProvider,
@@ -24,6 +29,11 @@ export {
   recentFormService,
   RecentFormService,
 } from "./RecentFormService";
+export {
+  getConfiguredWeatherProvider,
+  weatherService,
+  WeatherService,
+} from "./WeatherService";
 export { LiveMLBProvider, liveMLBProvider, MockDataProvider, mockDataProvider } from "./providers";
 export type {
   BetsProvider,

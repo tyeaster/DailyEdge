@@ -175,6 +175,7 @@ export class PredictionEngine {
         factors,
         homePitcher,
         homeTeam,
+        game,
         selectHomeSide,
       }),
       gameId: game.id,
@@ -490,6 +491,12 @@ export function calculateDataQuality({
 }: PredictionEngineGameInput): DataQuality {
   const weights = PREDICTION_ENGINE_V1_CONFIG.dataQuality.weights;
   const inputs = {
+    ballpark: buildQualityInput({
+      label: "Ballpark",
+      scores: [game.ballpark?.historicalConfidence ?? 0],
+      source: game.ballpark?.source ?? "unavailable",
+      weight: weights.ballpark,
+    }),
     bullpen: buildQualityInput({
       label: "Bullpen",
       scores: [
@@ -543,8 +550,12 @@ export function calculateDataQuality({
     }),
     weather: buildQualityInput({
       label: "Weather",
-      scores: [0],
-      source: "not connected",
+      scores: [
+        game.weather?.weatherApplicable === false
+          ? 100
+          : (game.weather?.weatherConfidence ?? 0),
+      ],
+      source: game.weather?.source ?? "unavailable",
       weight: weights.weather,
     }),
   } satisfies DataQuality["inputs"];
@@ -666,11 +677,23 @@ function getMoneylineOutcome(game: Game, side: "away" | "home") {
 }
 
 function getProjectedTotalRuns(game: Game) {
-  return roundToTenth(
+  const baseline =
     game.odds.total.line > 0
       ? game.odds.total.line
-      : PREDICTION_ENGINE_V1_CONFIG.neutralProjectedRuns,
-  );
+      : PREDICTION_ENGINE_V1_CONFIG.neutralProjectedRuns;
+  const config = PREDICTION_ENGINE_V1_CONFIG.environment;
+  const weatherRating =
+    game.weather?.weatherApplicable === false
+      ? 50
+      : (game.weather?.runEnvironment ?? 50);
+  const ballparkRating = game.ballpark?.overallParkRating ?? 50;
+  const normalizedEnvironment =
+    ((weatherRating - 50) / 50) * config.weatherWeight +
+    ((ballparkRating - 50) / 50) * config.ballparkWeight;
+  const adjustment =
+    normalizedEnvironment * config.maximumRunAdjustment;
+
+  return roundToTenth(Math.max(0, baseline + adjustment));
 }
 
 function buildExplanations({
@@ -680,6 +703,7 @@ function buildExplanations({
   factors,
   homePitcher,
   homeTeam,
+  game,
   selectHomeSide,
 }: {
   awayPitcher?: Pitcher;
@@ -688,6 +712,7 @@ function buildExplanations({
   factors: PredictionModelFactors;
   homePitcher?: Pitcher;
   homeTeam: Team;
+  game: Game;
   selectHomeSide: boolean;
 }) {
   const selectedTeam = selectHomeSide ? homeTeam : awayTeam;
@@ -897,6 +922,34 @@ function buildExplanations({
     Math.abs(factors.sportsbookMarket - 0.5) >= 0.02
   ) {
     explanations.push("Sportsbook Market provides a low-weight reference");
+  }
+
+  if (game.weather?.weatherApplicable === false) {
+    explanations.push("Weather Not Applicable: indoor or closed-roof game");
+  } else if (game.weather && game.weather.weatherConfidence > 0) {
+    if (game.weather.runEnvironment >= 57) {
+      explanations.push(
+        `Weather increases the run environment at ${game.venue}`,
+      );
+    } else if (game.weather.runEnvironment <= 43) {
+      explanations.push(
+        `Weather suppresses the run environment at ${game.venue}`,
+      );
+    }
+
+    if (game.weather.delayProbability >= 40) {
+      explanations.push(
+        `Elevated weather delay risk: ${game.weather.delayProbability}%`,
+      );
+    }
+  }
+
+  if (game.ballpark?.historicalConfidence) {
+    if (game.ballpark.hitterFriendlyRating >= 57) {
+      explanations.push(`Hitter-friendly park environment: ${game.venue}`);
+    } else if (game.ballpark.pitcherFriendlyRating >= 57) {
+      explanations.push(`Pitcher-friendly park environment: ${game.venue}`);
+    }
   }
 
   explanations.push(`Value side: ${selectedTeam.abbreviation}`);

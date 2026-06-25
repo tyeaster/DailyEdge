@@ -12,6 +12,13 @@ export function WeatherCard({
   homeTeam: Team;
   report: Weather;
 }) {
+  const delayRisk =
+    report.delayProbability >= 60
+      ? "High"
+      : report.delayProbability >= 30
+        ? "Moderate"
+        : "Low";
+
   return (
     <DashboardCard as="article" className="p-5">
       <div className="flex items-start justify-between gap-4">
@@ -21,21 +28,60 @@ export function WeatherCard({
             {awayTeam.name} at {homeTeam.name}
           </p>
         </div>
-        <p className="text-2xl font-semibold text-white">{report.temperatureF}F</p>
+        <p className="text-right text-lg font-semibold text-white">
+          {report.weatherApplicable ? `${report.temperatureF}F` : "Indoor"}
+        </p>
       </div>
       <div className="mt-5 grid grid-cols-2 gap-2 text-sm">
-        <WeatherLine label="Wind" value={`${report.windMph} mph`} />
-        <WeatherLine label="Direction" value={report.windDirection} />
+        <WeatherLine
+          label="Wind"
+          value={
+            report.weatherApplicable
+              ? `${report.windMph} MPH ${report.relativeWindDirection}`
+              : "Not Applicable"
+          }
+        />
+        <WeatherLine label="Roof" value={formatLabel(report.roofStatus)} />
         <WeatherLine
           label="Humidity"
-          value={report.humidityPercent === null ? "Indoor" : `${report.humidityPercent}%`}
+          value={
+            report.weatherApplicable && report.humidityPercent !== null
+              ? `${report.humidityPercent}%`
+              : "Not Applicable"
+          }
         />
-        <WeatherLine label="Rain" value={`${report.rainChancePercent}%`} />
-        <WeatherLine label="Hitter rating" value={`${report.hitterFriendlyRating}/100`} />
-        <WeatherLine label="Pitcher rating" value={`${report.pitcherFriendlyRating}/100`} />
+        <WeatherLine
+          label="Delay risk"
+          value={
+            report.weatherApplicable
+              ? `${delayRisk} (${report.delayProbability}%)`
+              : "None"
+          }
+        />
+        <WeatherLine
+          label="Run environment"
+          value={formatEnvironment(report.runEnvironment)}
+        />
+        <WeatherLine
+          label="HR environment"
+          value={formatEnvironment(report.homeRunEnvironment)}
+        />
       </div>
     </DashboardCard>
   );
+}
+
+function formatEnvironment(value: number) {
+  const difference = value - 50;
+
+  return `${difference >= 0 ? "+" : ""}${Math.round(difference)}%`;
+}
+
+function formatLabel(value: string) {
+  return value
+    .split("-")
+    .map((part) => part[0].toUpperCase() + part.slice(1))
+    .join(" ");
 }
 
 function WeatherLine({ label, value }: { label: string; value: string }) {

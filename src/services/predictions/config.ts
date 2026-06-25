@@ -10,14 +10,20 @@ export const PREDICTION_ENGINE_V1_CONFIG = {
   homeFieldWinProbability: 0.54,
   dataQuality: {
     weights: {
+      ballpark: 5,
       bullpen: 15,
       lineups: 15,
-      pitchers: 25,
+      pitchers: 20,
       recentForm: 10,
       sportsbook: 10,
-      teamStats: 20,
-      weather: 5,
+      teamStats: 15,
+      weather: 10,
     },
+  },
+  environment: {
+    ballparkWeight: 0.4,
+    maximumRunAdjustment: 1.5,
+    weatherWeight: 0.6,
   },
   factorLabels: {
     bullpen: "Bullpen",
@@ -79,5 +85,5 @@ export const PREDICTION_ENGINE_V1_CONFIG = {
     teamOffense: 0.1,
     teamPitching: 0.12,
   },
-  version: "1.4.0",
+  version: "1.5.0",
 } as const;

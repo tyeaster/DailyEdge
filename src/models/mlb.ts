@@ -25,6 +25,16 @@ export type ModelFactorKey =
 export type RecentFormWindow = 7 | 14 | 30;
 export type DataQualityStatus = "available" | "partial" | "missing";
 export type LineupStatus = "confirmed" | "projected" | "unavailable";
+export type DataSourceMode = "live" | "mock" | "replay" | "unavailable";
+export type RoofStatus = "open" | "closed" | "unknown" | "not-applicable";
+export type WindRelativeDirection =
+  | "Headwind"
+  | "Tailwind"
+  | "Left to Right"
+  | "Right to Left"
+  | "Crosswind"
+  | "Calm"
+  | "Not Applicable";
 export type PlayerPropCategory =
   | "Strikeouts"
   | "Hits"
@@ -260,18 +270,92 @@ export interface Odds {
   updatedAt?: string;
 }
 
-export interface Weather {
+export interface WeatherProfile {
+  airDensityKgM3: number | null;
+  airPressureHpa: number | null;
+  cancellationProbability: number;
+  cloudCoverPercent: number | null;
+  delayProbability: number;
+  dewPointF: number | null;
+  fetchedAt: string;
+  flyBallEnvironment: number;
   gameId: string;
+  groundBallEnvironment: number;
+  gustMph: number;
+  headwindMph: number;
   hitterFriendlyRating: number;
   humidityPercent: number | null;
   id: string;
+  indoor: boolean;
+  offenseEnvironment: number;
+  pitchingEnvironment: number;
   pitcherFriendlyRating: number;
+  rainIntensityInchesPerHour: number;
   rainChancePercent: number;
+  relativeWindDirection: WindRelativeDirection;
+  roofStatus: RoofStatus;
+  runEnvironment: number;
+  source: DataSourceMode;
   stadium: string;
+  stormRisk: number;
+  strikeoutEnvironment: number;
   summary: string;
+  tailwindMph: number;
   temperatureF: number;
+  visibilityMiles: number | null;
+  weatherApplicable: boolean;
+  weatherConfidence: number;
+  weatherSeverity: number;
   windDirection: string;
+  windDirectionDegrees: number | null;
   windMph: number;
+  crosswindMph: number;
+  homeRunEnvironment: number;
+}
+
+export type Weather = WeatherProfile;
+
+export interface BallparkDimensions {
+  center: number | null;
+  leftCenter: number | null;
+  leftLine: number | null;
+  rightCenter: number | null;
+  rightLine: number | null;
+}
+
+export interface BallparkProfile {
+  altitudeFeet: number | null;
+  azimuthDegrees: number | null;
+  babipFactor: number | null;
+  dimensions: BallparkDimensions;
+  doublesFactor: number | null;
+  fetchedAt: string;
+  flyBallFactor: number | null;
+  foulTerritoryFactor: number | null;
+  groundBallFactor: number | null;
+  historicalConfidence: number;
+  hitterFriendlyRating: number;
+  homeRunFactor: number | null;
+  league: MlbLeague;
+  leftHandedHomeRunFactor: number | null;
+  latitude: number | null;
+  name: string;
+  longitude: number | null;
+  outfieldSpeed: number | null;
+  overallParkRating: number;
+  pitcherFriendlyRating: number;
+  powerFriendlyRating: number;
+  rightHandedHomeRunFactor: number | null;
+  roofType: string;
+  runFactor: number | null;
+  singlesFactor: number | null;
+  source: DataSourceMode;
+  speedFriendlyRating: number;
+  strikeoutFactor: number | null;
+  surface: string;
+  triplesFactor: number | null;
+  venueId: number;
+  walkFactor: number | null;
 }
 
 export interface Injury {
@@ -319,6 +403,7 @@ export interface DataQualityInput {
 export interface DataQuality {
   inputs: Record<
     | "bullpen"
+    | "ballpark"
     | "lineups"
     | "pitchers"
     | "recentForm"
@@ -394,6 +479,7 @@ export interface Game {
   detail: string;
   externalIds?: {
     mlb?: number;
+    venueMlb?: number;
   };
   homePitcherId: string;
   homeTeamId: string;
@@ -405,9 +491,11 @@ export interface Game {
     total: Odds;
   };
   prediction?: PredictionResult;
+  ballpark?: BallparkProfile;
   scheduledAt: string;
   status: GameStatus;
   venue: string;
   value?: ValueAssessment;
+  weather?: WeatherProfile;
   weatherId: string;
 }

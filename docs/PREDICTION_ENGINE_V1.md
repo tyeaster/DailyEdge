@@ -72,6 +72,8 @@ V1 uses:
 - Sportsbook moneyline
 - Sportsbook implied probability
 - Sportsbook game total
+- Game-time WeatherProfile
+- BallparkProfile
 
 Missing statistics use neutral values. The engine never invents unavailable pitcher or team performance data.
 
@@ -215,7 +217,7 @@ The team with the higher probability is the predicted winner.
 
 ## Projected Runs
 
-V1 does not contain a run-production model.
+V1 does not contain an independent run-production model.
 
 When a sportsbook total is available:
 
@@ -229,14 +231,29 @@ When it is unavailable:
 projected total runs = 8.6
 ```
 
-The total is divided using the model win probabilities:
+Weather and ballpark ratings apply a bounded environmental adjustment:
+
+```text
+environment score =
+  normalized weather run environment * 0.60 +
+  normalized overall park rating * 0.40
+
+projected total =
+  baseline total + environment score * maximum 1.5 runs
+```
+
+Indoor or closed-roof weather is neutral. Missing weather or park data is also
+neutral and reduces Data Quality when applicable.
+
+The adjusted total is divided using the model win probabilities:
 
 ```text
 projected home runs = projected total * home win probability
 projected away runs = projected total - projected home runs
 ```
 
-This is a display-oriented V1 estimate and should be replaced by an independent run model in Version 2.
+This remains a display-oriented V1 estimate and should be replaced by an
+independent run model in Version 2.
 
 ## Fair Moneyline
 
@@ -357,9 +374,11 @@ availability of:
 - Starting pitchers.
 - Team statistics.
 - Bullpen.
+- Starting lineups.
 - Sportsbook market.
 - Recent form.
 - Weather.
+- Ballpark.
 
 Each group reports an availability status and source. This score is separate
 from model probability, edge, and sportsbook odds.
@@ -396,6 +415,10 @@ V1 explanations identify:
 - Better recent pitching.
 - Positive momentum.
 - Superior recent run differential.
+- Stronger confirmed or projected lineup.
+- Weather-driven run-environment changes.
+- Elevated weather delay risk.
+- Hitter- or pitcher-friendly park environment.
 - Strong home field advantage.
 - Sportsbook probability as a low-weight reference.
 - Selected value side.
@@ -425,6 +448,8 @@ Automated tests cover:
 - Bullpen quality and recent workload integration.
 - Confirmed/projected lineup normalization, provider modes, caching, model
   contribution, explanations, and Data Quality behavior.
+- Weather and ballpark normalization, replay/mock/live providers, environmental
+  run adjustment, confidence, explanations, and diagnostics.
 
 ## Current Limitations
 
@@ -442,22 +467,20 @@ Automated tests cover:
 - Projected runs use the sportsbook total rather than an independent run model.
 - V1 does not remove vig from every live market pairing before the sportsbook factor is used.
 - No historical training, backtesting, calibration, or model fitting is included.
-- No live weather, injury, park, travel, rest, or advanced-stat inputs are
-  included.
+- No live injury, travel, rest, umpire, or advanced matchup inputs are included.
 - Player prop predictions remain outside this game-level V1 engine.
 
 ## Version 2 Priorities
 
 The inputs most likely to improve accuracy are:
 
-1. Weather, especially wind, temperature, precipitation, and roof status.
-2. Park factors.
-3. Injury impact and late-scratch monitoring.
-4. Batter-versus-pitcher platoon quality and advanced lineup metrics.
-5. Starting pitcher advanced metrics and projected workload.
-6. Bullpen role availability beyond aggregate recent workload.
-7. Travel and rest.
-8. Line movement and no-vig market consensus.
-9. Historical backtesting and probability calibration.
+1. Injury impact and late-scratch monitoring.
+2. Batter-versus-pitcher platoon quality and advanced lineup metrics.
+3. Starting pitcher advanced metrics and projected workload.
+4. Bullpen role availability beyond aggregate recent workload.
+5. Verified retractable-roof operating status.
+6. Travel and rest.
+7. Line movement and no-vig market consensus.
+8. Historical backtesting and probability calibration.
 
 These additions should extend normalized engine inputs while preserving the provider and service boundaries.

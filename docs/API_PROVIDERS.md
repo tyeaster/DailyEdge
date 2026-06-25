@@ -139,6 +139,40 @@ lineup-specific mode is configured. Current-game lineups are cached for 60
 seconds, projected lineups for 5 minutes, and active-roster hitting statistics
 for one hour.
 
+Current weather configuration:
+
+```text
+WEATHER_MODE=live
+WEATHER_MODE=replay
+WEATHER_MODE=mock
+WEATHER_RECORD=true
+WEATHER_REPLAY_DIR=replay/weather
+WEATHER_REPLAY_FILE=replay/weather/example.json
+OPEN_METEO_API_URL=https://api.open-meteo.com/v1/forecast
+OPEN_METEO_API_KEY=customer_api_key
+```
+
+Weather profiles are cached for 10 minutes. Indoor or confirmed closed-roof
+profiles are cached for one hour. Commercial production must use a licensed
+Open-Meteo customer endpoint, self-hosted Open-Meteo, or another provider
+implementation.
+
+Current ballpark configuration:
+
+```text
+BALLPARK_MODE=live
+BALLPARK_MODE=replay
+BALLPARK_MODE=mock
+BALLPARK_RECORD=true
+BALLPARK_REPLAY_DIR=replay/ballparks
+BALLPARK_REPLAY_FILE=replay/ballparks/example.json
+MLB_API_URL=https://statsapi.mlb.com/api/v1
+BASEBALL_SAVANT_PARK_FACTORS_URL=https://baseballsavant.mlb.com/leaderboard/statcast-park-factors
+```
+
+Ballpark profiles are cached for 24 hours. Live profiles combine official MLB
+venue metadata with Baseball Savant three-year rolling park factors.
+
 ## Future Providers
 
 Potential future providers:

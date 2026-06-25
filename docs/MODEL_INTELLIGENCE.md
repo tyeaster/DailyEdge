@@ -92,13 +92,14 @@ Every prediction includes a deterministic `DataQuality` score from `0` to
 
 | Input group | Quality weight |
 | --- | ---: |
-| Starting pitchers | 25 |
-| Team statistics | 20 |
+| Starting pitchers | 20 |
+| Team statistics | 15 |
 | Bullpen | 15 |
 | Starting lineups | 15 |
 | Sportsbook market | 10 |
 | Recent form | 10 |
-| Weather | 5 |
+| Weather | 10 |
+| Ballpark | 5 |
 
 Each input group is marked `available`, `partial`, or `missing` and includes
 its source. Two-sided inputs, such as starting pitchers, receive partial credit
@@ -112,8 +113,10 @@ data quality =
 
 Current predictions receive lineup quality in proportion to confirmation
 confidence. Confirmed lineups receive full credit, projected lineups receive
-partial credit, and unavailable lineups receive no credit. Live slates without
-weather data still score lower.
+partial credit, and unavailable lineups receive no credit. Weather confidence
+supplies weather quality credit, while indoor games correctly receive full
+credit because weather is not applicable. Ballpark quality follows the
+historical rolling sample confidence.
 
 Confidence is capped at the Data Quality score:
 
@@ -131,6 +134,7 @@ developer-focused diagnostics record containing:
 
 - Prediction version.
 - Current weight configuration.
+- Current environmental run-adjustment configuration.
 - Data Quality and per-input status.
 - Input sources.
 - Missing inputs.
@@ -143,7 +147,8 @@ future logs, and future internal model-analysis views.
 
 - Bullpen quality and workload are live, but role changes and individual
   day-to-day availability are not yet modeled.
-- Weather remains schedule-derived placeholder data and is not an engine input.
+- Weather and ballpark inputs are live, replayable, and deterministic, but
+  their projected-run adjustment is not historically calibrated.
 - Recent form and momentum are deterministic and not opponent-adjusted.
 - Injuries, park factors, travel, rest, and advanced metrics remain outside V1.
 - Model weights and quality weights are deterministic configuration, not

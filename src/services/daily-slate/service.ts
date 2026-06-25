@@ -91,7 +91,15 @@ async function buildDailySlate(
   const pitcherById = toRecord(pitchers);
   const weatherById = toRecord(weatherReports);
   const oddsRecords = await loadGameOddsRecords();
-  const oddsBackedGames = applyOddsToGames({ games, oddsRecords, teamById });
+  const weatherBackedGames = games.map((game) => ({
+    ...game,
+    weather: weatherById[game.weatherId] ?? game.weather,
+  }));
+  const oddsBackedGames = applyOddsToGames({
+    games: weatherBackedGames,
+    oddsRecords,
+    teamById,
+  });
   const gamePredictions = predictionEngine.predictSlate({
     games: oddsBackedGames,
     pitcherById,

@@ -6,6 +6,7 @@ export interface CacheProvider {
 
 export const CACHE_TTL_SECONDS = {
   bullpen: 1800,
+  ballpark: 86400,
   lineupConfirmed: 60,
   lineupProjected: 300,
   odds: 60,
@@ -13,4 +14,5 @@ export const CACHE_TTL_SECONDS = {
   recentForm: 1800,
   schedule: 300,
   teamStrength: 3600,
+  weather: 600,
 } as const;

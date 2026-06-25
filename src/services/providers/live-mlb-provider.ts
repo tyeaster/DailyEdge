@@ -10,12 +10,14 @@ import type {
   Weather,
 } from "@/src/models/mlb";
 import { formatAmericanOdds } from "@/src/lib/odds";
+import { ballparkService } from "@/src/services/BallparkService";
 import { bullpenService } from "@/src/services/BullpenService";
 import { lineupService } from "@/src/services/LineupService";
 import { pitcherService } from "@/src/services/PitcherService";
 import { predictionEngine } from "@/src/services/predictions";
 import { recentFormService } from "@/src/services/RecentFormService";
 import { teamStrengthService } from "@/src/services/TeamStrengthService";
+import { weatherService } from "@/src/services/WeatherService";
 import type { SlateMeta } from "@/src/types/mlb-dashboard";
 
 import { mockDataProvider } from "./mock-data-provider";
@@ -73,6 +75,7 @@ type MlbScheduleGame = {
     };
   };
   venue: {
+    id: number;
     name: string;
   };
 };
@@ -308,8 +311,7 @@ async function fetchSchedule(): Promise<LiveSchedule> {
     basePitchers,
     date.getFullYear(),
   );
-  const weather = apiGames.map(normalizeWeather);
-  const games = apiGames.map((game): Game => {
+  const baseGames = apiGames.map((game): Game => {
     const awayTeam = normalizeTeam(game.teams.away.team, game.teams.away.leagueRecord);
     const homeTeam = normalizeTeam(game.teams.home.team, game.teams.home.leagueRecord);
 
@@ -324,6 +326,7 @@ async function fetchSchedule(): Promise<LiveSchedule> {
         "Live schedule data is loaded. Betting signals continue to use the mock model layer.",
       externalIds: {
         mlb: game.gamePk,
+        venueMlb: game.venue.id,
       },
       homePitcherId: normalizePitcher(
         game.teams.home.probablePitcher,
@@ -369,10 +372,26 @@ async function fetchSchedule(): Promise<LiveSchedule> {
   });
   const teams = await lineupService.enrichTeamsForGames(
     recentFormTeams,
-    games,
+    baseGames,
     date.getFullYear(),
     dateParam,
   );
+  const leagueByHomeTeamId = Object.fromEntries(
+    teams.map((team) => [team.id, team.league]),
+  );
+  const ballparkGames = await ballparkService.enrichGames(
+    baseGames,
+    leagueByHomeTeamId,
+    date.getFullYear(),
+  );
+  const games = await weatherService.enrichGames(ballparkGames);
+  const weather = games.map((game) => {
+    if (!game.weather) {
+      throw new Error(`Weather enrichment missing for game ${game.id}`);
+    }
+
+    return game.weather;
+  });
 
   return {
     games,
@@ -471,22 +490,6 @@ function normalizeRecord(record: MlbScheduleRecord | undefined) {
     losses,
     winPercentage,
     wins,
-  };
-}
-
-function normalizeWeather(game: MlbScheduleGame): Weather {
-  return {
-    gameId: `game-${game.gamePk}`,
-    hitterFriendlyRating: 50,
-    humidityPercent: null,
-    id: `weather-${game.gamePk}`,
-    pitcherFriendlyRating: 50,
-    rainChancePercent: 0,
-    stadium: game.venue.name,
-    summary: "Weather pending",
-    temperatureF: 0,
-    windDirection: "Pending",
-    windMph: 0,
   };
 }
 

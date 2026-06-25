@@ -169,6 +169,22 @@ export function GameCard({
         <GameLine label="Spread" value={game.odds.spread.displayLine} />
         <GameLine label="Total" value={game.odds.total.displayLine} />
         <GameLine label="Weather" value={weather.summary} />
+        <GameLine
+          label="Weather run environment"
+          value={
+            weather.weatherApplicable
+              ? formatEnvironment(weather.runEnvironment)
+              : "Not Applicable"
+          }
+        />
+        <GameLine
+          label="Ballpark"
+          value={
+            game.ballpark?.runFactor
+              ? `${game.ballpark.name} · Run ${game.ballpark.runFactor} · HR ${game.ballpark.homeRunFactor ?? "—"}`
+              : game.venue
+          }
+        />
       </div>
 
       <div
@@ -274,6 +290,12 @@ function TeamSummary({
 
 function formatRating(value: number | undefined, available = true) {
   return available && value !== undefined ? String(value) : "—";
+}
+
+function formatEnvironment(value: number) {
+  const difference = value - 50;
+
+  return `${difference >= 0 ? "+" : ""}${Math.round(difference)}%`;
 }
 
 function formatOptionalStat(value: number | undefined, digits: number) {

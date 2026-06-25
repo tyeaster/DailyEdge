@@ -16,6 +16,8 @@ import {
   buildLineupProfile,
   type LineupPlayerInput,
 } from "../src/providers/lineups/rating.ts";
+import { createBallparkUnavailable } from "../src/providers/ballparks/rating.ts";
+import { createWeatherNotApplicable } from "../src/providers/weather/rating.ts";
 import {
   buildTeamRecentForm,
   calculateRecentFormWindow,
@@ -227,7 +229,7 @@ test("produces a deterministic V1 prediction result", () => {
   assert.equal(prediction.awayFairMoneyline, 145);
   assert.equal(prediction.edgePercent, 4.7);
   assert.equal(prediction.expectedValuePercent, 8.6);
-  assert.equal(prediction.confidenceScore, 76);
+  assert.equal(prediction.confidenceScore, 75);
   assert.equal(prediction.recommendation, "Play");
   assert.equal(prediction.predictedWinnerTeamId, homeTeam.id);
   assert.ok(prediction.explanations.length >= 4);
@@ -236,8 +238,8 @@ test("produces a deterministic V1 prediction result", () => {
       explanation.includes("Fresher Bullpen"),
     ),
   );
-  assert.equal(prediction.predictionVersion, "1.4.0");
-  assert.equal(prediction.dataQuality.score, 85);
+  assert.equal(prediction.predictionVersion, "1.5.0");
+  assert.equal(prediction.dataQuality.score, 75);
   assert.ok(prediction.modelBreakdown.totalContributionPercent > 0);
 });
 
@@ -444,14 +446,18 @@ test("scores data quality from available normalized inputs", () => {
     homeTeam,
   });
 
-  assert.equal(quality.score, 85);
+  assert.equal(quality.score, 75);
   assert.equal(quality.inputs.pitchers.status, "available");
   assert.equal(quality.inputs.teamStats.status, "available");
   assert.equal(quality.inputs.bullpen.status, "available");
   assert.equal(quality.inputs.bullpen.source, "live");
   assert.equal(quality.inputs.lineups.status, "available");
   assert.equal(quality.inputs.weather.status, "missing");
-  assert.deepEqual(quality.missingInputs, ["Recent Form", "Weather"]);
+  assert.deepEqual(quality.missingInputs, [
+    "Ballpark",
+    "Recent Form",
+    "Weather",
+  ]);
 });
 
 test("confirmed lineup strength changes probability and explainability", () => {
@@ -512,6 +518,70 @@ test("projected lineups receive lower data quality than confirmed lineups", () =
   assert.ok(projected.confidenceScore <= confirmed.confidenceScore);
 });
 
+test("environmental profiles adjust projected runs without changing win probability", () => {
+  const engine = new PredictionEngine();
+  const neutral = engine.predictGame({
+    awayPitcher,
+    awayTeam,
+    game,
+    homePitcher,
+    homeTeam,
+  });
+  const hitterWeather = {
+    ...createWeatherNotApplicable({
+      gameId: game.id,
+      roofStatus: "open",
+      source: "live",
+      stadium: game.venue,
+    }),
+    hitterFriendlyRating: 82,
+    homeRunEnvironment: 84,
+    indoor: false,
+    offenseEnvironment: 82,
+    pitcherFriendlyRating: 18,
+    pitchingEnvironment: 18,
+    runEnvironment: 80,
+    summary: "88F, 12 MPH Tailwind",
+    weatherApplicable: true,
+    weatherConfidence: 95,
+  };
+  const hitterPark = {
+    ...createBallparkUnavailable({
+      league: "NL",
+      name: game.venue,
+      venueId: 22,
+    }),
+    historicalConfidence: 95,
+    hitterFriendlyRating: 75,
+    homeRunFactor: 120,
+    overallParkRating: 75,
+    pitcherFriendlyRating: 25,
+    runFactor: 118,
+    source: "live" as const,
+  };
+  const environmental = engine.predictGame({
+    awayPitcher,
+    awayTeam,
+    game: { ...game, ballpark: hitterPark, weather: hitterWeather },
+    homePitcher,
+    homeTeam,
+  });
+
+  assert.equal(environmental.homeWinProbability, neutral.homeWinProbability);
+  assert.ok(environmental.projectedTotalRuns > neutral.projectedTotalRuns);
+  assert.ok(environmental.dataQuality.score > neutral.dataQuality.score);
+  assert.ok(
+    environmental.explanations.some((explanation) =>
+      explanation.includes("Weather increases the run environment"),
+    ),
+  );
+  assert.ok(
+    environmental.explanations.some((explanation) =>
+      explanation.includes("Hitter-friendly park environment"),
+    ),
+  );
+});
+
 test("missing data lowers quality, caps confidence, and emits no missing-data explanations", () => {
   const prediction = new PredictionEngine().predictGame({
     awayTeam: { ...awayTeam, strength: undefined },
@@ -543,10 +613,15 @@ test("developer diagnostics expose version, weights, sources, and missing inputs
   });
   const diagnostics = new PredictionDiagnosticsService().create(prediction);
 
-  assert.equal(diagnostics.predictionVersion, "1.4.0");
+  assert.equal(diagnostics.predictionVersion, "1.5.0");
   assert.equal(diagnostics.weights.startingPitcher, 0.24);
+  assert.equal(diagnostics.environment.weatherWeight, 0.6);
   assert.equal(diagnostics.inputSources["Sportsbook Market"], "OddsPipe");
-  assert.deepEqual(diagnostics.missingInputs, ["Recent Form", "Weather"]);
+  assert.deepEqual(diagnostics.missingInputs, [
+    "Ballpark",
+    "Recent Form",
+    "Weather",
+  ]);
 });
 
 test("applies recommendation thresholds deterministically", () => {
