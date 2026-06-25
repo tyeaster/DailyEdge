@@ -10,6 +10,7 @@ TrueLine is an MLB-first sports betting analytics dashboard with:
 - Provider-based live, replay, and mock data patterns.
 - Live probable starter season statistics.
 - Live team offense and pitching strength.
+- Live bullpen season quality and recent workload.
 - Live 7, 14, and 30-game recent form and momentum.
 - Live-configured sportsbook odds integration.
 - Deterministic Prediction Engine V1.
@@ -85,8 +86,24 @@ The branch is stacked on `test-codex-auth`. Pull requests remain unmerged pendin
   - Run differential.
   - Team ERA.
   - Team WHIP.
-- Current placeholder:
-  - Bullpen ERA and WHIP are unavailable and remain neutral.
+### Bullpen Quality
+
+- Default: Live official MLB relief-pitcher statistics.
+- Replay: Supported.
+- Mock: Supported.
+- Cache: In-memory, 30 minutes per team and slate date.
+- Shared upstream requests:
+  - Season relief-pitcher statistics for all MLB teams.
+  - Previous three calendar days of relief workload for all MLB teams.
+- Live fields:
+  - Season ERA.
+  - Season WHIP.
+  - Strikeout rate.
+  - Innings pitched.
+  - Recent innings and pitches.
+  - Recent appearances and relievers used.
+  - Workload availability rating.
+  - Bullpen strength rating.
 
 ### Recent Form
 
@@ -200,6 +217,7 @@ The Daily Slate includes:
 - Fair line and value display.
 - Starting pitcher comparison.
 - Team offense, pitching, bullpen, and overall ratings.
+- Bullpen ERA, WHIP, and strikeout rate.
 - Compact last-7 record, form rating, and momentum comparison.
 - Weather placeholder display.
 - Mock injury and prop sections.
@@ -229,12 +247,13 @@ Automated tests cover:
 - Momentum calculations based on underlying trends.
 - Recent-form live, replay, and mock providers.
 - Recent-form caching and Prediction Engine integration.
+- Bullpen aggregation, rating, live/replay/mock providers, and caching.
+- Prediction explanations for bullpen quality and recent workload.
 
 ## Known Limitations
 
 - OddsPipe live operation requires deployment credentials.
 - Schedule replay is not implemented.
-- Bullpen-only metrics are unavailable.
 - Weather and injuries are not live.
 - Props remain mock.
 - The projected run model still uses sportsbook totals or a neutral fallback.
@@ -245,9 +264,7 @@ Automated tests cover:
 
 ## Recommended Next Task
 
-Add a reliable bullpen provider or aggregation pipeline, then incorporate
-bullpen availability and recent workload.
+Add confirmed starting lineups from the official MLB schedule and game feed.
 
-This would replace the largest remaining neutral team-strength factor, raise
-Data Quality, and improve game probability, confidence, and explanation
-quality.
+Lineups are now the highest-value missing pregame input because the model still
+uses team-level offense without knowing which hitters are confirmed to start.

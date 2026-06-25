@@ -136,7 +136,8 @@ future logs, and future internal model-analysis views.
 
 ## Current Boundaries
 
-- Bullpen data remains unavailable in the live team provider.
+- Bullpen quality and workload are live, but role changes and individual
+  day-to-day availability are not yet modeled.
 - Weather remains schedule-derived placeholder data and is not an engine input.
 - Recent form and momentum are deterministic and not opponent-adjusted.
 - Injuries, park factors, travel, rest, and advanced metrics remain outside V1.

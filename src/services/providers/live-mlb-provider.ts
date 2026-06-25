@@ -10,6 +10,7 @@ import type {
   Weather,
 } from "@/src/models/mlb";
 import { formatAmericanOdds } from "@/src/lib/odds";
+import { bullpenService } from "@/src/services/BullpenService";
 import { pitcherService } from "@/src/services/PitcherService";
 import { predictionEngine } from "@/src/services/predictions";
 import { recentFormService } from "@/src/services/RecentFormService";
@@ -287,7 +288,12 @@ async function fetchSchedule(): Promise<LiveSchedule> {
     baseTeams,
     date.getFullYear(),
   );
-  const teams = await recentFormService.enrichTeams(strengthTeams, dateParam);
+  const bullpenTeams = await bullpenService.enrichTeams(
+    strengthTeams,
+    date.getFullYear(),
+    dateParam,
+  );
+  const teams = await recentFormService.enrichTeams(bullpenTeams, dateParam);
   const basePitchers = uniqueById(
     apiGames.flatMap((game) => [
       normalizePitcher(game.teams.away.probablePitcher, game.teams.away.team),

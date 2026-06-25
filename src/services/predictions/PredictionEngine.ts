@@ -490,7 +490,7 @@ export function calculateDataQuality({
         getAvailabilityScore(homeTeam.strength?.bullpen.available),
         getAvailabilityScore(awayTeam.strength?.bullpen.available),
       ],
-      source: getTeamStrengthSource(homeTeam, awayTeam),
+      source: getBullpenSource(homeTeam, awayTeam),
       weight: weights.bullpen,
     }),
     pitchers: buildQualityInput({
@@ -728,8 +728,24 @@ function buildExplanations({
   ) {
     explanations.push(
       factors.bullpen > 0.5
-        ? `Better Bullpen: ${homeTeam.abbreviation}`
-        : `Better Bullpen: ${awayTeam.abbreviation}`,
+        ? `Better Bullpen Quality: ${homeTeam.abbreviation}`
+        : `Better Bullpen Quality: ${awayTeam.abbreviation}`,
+    );
+  }
+
+  const homeWorkload = homeTeam.strength?.bullpen.workloadRating;
+  const awayWorkload = awayTeam.strength?.bullpen.workloadRating;
+  if (
+    homeTeam.strength?.bullpen.available &&
+    awayTeam.strength?.bullpen.available &&
+    homeWorkload !== undefined &&
+    awayWorkload !== undefined &&
+    Math.abs(homeWorkload - awayWorkload) >= 10
+  ) {
+    explanations.push(
+      homeWorkload > awayWorkload
+        ? `Fresher Bullpen: ${homeTeam.abbreviation}`
+        : `Fresher Bullpen: ${awayTeam.abbreviation}`,
     );
   }
 
@@ -1033,6 +1049,13 @@ function getPitcherSource(
 
 function getTeamStrengthSource(homeTeam: Team, awayTeam: Team) {
   return joinSources([homeTeam.strength?.source, awayTeam.strength?.source]);
+}
+
+function getBullpenSource(homeTeam: Team, awayTeam: Team) {
+  return joinSources([
+    homeTeam.strength?.bullpen.source,
+    awayTeam.strength?.bullpen.source,
+  ]);
 }
 
 function getRecentFormSource(homeTeam: Team, awayTeam: Team) {

@@ -106,6 +106,22 @@ MLB_TEAMS_API_URL=https://statsapi.mlb.com/api/v1/teams
 Team-strength mode follows pitcher or odds replay/mock mode when no
 team-specific mode is configured. Team-season lookups are cached for one hour.
 
+Current bullpen configuration:
+
+```text
+BULLPEN_MODE=live
+BULLPEN_MODE=replay
+BULLPEN_MODE=mock
+BULLPEN_RECORD=true
+BULLPEN_REPLAY_DIR=replay/bullpen
+BULLPEN_REPLAY_FILE=replay/bullpen/example.json
+MLB_STATS_API_URL=https://statsapi.mlb.com/api/v1/stats
+```
+
+Bullpen mode follows team-strength replay/mock mode when no bullpen-specific
+mode is configured. Live season quality and recent workload are sourced from
+official MLB relief-pitcher splits and cached for 30 minutes.
+
 ## Future Providers
 
 Potential future providers:

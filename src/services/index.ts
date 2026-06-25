@@ -1,4 +1,9 @@
 export { getDailySlate } from "./daily-slate";
+export {
+  bullpenService,
+  BullpenService,
+  getConfiguredBullpenProvider,
+} from "./BullpenService";
 export type {
   DailySlateBet,
   DailySlateGame,

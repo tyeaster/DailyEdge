@@ -37,7 +37,14 @@ const homeTeam: Team = {
     wins: 57,
   },
   strength: {
-    bullpen: { available: true, era: 3.4, value: 72, whip: 1.18 },
+    bullpen: {
+      available: true,
+      era: 3.4,
+      source: "live",
+      value: 72,
+      whip: 1.18,
+      workloadRating: 84,
+    },
     fetchedAt: "2026-06-24T12:00:00.000Z",
     offense: {
       available: true,
@@ -73,7 +80,14 @@ const awayTeam: Team = {
     wins: 42,
   },
   strength: {
-    bullpen: { available: true, era: 4.4, value: 42, whip: 1.36 },
+    bullpen: {
+      available: true,
+      era: 4.4,
+      source: "live",
+      value: 42,
+      whip: 1.36,
+      workloadRating: 55,
+    },
     fetchedAt: "2026-06-24T12:00:00.000Z",
     offense: {
       available: true,
@@ -211,6 +225,11 @@ test("produces a deterministic V1 prediction result", () => {
   assert.equal(prediction.recommendation, "Strong Play");
   assert.equal(prediction.predictedWinnerTeamId, homeTeam.id);
   assert.ok(prediction.explanations.length >= 4);
+  assert.ok(
+    prediction.explanations.some((explanation) =>
+      explanation.includes("Fresher Bullpen"),
+    ),
+  );
   assert.equal(prediction.predictionVersion, "1.3.0");
   assert.equal(prediction.dataQuality.score, 90);
   assert.ok(prediction.modelBreakdown.totalContributionPercent > 0);
@@ -419,6 +438,7 @@ test("scores data quality from available normalized inputs", () => {
   assert.equal(quality.inputs.pitchers.status, "available");
   assert.equal(quality.inputs.teamStats.status, "available");
   assert.equal(quality.inputs.bullpen.status, "available");
+  assert.equal(quality.inputs.bullpen.source, "live");
   assert.equal(quality.inputs.weather.status, "missing");
   assert.deepEqual(quality.missingInputs, ["Recent Form", "Weather"]);
 });

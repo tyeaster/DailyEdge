@@ -60,12 +60,17 @@ Contains:
 
 Contains:
 
-- Bullpen ERA when available.
-- Bullpen WHIP when available.
+- Season bullpen ERA.
+- Season bullpen WHIP.
+- Strikeout rate.
+- Season innings pitched.
+- Recent pitches, innings, appearances, and relievers used.
+- Workload availability rating.
 - Rating from 0 to 100.
 - Availability status.
 
-The current official team endpoint does not return a reliable bullpen-only split. V1 therefore marks bullpen ratings unavailable and uses a neutral model factor.
+Bullpen data is enriched by `BullpenService` after the season team-strength
+profile is loaded.
 
 ### OverallTeamRating
 
@@ -157,22 +162,28 @@ pitching rating =
 
 ## Bullpen Rating
 
-When bullpen ERA and WHIP become reliably available:
+Bullpen rate statistics are calculated from aggregated relief-pitcher counts:
+
+```text
+ERA = earned runs * 9 / innings
+WHIP = (walks + hits) / innings
+strikeout rate = strikeouts / batters faced
+```
+
+The rating is:
 
 ```text
 bullpen rating =
-  inverse bullpen ERA score * 0.60 +
-  inverse bullpen WHIP score * 0.40
+  inverse ERA score * 0.35 +
+  inverse WHIP score * 0.30 +
+  strikeout-rate score * 0.20 +
+  workload availability * 0.15
 ```
 
-Until then:
-
-```text
-bullpen rating = 50
-bullpen available = false
-```
-
-The Prediction Engine treats unavailable bullpen ratings as neutral.
+Recent workload uses the previous three calendar days. More pitches and
+innings lower workload availability. Splits containing starts are excluded
+from recent workload so starter innings cannot inflate bullpen usage. Missing
+bullpen data remains neutral.
 
 ## Overall Rating
 
@@ -243,7 +254,8 @@ The `PredictionEngine` public interface does not change. Team strength is attach
 
 ## Current Limitations
 
-- Bullpen-only ERA and WHIP are not currently available from the selected team endpoint.
+- Relief designation is based on MLB's `position=RP` stats filter and can
+  include pitchers whose role changed during the season.
 - Ratings use season-to-date results and do not account for opponent quality.
 - No handedness splits are included.
 - No recent-form windows are included.
@@ -253,7 +265,7 @@ The `PredictionEngine` public interface does not change. Team strength is attach
 
 ## Planned Improvements
 
-- Reliable bullpen-only data.
+- Role-aware active-roster filtering and leverage quality.
 - Handedness splits.
 - Rolling 7-day and 30-day form.
 - Expected offensive metrics.

@@ -78,8 +78,17 @@ export interface PitchingRating {
 export interface BullpenRating {
   available: boolean;
   era?: number;
+  fetchedAt?: string;
+  inningsPitched?: number;
+  recentAppearances?: number;
+  recentInningsPitched?: number;
+  recentPitches?: number;
+  relieversUsed?: number;
+  source?: "live" | "mock" | "replay" | "unavailable";
+  strikeoutRate?: number;
   value: number;
   whip?: number;
+  workloadRating?: number;
 }
 
 export interface OverallTeamRating {

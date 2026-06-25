@@ -256,6 +256,16 @@ function TeamSummary({
             team.strength?.bullpen.available,
           )}
         </p>
+        {team.strength?.bullpen.available ? (
+          <p>
+            {formatOptionalStat(team.strength.bullpen.era, 2)} ERA ·{" "}
+            {formatOptionalStat(team.strength.bullpen.whip, 2)} WHIP ·{" "}
+            {formatPercentage(
+              (team.strength.bullpen.strikeoutRate ?? 0) * 100,
+            )}{" "}
+            K
+          </p>
+        ) : null}
         <p>Overall {formatRating(team.strength?.overall.value)}</p>
       </div>
     </div>
@@ -264,6 +274,10 @@ function TeamSummary({
 
 function formatRating(value: number | undefined, available = true) {
   return available && value !== undefined ? String(value) : "—";
+}
+
+function formatOptionalStat(value: number | undefined, digits: number) {
+  return value === undefined ? "—" : value.toFixed(digits);
 }
 
 function PitcherSummary({

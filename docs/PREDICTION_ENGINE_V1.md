@@ -381,6 +381,7 @@ V1 explanations identify:
 - Better team offense.
 - Better team pitching.
 - Better bullpen.
+- Fresher bullpen.
 - Better run differential.
 - Better overall rating.
 - Better recent form.
@@ -421,7 +422,8 @@ Automated tests cover:
 - Team strength uses season-to-date official MLB totals and deterministic V1 rating ranges.
 - Recent form uses official rolling statistics and deterministic V1 rating ranges.
 - Recent form is not opponent-adjusted.
-- Bullpen-only metrics are currently unavailable and remain neutral.
+- Bullpen quality uses official relief-pitcher aggregates and a three-day
+  workload window.
 - Projected runs use the sportsbook total rather than an independent run model.
 - V1 does not remove vig from every live market pairing before the sportsbook factor is used.
 - No historical training, backtesting, calibration, or model fitting is included.
