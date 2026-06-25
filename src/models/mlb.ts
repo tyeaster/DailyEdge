@@ -13,12 +13,15 @@ export type PredictionRecommendation =
   | "Best Bet";
 export type ModelFactorKey =
   | "startingPitcher"
+  | "seasonStrength"
   | "teamOffense"
   | "teamPitching"
   | "bullpen"
   | "homeField"
   | "sportsbookMarket"
-  | "recentForm";
+  | "recentForm"
+  | "momentum";
+export type RecentFormWindow = 7 | 14 | 30;
 export type DataQualityStatus = "available" | "partial" | "missing";
 export type PlayerPropCategory =
   | "Strikeouts"
@@ -94,6 +97,42 @@ export interface TeamStrength {
   source: "live" | "mock" | "replay" | "unavailable";
 }
 
+export interface RecentFormRating {
+  available: boolean;
+  value: number;
+}
+
+export interface MomentumScore {
+  available: boolean;
+  value: number;
+}
+
+export interface RecentFormWindowStats {
+  available: boolean;
+  battingAverage: number;
+  era: number;
+  gamesPlayed: number;
+  losses: number;
+  ops: number;
+  rating: RecentFormRating;
+  runDifferential: number;
+  runDifferentialPerGame: number;
+  runsAllowedPerGame: number;
+  runsPerGame: number;
+  whip: number;
+  winPercentage: number;
+  wins: number;
+  window: RecentFormWindow;
+}
+
+export interface TeamRecentForm {
+  fetchedAt: string;
+  momentum: MomentumScore;
+  rating: RecentFormRating;
+  source: "live" | "mock" | "replay" | "unavailable";
+  windows: Record<RecentFormWindow, RecentFormWindowStats>;
+}
+
 export interface Team {
   abbreviation: string;
   city: string;
@@ -108,6 +147,7 @@ export interface Team {
     winPercentage: number;
     wins: number;
   };
+  recentForm?: TeamRecentForm;
   strength?: TeamStrength;
   name: string;
 }

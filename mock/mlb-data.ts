@@ -7,9 +7,15 @@ import type {
   PlayerProp,
   PlayerPropCategory,
   Prediction,
+  RecentFormWindow,
   Team,
+  TeamRecentForm,
   Weather,
 } from "@/src/models/mlb";
+import {
+  buildTeamRecentForm,
+  calculateRecentFormWindow,
+} from "@/src/providers/recent-form";
 import type { DashboardNavItem, KpiMetric, SlateMeta } from "@/src/types/mlb-dashboard";
 
 export const slateMeta: SlateMeta = {
@@ -21,19 +27,108 @@ export const slateMeta: SlateMeta = {
 };
 
 export const teams: Team[] = [
-  { abbreviation: "LAD", city: "Los Angeles", division: "West", id: "team-lad", league: "NL", name: "Dodgers" },
-  { abbreviation: "ATL", city: "Atlanta", division: "East", id: "team-atl", league: "NL", name: "Braves" },
-  { abbreviation: "NYY", city: "New York", division: "East", id: "team-nyy", league: "AL", name: "Yankees" },
-  { abbreviation: "BOS", city: "Boston", division: "East", id: "team-bos", league: "AL", name: "Red Sox" },
-  { abbreviation: "PHI", city: "Philadelphia", division: "East", id: "team-phi", league: "NL", name: "Phillies" },
-  { abbreviation: "NYM", city: "New York", division: "East", id: "team-nym", league: "NL", name: "Mets" },
-  { abbreviation: "TEX", city: "Texas", division: "West", id: "team-tex", league: "AL", name: "Rangers" },
-  { abbreviation: "HOU", city: "Houston", division: "West", id: "team-hou", league: "AL", name: "Astros" },
-  { abbreviation: "SEA", city: "Seattle", division: "West", id: "team-sea", league: "AL", name: "Mariners" },
-  { abbreviation: "LAA", city: "Los Angeles", division: "West", id: "team-laa", league: "AL", name: "Angels" },
-  { abbreviation: "SD", city: "San Diego", division: "West", id: "team-sd", league: "NL", name: "Padres" },
-  { abbreviation: "SF", city: "San Francisco", division: "West", id: "team-sf", league: "NL", name: "Giants" },
+  createMockTeam("LAD", "Los Angeles", "West", "team-lad", "NL", "Dodgers", 6, 5.6, 3.7, 0.82, 0.271, 3.52, 1.14),
+  createMockTeam("ATL", "Atlanta", "East", "team-atl", "NL", "Braves", 4, 4.7, 4.2, 0.75, 0.252, 4.05, 1.27),
+  createMockTeam("NYY", "New York", "East", "team-nyy", "AL", "Yankees", 5, 5.2, 4.0, 0.79, 0.258, 3.84, 1.21),
+  createMockTeam("BOS", "Boston", "East", "team-bos", "AL", "Red Sox", 3, 4.3, 5.0, 0.71, 0.241, 4.76, 1.39),
+  createMockTeam("PHI", "Philadelphia", "East", "team-phi", "NL", "Phillies", 6, 5.8, 3.1, 0.84, 0.278, 2.96, 1.08),
+  createMockTeam("NYM", "New York", "East", "team-nym", "NL", "Mets", 2, 3.6, 5.1, 0.66, 0.226, 4.91, 1.44),
+  createMockTeam("TEX", "Texas", "West", "team-tex", "AL", "Rangers", 4, 4.9, 4.4, 0.76, 0.249, 4.18, 1.29),
+  createMockTeam("HOU", "Houston", "West", "team-hou", "AL", "Astros", 5, 5.1, 3.8, 0.78, 0.256, 3.68, 1.18),
+  createMockTeam("SEA", "Seattle", "West", "team-sea", "AL", "Mariners", 5, 4.8, 3.4, 0.74, 0.238, 3.22, 1.12),
+  createMockTeam("LAA", "Los Angeles", "West", "team-laa", "AL", "Angels", 2, 3.7, 5.4, 0.67, 0.229, 5.12, 1.46),
+  createMockTeam("SD", "San Diego", "West", "team-sd", "NL", "Padres", 3, 4.2, 4.6, 0.72, 0.244, 4.39, 1.32),
+  createMockTeam("SF", "San Francisco", "West", "team-sf", "NL", "Giants", 4, 4.5, 3.9, 0.73, 0.246, 3.77, 1.2),
 ];
+
+function createMockTeam(
+  abbreviation: string,
+  city: string,
+  division: Team["division"],
+  id: string,
+  league: Team["league"],
+  name: string,
+  lastSevenWins: number,
+  runsPerGame: number,
+  runsAllowedPerGame: number,
+  ops: number,
+  battingAverage: number,
+  era: number,
+  whip: number,
+): Team {
+  return {
+    abbreviation,
+    city,
+    division,
+    id,
+    league,
+    name,
+    recentForm: createMockRecentForm({
+      battingAverage,
+      era,
+      lastSevenWins,
+      ops,
+      runsAllowedPerGame,
+      runsPerGame,
+      whip,
+    }),
+  };
+}
+
+function createMockRecentForm({
+  battingAverage,
+  era,
+  lastSevenWins,
+  ops,
+  runsAllowedPerGame,
+  runsPerGame,
+  whip,
+}: {
+  battingAverage: number;
+  era: number;
+  lastSevenWins: number;
+  ops: number;
+  runsAllowedPerGame: number;
+  runsPerGame: number;
+  whip: number;
+}): TeamRecentForm {
+  const inputs = [
+    { games: 7, wins: lastSevenWins, scale: 1 },
+    {
+      games: 14,
+      wins: Math.max(3, Math.min(11, lastSevenWins * 2 - 1)),
+      scale: 0.98,
+    },
+    {
+      games: 30,
+      wins: Math.max(8, Math.min(22, lastSevenWins * 4)),
+      scale: 0.95,
+    },
+  ] as const;
+  const windows = Object.fromEntries(
+    inputs.map(({ games, scale, wins }) => [
+      games,
+      calculateRecentFormWindow({
+        battingAverage: battingAverage * scale,
+        era: era / scale,
+        gamesPlayed: games,
+        losses: games - wins,
+        ops: ops * scale,
+        runsAllowed: runsAllowedPerGame * games,
+        runsScored: runsPerGame * games,
+        whip: whip / scale,
+        wins,
+        window: games,
+      }),
+    ]),
+  ) as Record<RecentFormWindow, ReturnType<typeof calculateRecentFormWindow>>;
+
+  return buildTeamRecentForm({
+    fetchedAt: "2026-06-22T15:42:00.000Z",
+    source: "mock",
+    windows,
+  });
+}
 
 export const players: Player[] = [
   { bats: "L", fullName: "Freddie Freeman", id: "player-freeman", position: "1B", teamId: "team-lad", throws: "R" },

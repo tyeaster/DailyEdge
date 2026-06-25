@@ -62,6 +62,9 @@ V1 uses:
 - Away team
 - Team offense rating
 - Team pitching rating
+- Season overall rating
+- Recent Form Rating
+- Momentum Score
 - Bullpen rating when available
 - Home field advantage
 - Starting pitcher ERA, WHIP, and strikeout rate when available
@@ -77,16 +80,17 @@ All V1 weights live in `src/services/predictions/config.ts`.
 
 | Factor | Weight |
 | --- | ---: |
-| Starting pitcher | 30% |
-| Team offense | 25% |
-| Team pitching | 20% |
-| Bullpen | 10% |
-| Home field | 10% |
-| Sportsbook implied probability | 5% |
-| Recent form | 0% |
+| Starting pitcher | 24% |
+| Season strength | 14% |
+| Team offense | 14% |
+| Team pitching | 12% |
+| Recent form | 12% |
+| Momentum | 8% |
+| Bullpen | 6% |
+| Home field | 6% |
+| Sportsbook implied probability | 4% |
 
-The active weights sum to 100%. Recent form is reserved at zero weight until a
-normalized input is available.
+The weights sum to 100%.
 
 Starting pitcher receives the highest weight. The sportsbook is a low-weight market reference and does not replace the model.
 
@@ -132,6 +136,23 @@ teams lack the same input.
 See [TEAM_STRENGTH_MODEL.md](TEAM_STRENGTH_MODEL.md) for raw metrics and rating
 formulas.
 
+### Recent Form and Momentum
+
+The normalized `Team` model includes rolling 7, 14, and 30-game statistics.
+
+```text
+recent-form factor =
+  home RecentFormRating /
+  (home RecentFormRating + away RecentFormRating)
+
+momentum factor =
+  home MomentumScore /
+  (home MomentumScore + away MomentumScore)
+```
+
+See [RECENT_FORM_MODEL.md](RECENT_FORM_MODEL.md) for the rating, trend, and
+missing-data formulas.
+
 ### Home Field
 
 The configurable V1 home-field signal is:
@@ -164,13 +185,15 @@ V1 uses the normalized home-side implied probability as a low-weight factor.
 
 ```text
 home probability =
-  pitcher factor * 0.30 +
-  offense factor * 0.25 +
-  team pitching factor * 0.20 +
-  bullpen factor * 0.10 +
-  home field factor * 0.10 +
-  sportsbook factor * 0.05 +
-  recent form factor * 0.00
+  pitcher factor * 0.24 +
+  season-strength factor * 0.14 +
+  offense factor * 0.14 +
+  team pitching factor * 0.12 +
+  recent-form factor * 0.12 +
+  momentum factor * 0.08 +
+  bullpen factor * 0.06 +
+  home field factor * 0.06 +
+  sportsbook factor * 0.04
 ```
 
 The implementation divides by total configured weight so future weight changes remain normalized.
@@ -360,6 +383,11 @@ V1 explanations identify:
 - Better bullpen.
 - Better run differential.
 - Better overall rating.
+- Better recent form.
+- Better recent offense.
+- Better recent pitching.
+- Positive momentum.
+- Superior recent run differential.
 - Strong home field advantage.
 - Sportsbook probability as a low-weight reference.
 - Selected value side.
@@ -385,11 +413,14 @@ Automated tests cover:
 - Data Quality and missing-data behavior.
 - Confidence quality caps.
 - Developer diagnostics.
+- Recent-form and momentum integration.
 
 ## Current Limitations
 
 - Starting pitcher data from the live schedule may include identity without ERA, WHIP, or strikeout rate. Missing fields remain neutral.
 - Team strength uses season-to-date official MLB totals and deterministic V1 rating ranges.
+- Recent form uses official rolling statistics and deterministic V1 rating ranges.
+- Recent form is not opponent-adjusted.
 - Bullpen-only metrics are currently unavailable and remain neutral.
 - Projected runs use the sportsbook total rather than an independent run model.
 - V1 does not remove vig from every live market pairing before the sportsbook factor is used.

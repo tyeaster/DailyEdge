@@ -12,6 +12,7 @@ import type {
 import { formatAmericanOdds } from "@/src/lib/odds";
 import { pitcherService } from "@/src/services/PitcherService";
 import { predictionEngine } from "@/src/services/predictions";
+import { recentFormService } from "@/src/services/RecentFormService";
 import { teamStrengthService } from "@/src/services/TeamStrengthService";
 import type { SlateMeta } from "@/src/types/mlb-dashboard";
 
@@ -282,10 +283,11 @@ async function fetchSchedule(): Promise<LiveSchedule> {
       normalizeTeam(game.teams.home.team, game.teams.home.leagueRecord),
     ]),
   );
-  const teams = await teamStrengthService.enrichTeams(
+  const strengthTeams = await teamStrengthService.enrichTeams(
     baseTeams,
     date.getFullYear(),
   );
+  const teams = await recentFormService.enrichTeams(strengthTeams, dateParam);
   const basePitchers = uniqueById(
     apiGames.flatMap((game) => [
       normalizePitcher(game.teams.away.probablePitcher, game.teams.away.team),

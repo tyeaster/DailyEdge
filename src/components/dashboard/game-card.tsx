@@ -102,6 +102,19 @@ export function GameCard({
         </div>
       </div>
 
+      <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.025] p-3">
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+          Recent Trend · Last 7
+        </p>
+        <div className="mt-3 grid grid-cols-[1fr_auto_1fr] items-start gap-3">
+          <RecentTrend team={awayTeam} />
+          <span className="pt-1 text-xs font-semibold uppercase text-slate-600">
+            vs
+          </span>
+          <RecentTrend align="right" team={homeTeam} />
+        </div>
+      </div>
+
       <div className="mt-5 grid gap-2 text-sm">
         <GameLine
           label="Predicted winner"
@@ -179,6 +192,45 @@ export function GameCard({
         </div>
       </div>
     </DashboardCard>
+  );
+}
+
+function RecentTrend({
+  align = "left",
+  team,
+}: {
+  align?: "left" | "right";
+  team: Team;
+}) {
+  const alignment = align === "right" ? "text-right" : "text-left";
+  const recent = team.recentForm?.windows[7];
+  const available = Boolean(recent?.available);
+
+  return (
+    <div className={cn("min-w-0", alignment)}>
+      <p className="text-sm font-semibold text-white">
+        {team.abbreviation}{" "}
+        <span className="text-slate-300">
+          {available ? `${recent?.wins}-${recent?.losses}` : "—"}
+        </span>
+      </p>
+      <div className="mt-2 space-y-1 text-xs text-slate-400">
+        <p>
+          Form{" "}
+          {formatRating(
+            team.recentForm?.rating.value,
+            team.recentForm?.rating.available,
+          )}
+        </p>
+        <p>
+          Momentum{" "}
+          {formatRating(
+            team.recentForm?.momentum.value,
+            team.recentForm?.momentum.available,
+          )}
+        </p>
+      </div>
+    </div>
   );
 }
 

@@ -39,7 +39,9 @@ export type PredictionEngineInput = {
 export type PredictionModelFactors = {
   bullpen: number;
   homeField: number;
+  momentum: number;
   recentForm: number;
+  seasonStrength: number;
   sportsbookMarket: number;
   startingPitcher: number;
   teamOffense: number;
@@ -381,7 +383,18 @@ function buildFactors({
       awayTeam.strength?.bullpen.value,
     ),
     homeField: PREDICTION_ENGINE_V1_CONFIG.homeFieldWinProbability,
-    recentForm: 0.5,
+    momentum: getTeamRatingHomeProbability(
+      homeTeam.recentForm?.momentum.value,
+      awayTeam.recentForm?.momentum.value,
+    ),
+    recentForm: getTeamRatingHomeProbability(
+      homeTeam.recentForm?.rating.value,
+      awayTeam.recentForm?.rating.value,
+    ),
+    seasonStrength: getTeamRatingHomeProbability(
+      homeTeam.strength?.overall.value,
+      awayTeam.strength?.overall.value,
+    ),
     sportsbookMarket: getSportsbookHomeProbability(game),
     startingPitcher: getStartingPitcherHomeProbability(
       homePitcher,
@@ -412,7 +425,9 @@ function weightFactors(factors: PredictionModelFactors) {
       factors.bullpen * weights.bullpen +
       factors.homeField * weights.homeField +
       factors.sportsbookMarket * weights.sportsbookMarket +
-      factors.recentForm * weights.recentForm) /
+      factors.recentForm * weights.recentForm +
+      factors.momentum * weights.momentum +
+      factors.seasonStrength * weights.seasonStrength) /
     totalWeight
   );
 }
@@ -489,8 +504,11 @@ export function calculateDataQuality({
     }),
     recentForm: buildQualityInput({
       label: "Recent Form",
-      scores: [0],
-      source: "not connected",
+      scores: [
+        getRecentFormAvailabilityScore(homeTeam),
+        getRecentFormAvailabilityScore(awayTeam),
+      ],
+      source: getRecentFormSource(homeTeam, awayTeam),
       weight: weights.recentForm,
     }),
     sportsbook: buildQualityInput({
@@ -672,6 +690,17 @@ function buildExplanations({
   }
 
   if (
+    factorAvailability.seasonStrength &&
+    Math.abs(factors.seasonStrength - 0.5) >= 0.02
+  ) {
+    explanations.push(
+      factors.seasonStrength > 0.5
+        ? `Better Season Strength: ${homeTeam.abbreviation}`
+        : `Better Season Strength: ${awayTeam.abbreviation}`,
+    );
+  }
+
+  if (
     factorAvailability.teamOffense &&
     Math.abs(factors.teamOffense - 0.5) >= 0.02
   ) {
@@ -702,6 +731,69 @@ function buildExplanations({
         ? `Better Bullpen: ${homeTeam.abbreviation}`
         : `Better Bullpen: ${awayTeam.abbreviation}`,
     );
+  }
+
+  if (
+    factorAvailability.recentForm &&
+    Math.abs(factors.recentForm - 0.5) >= 0.02
+  ) {
+    explanations.push(
+      factors.recentForm > 0.5
+        ? `Better Recent Form: ${homeTeam.abbreviation}`
+        : `Better Recent Form: ${awayTeam.abbreviation}`,
+    );
+  }
+
+  if (
+    factorAvailability.momentum &&
+    Math.abs(factors.momentum - 0.5) >= 0.02
+  ) {
+    explanations.push(
+      factors.momentum > 0.5
+        ? `Positive Momentum: ${homeTeam.abbreviation}`
+        : `Positive Momentum: ${awayTeam.abbreviation}`,
+    );
+  }
+
+  const homeRecent = homeTeam.recentForm?.windows[7];
+  const awayRecent = awayTeam.recentForm?.windows[7];
+
+  if (homeRecent?.available && awayRecent?.available) {
+    const recentOffenseDifference =
+      homeRecent.runsPerGame +
+      homeRecent.ops * 5 -
+      (awayRecent.runsPerGame + awayRecent.ops * 5);
+    const recentPitchingDifference =
+      awayRecent.era +
+      awayRecent.whip * 2 -
+      (homeRecent.era + homeRecent.whip * 2);
+    const recentRunDifferentialDifference =
+      homeRecent.runDifferentialPerGame -
+      awayRecent.runDifferentialPerGame;
+
+    if (Math.abs(recentOffenseDifference) >= 0.5) {
+      explanations.push(
+        recentOffenseDifference > 0
+          ? `Better Recent Offense: ${homeTeam.abbreviation}`
+          : `Better Recent Offense: ${awayTeam.abbreviation}`,
+      );
+    }
+
+    if (Math.abs(recentPitchingDifference) >= 0.4) {
+      explanations.push(
+        recentPitchingDifference > 0
+          ? `Better Recent Pitching: ${homeTeam.abbreviation}`
+          : `Better Recent Pitching: ${awayTeam.abbreviation}`,
+      );
+    }
+
+    if (Math.abs(recentRunDifferentialDifference) >= 0.5) {
+      explanations.push(
+        recentRunDifferentialDifference > 0
+          ? `Superior Recent Run Differential: ${homeTeam.abbreviation}`
+          : `Superior Recent Run Differential: ${awayTeam.abbreviation}`,
+      );
+    }
   }
 
   const runDifferentialDifference =
@@ -821,7 +913,18 @@ function getFactorAvailability({
         awayTeam.strength?.bullpen.available,
     ),
     homeField: true,
-    recentForm: false,
+    momentum: Boolean(
+      homeTeam.recentForm?.momentum.available &&
+        awayTeam.recentForm?.momentum.available,
+    ),
+    recentForm: Boolean(
+      homeTeam.recentForm?.rating.available &&
+        awayTeam.recentForm?.rating.available,
+    ),
+    seasonStrength: Boolean(
+      homeTeam.strength?.overall.available &&
+        awayTeam.strength?.overall.available,
+    ),
     sportsbookMarket: hasSportsbookMoneyline(game),
     startingPitcher: Boolean(
       hasPitcherMetrics(homePitcher) && hasPitcherMetrics(awayPitcher),
@@ -841,7 +944,9 @@ function getDefaultFactorAvailability(): FactorAvailability {
   return {
     bullpen: true,
     homeField: true,
-    recentForm: false,
+    momentum: true,
+    recentForm: true,
+    seasonStrength: true,
     sportsbookMarket: true,
     startingPitcher: true,
     teamOffense: true,
@@ -873,6 +978,18 @@ function getTeamStatsAvailabilityScore(team: Team) {
   ].filter(Boolean).length;
 
   return (availableSections / 3) * 100;
+}
+
+function getRecentFormAvailabilityScore(team: Team) {
+  const availableSections = [
+    team.recentForm?.rating.available,
+    team.recentForm?.momentum.available,
+    team.recentForm?.windows[7].available,
+    team.recentForm?.windows[14].available,
+    team.recentForm?.windows[30].available,
+  ].filter(Boolean).length;
+
+  return (availableSections / 5) * 100;
 }
 
 function getAvailabilityScore(available: boolean | undefined) {
@@ -916,6 +1033,13 @@ function getPitcherSource(
 
 function getTeamStrengthSource(homeTeam: Team, awayTeam: Team) {
   return joinSources([homeTeam.strength?.source, awayTeam.strength?.source]);
+}
+
+function getRecentFormSource(homeTeam: Team, awayTeam: Team) {
+  return joinSources([
+    homeTeam.recentForm?.source,
+    awayTeam.recentForm?.source,
+  ]);
 }
 
 function joinSources(sources: Array<string | undefined>) {

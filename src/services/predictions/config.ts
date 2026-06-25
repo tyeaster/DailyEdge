@@ -21,7 +21,9 @@ export const PREDICTION_ENGINE_V1_CONFIG = {
   factorLabels: {
     bullpen: "Bullpen",
     homeField: "Home Field",
+    momentum: "Momentum",
     recentForm: "Recent Form",
+    seasonStrength: "Season Strength",
     sportsbookMarket: "Sportsbook Market",
     startingPitcher: "Starting Pitcher",
     teamOffense: "Team Offense",
@@ -64,13 +66,15 @@ export const PREDICTION_ENGINE_V1_CONFIG = {
     recommendation: Exclude<PredictionRecommendation, "Pass">;
   }>,
   weights: {
-    bullpen: 0.1,
-    homeField: 0.1,
-    recentForm: 0,
-    sportsbookMarket: 0.05,
-    startingPitcher: 0.3,
-    teamOffense: 0.25,
-    teamPitching: 0.2,
+    bullpen: 0.06,
+    homeField: 0.06,
+    momentum: 0.08,
+    recentForm: 0.12,
+    seasonStrength: 0.14,
+    sportsbookMarket: 0.04,
+    startingPitcher: 0.24,
+    teamOffense: 0.14,
+    teamPitching: 0.12,
   },
-  version: "1.2.0",
+  version: "1.3.0",
 } as const;

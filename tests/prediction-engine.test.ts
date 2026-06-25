@@ -12,7 +12,17 @@ import {
 } from "../src/services/predictions/PredictionEngine.ts";
 import { PREDICTION_ENGINE_V1_CONFIG } from "../src/services/predictions/config.ts";
 import { PredictionDiagnosticsService } from "../src/services/predictions/PredictionDiagnosticsService.ts";
-import type { Game, Pitcher, Team } from "../src/models/mlb.ts";
+import {
+  buildTeamRecentForm,
+  calculateRecentFormWindow,
+} from "../src/providers/recent-form/rating.ts";
+import type {
+  Game,
+  Pitcher,
+  RecentFormWindow,
+  RecentFormWindowStats,
+  Team,
+} from "../src/models/mlb.ts";
 
 const homeTeam: Team = {
   abbreviation: "LAD",
@@ -188,20 +198,20 @@ test("produces a deterministic V1 prediction result", () => {
     homeTeam,
   });
 
-  assert.equal(Number(prediction.homeWinProbability.toFixed(3)), 0.625);
-  assert.equal(Number(prediction.awayWinProbability.toFixed(3)), 0.375);
-  assert.equal(prediction.homeProjectedRuns, 5.3);
-  assert.equal(prediction.awayProjectedRuns, 3.2);
+  assert.equal(Number(prediction.homeWinProbability.toFixed(3)), 0.603);
+  assert.equal(Number(prediction.awayWinProbability.toFixed(3)), 0.397);
+  assert.equal(prediction.homeProjectedRuns, 5.1);
+  assert.equal(prediction.awayProjectedRuns, 3.4);
   assert.equal(prediction.projectedTotalRuns, 8.5);
-  assert.equal(prediction.homeFairMoneyline, -167);
-  assert.equal(prediction.awayFairMoneyline, 167);
-  assert.equal(prediction.edgePercent, 8);
-  assert.equal(prediction.expectedValuePercent, 14.6);
-  assert.equal(prediction.confidenceScore, 87);
+  assert.equal(prediction.homeFairMoneyline, -152);
+  assert.equal(prediction.awayFairMoneyline, 152);
+  assert.equal(prediction.edgePercent, 5.8);
+  assert.equal(prediction.expectedValuePercent, 10.6);
+  assert.equal(prediction.confidenceScore, 79);
   assert.equal(prediction.recommendation, "Strong Play");
   assert.equal(prediction.predictedWinnerTeamId, homeTeam.id);
   assert.ok(prediction.explanations.length >= 4);
-  assert.equal(prediction.predictionVersion, "1.2.0");
+  assert.equal(prediction.predictionVersion, "1.3.0");
   assert.equal(prediction.dataQuality.score, 90);
   assert.ok(prediction.modelBreakdown.totalContributionPercent > 0);
 });
@@ -223,7 +233,9 @@ test("confidence rises with clearer advantage, larger edge, and factor agreement
     factors: {
       bullpen: 0.5,
       homeField: 0.5,
+      momentum: 0.5,
       recentForm: 0.5,
+      seasonStrength: 0.5,
       sportsbookMarket: 0.5,
       startingPitcher: 0.5,
       teamOffense: 0.5,
@@ -236,7 +248,9 @@ test("confidence rises with clearer advantage, larger edge, and factor agreement
     factors: {
       bullpen: 0.63,
       homeField: 0.54,
+      momentum: 0.61,
       recentForm: 0.5,
+      seasonStrength: 0.64,
       sportsbookMarket: 0.58,
       startingPitcher: 0.65,
       teamOffense: 0.65,
@@ -282,11 +296,76 @@ test("team strength inputs change the model probability", () => {
   );
 });
 
+test("recent form and momentum change probability and explanations", () => {
+  const engine = new PredictionEngine();
+  const trendingHome = {
+    ...homeTeam,
+    recentForm: createRecentForm({
+      era: 2.9,
+      losses: 1,
+      ops: 0.84,
+      runsAllowedPerGame: 3,
+      runsPerGame: 5.8,
+      whip: 1.08,
+      wins: 6,
+    }),
+  };
+  const slidingAway = {
+    ...awayTeam,
+    recentForm: createRecentForm({
+      era: 5.1,
+      losses: 6,
+      ops: 0.65,
+      runsAllowedPerGame: 5.5,
+      runsPerGame: 3.4,
+      whip: 1.48,
+      wins: 1,
+    }),
+  };
+  const trendPrediction = engine.predictGame({
+    awayPitcher,
+    awayTeam: slidingAway,
+    game,
+    homePitcher,
+    homeTeam: trendingHome,
+  });
+  const neutralPrediction = engine.predictGame({
+    awayPitcher,
+    awayTeam,
+    game,
+    homePitcher,
+    homeTeam,
+  });
+
+  assert.ok(
+    trendPrediction.homeWinProbability >
+      neutralPrediction.homeWinProbability,
+  );
+  assert.equal(trendPrediction.dataQuality.inputs.recentForm.status, "available");
+  assert.ok(
+    trendPrediction.explanations.some((explanation) =>
+      explanation.includes("Better Recent Form"),
+    ),
+  );
+  assert.ok(
+    trendPrediction.explanations.some((explanation) =>
+      explanation.includes("Positive Momentum"),
+    ),
+  );
+  assert.ok(
+    trendPrediction.explanations.some((explanation) =>
+      explanation.includes("Superior Recent Run Differential"),
+    ),
+  );
+});
+
 test("keeps every model weight in one documented configuration", () => {
   assert.deepEqual(Object.keys(PREDICTION_ENGINE_V1_CONFIG.weights).sort(), [
     "bullpen",
     "homeField",
+    "momentum",
     "recentForm",
+    "seasonStrength",
     "sportsbookMarket",
     "startingPitcher",
     "teamOffense",
@@ -299,14 +378,16 @@ test("keeps every model weight in one documented configuration", () => {
     ),
     1,
   );
-  assert.equal(PREDICTION_ENGINE_V1_CONFIG.weights.recentForm, 0);
+  assert.equal(PREDICTION_ENGINE_V1_CONFIG.weights.recentForm, 0.12);
 });
 
 test("calculates a deterministic per-factor model breakdown", () => {
   const breakdown = calculateModelBreakdown({
     bullpen: 0.55,
     homeField: 0.54,
+    momentum: 0.58,
     recentForm: 0.5,
+    seasonStrength: 0.62,
     sportsbookMarket: 0.48,
     startingPitcher: 0.7,
     teamOffense: 0.6,
@@ -315,12 +396,14 @@ test("calculates a deterministic per-factor model breakdown", () => {
 
   assert.equal(
     breakdown.factors.startingPitcher.contributionPercent,
-    6,
+    4.8,
   );
-  assert.equal(breakdown.factors.teamOffense.contributionPercent, 2.5);
+  assert.equal(breakdown.factors.teamOffense.contributionPercent, 1.4);
   assert.equal(breakdown.factors.sportsbookMarket.contributionPercent, -0.1);
   assert.equal(breakdown.factors.recentForm.contributionPercent, 0);
-  assert.equal(breakdown.totalContributionPercent, 10.3);
+  assert.equal(breakdown.factors.momentum.contributionPercent, 0.6);
+  assert.equal(breakdown.factors.seasonStrength.contributionPercent, 1.7);
+  assert.equal(breakdown.totalContributionPercent, 9.5);
 });
 
 test("scores data quality from available normalized inputs", () => {
@@ -371,8 +454,8 @@ test("developer diagnostics expose version, weights, sources, and missing inputs
   });
   const diagnostics = new PredictionDiagnosticsService().create(prediction);
 
-  assert.equal(diagnostics.predictionVersion, "1.2.0");
-  assert.equal(diagnostics.weights.startingPitcher, 0.3);
+  assert.equal(diagnostics.predictionVersion, "1.3.0");
+  assert.equal(diagnostics.weights.startingPitcher, 0.24);
   assert.equal(diagnostics.inputSources["Sportsbook Market"], "OddsPipe");
   assert.deepEqual(diagnostics.missingInputs, ["Recent Form", "Weather"]);
 });
@@ -444,7 +527,53 @@ test("builds recommendation records from prediction results", () => {
 
   assert.equal(recommendations.length, 1);
   assert.equal(recommendations[0].selection, "LAD moneyline");
-  assert.equal(recommendations[0].prediction.projection, "-167");
+  assert.equal(recommendations[0].prediction.projection, "-152");
   assert.equal(recommendations[0].rank, 1);
   assert.equal(recommendations[0].recommendedUnits, 1);
 });
+
+function createRecentForm({
+  era,
+  losses,
+  ops,
+  runsAllowedPerGame,
+  runsPerGame,
+  whip,
+  wins,
+}: {
+  era: number;
+  losses: number;
+  ops: number;
+  runsAllowedPerGame: number;
+  runsPerGame: number;
+  whip: number;
+  wins: number;
+}) {
+  const windows = Object.fromEntries(
+    ([7, 14, 30] as RecentFormWindow[]).map((window) => [
+      window,
+      calculateRecentFormWindow({
+        battingAverage: ops > 0.75 ? 0.27 : 0.23,
+        era: era + (window === 30 ? 0.4 : 0),
+        gamesPlayed: window,
+        losses:
+          window === 7
+            ? losses
+            : Math.round((losses / 7) * window),
+        ops: ops - (window === 30 ? 0.04 : 0),
+        runsAllowed: runsAllowedPerGame * window,
+        runsScored: runsPerGame * window,
+        whip: whip + (window === 30 ? 0.08 : 0),
+        wins:
+          window === 7 ? wins : Math.round((wins / 7) * window),
+        window,
+      }),
+    ]),
+  ) as Record<RecentFormWindow, RecentFormWindowStats>;
+
+  return buildTeamRecentForm({
+    fetchedAt: "2026-06-24T12:00:00.000Z",
+    source: "live",
+    windows,
+  });
+}

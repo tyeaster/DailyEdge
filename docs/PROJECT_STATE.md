@@ -10,6 +10,7 @@ TrueLine is an MLB-first sports betting analytics dashboard with:
 - Provider-based live, replay, and mock data patterns.
 - Live probable starter season statistics.
 - Live team offense and pitching strength.
+- Live 7, 14, and 30-game recent form and momentum.
 - Live-configured sportsbook odds integration.
 - Deterministic Prediction Engine V1.
 - Fair lines, edge, expected value, confidence, and recommendations.
@@ -87,6 +88,29 @@ The branch is stacked on `test-codex-auth`. Pull requests remain unmerged pendin
 - Current placeholder:
   - Bullpen ERA and WHIP are unavailable and remain neutral.
 
+### Recent Form
+
+- Default: Live official MLB rolling team statistics.
+- Replay: Supported.
+- Mock: Supported.
+- Cache: In-memory, 30 minutes per team and slate date.
+- Windows:
+  - Last 7 completed games.
+  - Last 14 completed games.
+  - Last 30 completed games.
+- Live fields:
+  - Win percentage.
+  - Runs scored per game.
+  - Runs allowed per game.
+  - Run differential.
+  - OPS.
+  - Batting average.
+  - ERA.
+  - WHIP.
+- Outputs:
+  - Recent Form Rating.
+  - Momentum Score based on underlying performance trends.
+
 ### Weather
 
 - Current status: Schedule-derived placeholder.
@@ -110,6 +134,9 @@ The branch is stacked on `test-codex-auth`. Pull requests remain unmerged pendin
   - Starting pitcher strength.
   - Team offense strength.
   - Team pitching strength.
+  - Season overall strength.
+  - Recent Form Rating.
+  - Momentum Score.
   - Bullpen strength when available.
   - Home field.
   - Sportsbook implied probability.
@@ -142,13 +169,15 @@ Current configurable weights:
 
 | Factor | Weight |
 | --- | ---: |
-| Starting pitcher | 30% |
-| Team offense | 25% |
-| Team pitching | 20% |
-| Bullpen | 10% |
-| Home field | 10% |
-| Sportsbook implied probability | 5% |
-| Recent form | 0% (reserved) |
+| Starting pitcher | 24% |
+| Season strength | 14% |
+| Team offense | 14% |
+| Team pitching | 12% |
+| Recent form | 12% |
+| Momentum | 8% |
+| Bullpen | 6% |
+| Home field | 6% |
+| Sportsbook implied probability | 4% |
 
 Model intelligence behavior:
 
@@ -171,6 +200,7 @@ The Daily Slate includes:
 - Fair line and value display.
 - Starting pitcher comparison.
 - Team offense, pitching, bullpen, and overall ratings.
+- Compact last-7 record, form rating, and momentum comparison.
 - Weather placeholder display.
 - Mock injury and prop sections.
 
@@ -195,6 +225,10 @@ Automated tests cover:
 - Per-factor breakdown calculations.
 - Data-quality calculations and missing-data behavior.
 - Confidence quality caps and developer diagnostics.
+- Recent-form normalization and rating calculations.
+- Momentum calculations based on underlying trends.
+- Recent-form live, replay, and mock providers.
+- Recent-form caching and Prediction Engine integration.
 
 ## Known Limitations
 
@@ -205,8 +239,8 @@ Automated tests cover:
 - Props remain mock.
 - The projected run model still uses sportsbook totals or a neutral fallback.
 - Team rating ranges and Prediction Engine weights are deterministic V1 assumptions, not historically calibrated coefficients.
-- Recent form is configured at zero weight until a normalized provider exists.
-- Data Quality currently marks weather and recent form as missing.
+- Recent form is not opponent-adjusted and uses deterministic V1 ranges.
+- Data Quality still marks weather as missing.
 - Historical prediction storage, ROI, and closing line value tracking are not implemented.
 
 ## Recommended Next Task

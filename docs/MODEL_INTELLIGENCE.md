@@ -18,16 +18,18 @@ Every prediction weight lives in
 
 | Factor | Weight | Current status |
 | --- | ---: | --- |
-| Starting pitcher | 30% | Active |
-| Team offense | 25% | Active |
-| Team pitching | 20% | Active |
-| Bullpen | 10% | Active when data is available; neutral otherwise |
-| Home field | 10% | Active |
-| Sportsbook market | 5% | Active |
-| Recent form | 0% | Reserved for a future normalized input |
+| Starting pitcher | 24% | Active |
+| Season strength | 14% | Active |
+| Team offense | 14% | Active |
+| Team pitching | 12% | Active |
+| Recent form | 12% | Active when rolling data is available |
+| Momentum | 8% | Active when 7-game and 30-game data are available |
+| Bullpen | 6% | Active when data is available; neutral otherwise |
+| Home field | 6% | Active |
+| Sportsbook market | 4% | Active |
 
-The active weights sum to 100%. Recent form is explicitly present with a zero
-weight so it can be introduced later without changing the engine contract.
+The weights sum to 100%. Season strength, recent form, and momentum remain
+separate so short-window performance does not replace the larger season sample.
 
 ## Model Breakdown
 
@@ -67,6 +69,11 @@ The engine can identify:
 - Better Bullpen.
 - Better Run Differential.
 - Better Overall Rating.
+- Better Recent Form.
+- Better Recent Offense.
+- Better Recent Pitching.
+- Positive Momentum.
+- Superior Recent Run Differential.
 - Strong Home Field Advantage.
 - Sportsbook Market reference.
 - Selected value side.
@@ -99,9 +106,9 @@ data quality =
   sum(quality weights)
 ```
 
-Current predictions with complete pitchers, team statistics, bullpen data,
-and sportsbook odds score `90`: recent form and weather are not yet connected.
-Live slates without bullpen data score lower.
+Current predictions receive recent-form quality credit only when the normalized
+rolling windows and momentum calculation are available. Live slates without
+bullpen or weather data still score lower.
 
 Confidence is capped at the Data Quality score:
 
@@ -131,7 +138,7 @@ future logs, and future internal model-analysis views.
 
 - Bullpen data remains unavailable in the live team provider.
 - Weather remains schedule-derived placeholder data and is not an engine input.
-- Recent form is reserved but has no provider or model contribution.
+- Recent form and momentum are deterministic and not opponent-adjusted.
 - Injuries, park factors, travel, rest, and advanced metrics remain outside V1.
 - Model weights and quality weights are deterministic configuration, not
   historically calibrated coefficients.
