@@ -10,6 +10,7 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 - [Phase 2 Data Plan](docs/PHASE_2_DATA_PLAN.md)
 - [Environmental Data Sources](docs/ENVIRONMENTAL_DATA_SOURCES.md)
 - [Environmental Intelligence](docs/ENVIRONMENTAL_INTELLIGENCE.md)
+- [Matchup Intelligence](docs/MATCHUP_INTELLIGENCE.md)
 - [Model Spec](docs/MODEL_SPEC.md)
 - [MLB Prediction Model V1](docs/MODEL_SPEC_V1.md)
 - [Prediction Engine V1](docs/PREDICTION_ENGINE_V1.md)

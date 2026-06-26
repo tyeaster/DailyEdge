@@ -173,9 +173,9 @@ export class PredictionEngine {
         awayTeam,
         factorAvailability,
         factors,
+        game,
         homePitcher,
         homeTeam,
-        game,
         selectHomeSide,
       }),
       gameId: game.id,
@@ -184,6 +184,7 @@ export class PredictionEngine {
       homeWinProbability,
       impliedSportsbookProbability,
       modelBreakdown,
+      matchupIntelligence: game.matchupIntelligence,
       predictedWinnerTeamId,
       predictionVersion: PREDICTION_ENGINE_V1_CONFIG.version,
       projectedTotalRuns,
@@ -701,18 +702,18 @@ function buildExplanations({
   awayTeam,
   factorAvailability,
   factors,
+  game,
   homePitcher,
   homeTeam,
-  game,
   selectHomeSide,
 }: {
   awayPitcher?: Pitcher;
   awayTeam: Team;
   factorAvailability: FactorAvailability;
   factors: PredictionModelFactors;
+  game: Game;
   homePitcher?: Pitcher;
   homeTeam: Team;
-  game: Game;
   selectHomeSide: boolean;
 }) {
   const selectedTeam = selectHomeSide ? homeTeam : awayTeam;
@@ -950,6 +951,12 @@ function buildExplanations({
     } else if (game.ballpark.pitcherFriendlyRating >= 57) {
       explanations.push(`Pitcher-friendly park environment: ${game.venue}`);
     }
+  }
+
+  if (game.matchupIntelligence && game.matchupIntelligence.score !== 50) {
+    explanations.push(
+      `Matchup Intelligence: ${game.matchupIntelligence.reasons[0] ?? "Pitch-batter compatibility available"}`,
+    );
   }
 
   explanations.push(`Value side: ${selectedTeam.abbreviation}`);

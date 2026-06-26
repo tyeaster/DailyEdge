@@ -9,6 +9,7 @@ export const CACHE_TTL_SECONDS = {
   ballpark: 86400,
   lineupConfirmed: 60,
   lineupProjected: 300,
+  matchup: 86400,
   odds: 60,
   pitcher: 3600,
   recentForm: 1800,

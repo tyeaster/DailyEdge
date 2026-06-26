@@ -14,6 +14,8 @@ TrueLine is an MLB-first sports betting analytics dashboard with:
 - Live confirmed lineups with projected fallback.
 - Live game-time weather intelligence.
 - Live MLB venue and Baseball Savant ballpark intelligence.
+- Matchup Intelligence foundation for pitch arsenals and batter pitch-type
+  profiles.
 - Live 7, 14, and 30-game recent form and momentum.
 - Live-configured sportsbook odds integration.
 - Deterministic Prediction Engine V1.
@@ -197,6 +199,30 @@ The branch is stacked on `test-codex-auth`. Pull requests remain unmerged pendin
 - Current status: Mock.
 - Live provider and player-prop model: Not implemented.
 
+### Matchup Intelligence
+
+- Current status: Foundation implemented.
+- Default: Live Baseball Savant Statcast CSV provider.
+- Replay: Supported with normalized fixtures.
+- Mock: Supported with the same provider contract.
+- Cache: In-memory, 24 hours per pitcher, season, date, and batter set.
+- Current outputs:
+  - PitchProfile.
+  - PitchUsage.
+  - PitchLocation.
+  - PitchHeatMap.
+  - PitchArsenal.
+  - BatterPitchProfile.
+  - ZoneMatch.
+  - PitchTypeMatch.
+  - OverallPitchMatch.
+- PredictionEngine consumption:
+  - Optional summary pass-through and explainable context.
+  - No current win-probability formula changes.
+- Current limitation:
+  - Daily Slate does not yet automatically enrich every game with matchup
+    intelligence until provider load and backtest behavior are validated.
+
 ### Predictions
 
 - Current status: Deterministic live engine.
@@ -213,6 +239,8 @@ The branch is stacked on `test-codex-auth`. Pull requests remain unmerged pendin
   - Sportsbook implied probability.
   - Weather run environment.
   - Ballpark run environment.
+  - Optional Matchup Intelligence summary when supplied by a slate enrichment
+    path.
 - Replay and mock support are inherited from normalized input providers.
 
 ## Prediction Engine V1

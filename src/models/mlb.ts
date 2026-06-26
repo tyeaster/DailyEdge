@@ -416,6 +416,16 @@ export interface DataQuality {
   score: number;
 }
 
+export interface MatchupIntelligenceSummary {
+  arsenalDataQuality: number;
+  batterDataQuality: number;
+  inputSources: string[];
+  missingInputs: string[];
+  reasons: string[];
+  score: number;
+  source: DataSourceMode;
+}
+
 export interface PredictionResult {
   awayFairMoneyline: number;
   awayProjectedRuns: number;
@@ -431,6 +441,7 @@ export interface PredictionResult {
   homeWinProbability: number;
   impliedSportsbookProbability: number;
   modelBreakdown: ModelBreakdown;
+  matchupIntelligence?: MatchupIntelligenceSummary;
   predictedWinnerTeamId: string;
   predictionVersion: string;
   projectedTotalRuns: number;
@@ -492,6 +503,7 @@ export interface Game {
   };
   prediction?: PredictionResult;
   ballpark?: BallparkProfile;
+  matchupIntelligence?: MatchupIntelligenceSummary;
   scheduledAt: string;
   status: GameStatus;
   venue: string;

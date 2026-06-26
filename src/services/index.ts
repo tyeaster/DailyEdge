@@ -25,6 +25,19 @@ export {
   LineupService,
 } from "./LineupService";
 export {
+  getConfiguredMatchupProvider,
+  matchupService,
+  MatchupService,
+} from "./matchup";
+export type {
+  BatterMatchupProfile,
+  OverallPitchMatch,
+  PitchArsenal,
+  PitchProfile,
+  PitchTypeMatch,
+  ZoneMatch,
+} from "./matchup";
+export {
   getConfiguredRecentFormProvider,
   recentFormService,
   RecentFormService,
