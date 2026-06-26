@@ -12,7 +12,9 @@ test("builds pitcher research from existing Daily Slate-shaped data", () => {
   assert.equal(research.overview.sportsbookLine, "Over 6.5");
   assert.equal(research.overview.projection, "7.4 Ks");
   assert.equal(research.recentStarts.length, 5);
-  assert.equal(research.factors.length, 6);
+  assert.equal(research.factors.length, 7);
+  assert.equal(research.strikeoutMatchup.breakdowns.pitchMatch.score, 50);
+  assert.equal(research.pitcherIntelligence.rolling.length, 4);
   assert.ok(research.modelExplanation.includes("TrueLine projects"));
   assert.ok(research.dataConfidence > 0);
 });

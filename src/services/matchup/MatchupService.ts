@@ -63,6 +63,37 @@ export class MatchupService {
     }
   }
 
+  async getMatchupIntelligence(
+    request: MatchupRequest,
+    context: Omit<MatchupIntelligenceInput, "arsenal" | "batterProfiles"> = {},
+  ): Promise<MatchupIntelligenceResult> {
+    const cacheKey = `${buildCacheKey(this.provider.id, request)}:intelligence`;
+    const cached = await this.cache.get<MatchupIntelligenceResult>(cacheKey);
+
+    if (cached) {
+      return cached;
+    }
+
+    try {
+      const response = await this.provider.getMatchupData(request);
+      const intelligence = buildMatchupIntelligence({
+        ...context,
+        arsenal: response.arsenal,
+        batterProfiles: response.batterProfiles,
+      });
+
+      await this.cache.set(cacheKey, intelligence, CACHE_TTL_SECONDS.matchup);
+
+      return intelligence;
+    } catch {
+      return buildMatchupIntelligence({
+        ...context,
+        arsenal: createUnavailableArsenal(request),
+        batterProfiles: [],
+      });
+    }
+  }
+
   analyzeMatchup(input: MatchupIntelligenceInput): MatchupIntelligenceResult {
     return buildMatchupIntelligence(input);
   }
@@ -284,6 +315,22 @@ function createUnavailableMatchup(request: MatchupRequest): OverallPitchMatch {
       reasons: ["Zone data unavailable"],
       score: 50,
     },
+  };
+}
+
+function createUnavailableArsenal(request: MatchupRequest): PitchArsenal {
+  return {
+    dataQuality: 0,
+    fetchedAt: new Date().toISOString(),
+    handedness: "U",
+    overallQuality: 50,
+    pitcherId: request.pitcherId,
+    pitcherMlbId: request.pitcherMlbId,
+    pitcherName: request.pitcherName ?? "Unknown Pitcher",
+    primaryPitchType: null,
+    profiles: [],
+    season: request.season,
+    source: "unavailable",
   };
 }
 

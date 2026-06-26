@@ -1,12 +1,14 @@
 import { cn } from "@/src/lib/cn";
 
 export function FactorRating({
+  details = [],
   explanation,
   label,
   score,
   stars,
   weight,
 }: {
+  details?: Array<{ label: string; value: string }>;
   explanation: string;
   label: string;
   score: number;
@@ -38,7 +40,24 @@ export function FactorRating({
         </div>
       </div>
       <p className="mt-3 text-sm leading-6 text-slate-400">{explanation}</p>
+      {details.length > 0 ? (
+        <details className="mt-3 border-t border-white/10 pt-3">
+          <summary className="cursor-pointer text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 transition hover:text-slate-300">
+            Details
+          </summary>
+          <div className="mt-3 grid gap-2">
+            {details.map((detail) => (
+              <div
+                className="flex items-center justify-between gap-3 text-sm"
+                key={detail.label}
+              >
+                <span className="text-slate-500">{detail.label}</span>
+                <span className="font-medium text-slate-200">{detail.value}</span>
+              </div>
+            ))}
+          </div>
+        </details>
+      ) : null}
     </div>
   );
 }
-

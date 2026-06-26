@@ -256,7 +256,6 @@ The branch is stacked on `test-codex-auth`. Pull requests remain unmerged pendin
   - `getBatter()`.
   - `getBatterGameLogs()`.
 - Current limitation:
-  - Pitcher Research does not yet consume Player Intelligence directly.
   - Batter Intelligence remains a future phase.
 
 ### Predictions
@@ -344,6 +343,19 @@ The Daily Slate includes:
 - Ballpark run and home-run factors.
 - Mock injury and prop sections.
 
+The Pitcher Research page now includes Strikeout Lab V1:
+
+- Sportsbook strikeout line, TrueLine projection, edge, confidence, and
+  recommendation.
+- Live pitcher game logs when available.
+- Rolling last 3, last 5, last 10, and season form.
+- Trend signals and consistency metrics from Player Intelligence.
+- Pitch Match, Zone Match, Recent Form, and Overall Match breakdowns from
+  Matchup Intelligence.
+- Pitch arsenal display with usage, velocity, whiff rate, movement, and
+  matchup score.
+- Weather, ballpark, bullpen, lineup, and data-confidence context.
+
 No redesign is planned during data-quality sprints.
 
 ## Testing Status
@@ -381,6 +393,8 @@ Automated tests cover:
 - Matchup provider live/replay/mock behavior and replay fixtures.
 - Matchup pitch arsenal and batter pitch-profile normalization.
 - Matchup Pitch Type, Zone, Recent, Overall, and explanation engines.
+- Strikeout Lab V1 view-model assembly from Daily Slate, Player Intelligence,
+  and Matchup Intelligence.
 
 ## Known Limitations
 

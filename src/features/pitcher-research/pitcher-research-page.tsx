@@ -69,13 +69,17 @@ function PitcherResearchLayout({
           <RecentPerformance research={research} />
         </section>
 
+        <section className="mt-6">
+          <PitcherIntelligence research={research} />
+        </section>
+
         <section className="mt-6 grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
           <TodaysMatchup research={research} />
           <PredictionBreakdown research={research} />
         </section>
 
         <section className="mt-6">
-          <MatchupPlaceholder />
+          <MatchupIntelligence research={research} />
         </section>
       </div>
     </main>
@@ -93,7 +97,7 @@ function Overview({ research }: { research: PitcherResearchViewModel }) {
             <ResearchMetric
               indicatorTone="neutral"
               label="Sportsbook Line"
-              meta={research.strikeoutProp?.prop.odds.sportsbook ?? "Current market"}
+              meta={research.overview.sportsbook}
               value={research.overview.sportsbookLine}
             />
             <ResearchMetric
@@ -111,7 +115,7 @@ function Overview({ research }: { research: PitcherResearchViewModel }) {
             <ResearchMetric
               indicatorTone={research.confidence >= 75 ? "good" : "neutral"}
               label="Confidence"
-              meta="Current prop signal"
+              meta={`Odds ${research.overview.sportsbookOdds}`}
               value={`${research.confidence}%`}
             />
           </div>
@@ -211,9 +215,106 @@ function RecentPerformance({
               {start.strikeouts} K
             </span>
             <span className="text-slate-300">{start.pitchCount} pitches</span>
-            <span className="text-slate-300">{start.innings.toFixed(1)} IP</span>
+            <span className="text-slate-300">
+              {start.innings.toFixed(1)} IP · {start.walks} BB
+            </span>
           </div>
         ))}
+      </div>
+    </ResearchCard>
+  );
+}
+
+function PitcherIntelligence({
+  research,
+}: {
+  research: PitcherResearchViewModel;
+}) {
+  return (
+    <ResearchCard>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <ResearchSectionHeader
+          eyebrow="Player Intelligence"
+          title="Rolling Form And Trends"
+        />
+        <Pill tone="neutral">Source {capitalize(research.pitcherIntelligence.source)}</Pill>
+      </div>
+
+      <div className="mt-5 grid gap-3 md:grid-cols-4">
+        {research.pitcherIntelligence.rolling.map((row) => (
+          <div
+            className="rounded-xl border border-white/10 bg-white/[0.025] p-4"
+            key={row.label}
+          >
+            <p className="text-sm font-semibold text-white">{row.label}</p>
+            <div className="mt-3 grid gap-2 text-sm">
+              <MetricRow label="Starts" value={row.starts} />
+              <MetricRow label="K Avg" value={row.averageStrikeouts} />
+              <MetricRow label="Pitch Avg" value={row.averagePitchCount} />
+              <MetricRow label="IP Avg" value={row.averageInnings} />
+              <MetricRow label="ERA" value={row.era} />
+              <MetricRow label="WHIP" value={row.whip} />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-4 grid gap-3 lg:grid-cols-[0.8fr_1.2fr]">
+        <div className="rounded-xl border border-white/10 bg-white/[0.025] p-4">
+          <p className="text-sm font-semibold text-white">Consistency</p>
+          <div className="mt-3 grid gap-2 text-sm">
+            <MetricRow
+              label="Score"
+              value={`${research.pitcherIntelligence.consistency.score}/100`}
+            />
+            <MetricRow
+              label="Expected Range"
+              value={research.pitcherIntelligence.consistency.expectedRange}
+            />
+            <MetricRow
+              label="Floor"
+              value={research.pitcherIntelligence.consistency.floor}
+            />
+            <MetricRow
+              label="Ceiling"
+              value={research.pitcherIntelligence.consistency.ceiling}
+            />
+            <MetricRow
+              label="Std Dev"
+              value={research.pitcherIntelligence.consistency.standardDeviation}
+            />
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-white/10 bg-white/[0.025] p-4">
+          <p className="text-sm font-semibold text-white">Trend Signals</p>
+          <div className="mt-3 grid gap-2">
+            {research.pitcherIntelligence.trends.length > 0 ? (
+              research.pitcherIntelligence.trends.map((trend) => (
+                <div
+                  className="rounded-lg bg-slate-950/60 px-3 py-2"
+                  key={trend.key}
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-sm font-semibold text-slate-200">
+                      {trend.label}
+                    </p>
+                    <span className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                      {trend.direction} · {trend.strength} · {trend.confidence}%
+                    </span>
+                  </div>
+                  <p className="mt-1 text-sm text-slate-500">
+                    {trend.explanation}
+                  </p>
+                </div>
+              ))
+            ) : (
+              <p className="text-sm text-slate-500">
+                Trend signals require live pitcher game logs.
+              </p>
+            )}
+          </div>
+        </div>
       </div>
     </ResearchCard>
   );
@@ -255,11 +356,20 @@ function TodaysMatchup({ research }: { research: PitcherResearchViewModel }) {
         <ResearchMetric label="Wind" value={research.weather.wind} />
         <ResearchMetric label="Temperature" value={research.weather.temperature} />
         <ResearchMetric label="Air Density" value={research.weather.airDensity} />
+        <ResearchMetric
+          label="Delay Risk"
+          value={research.weather.delayRisk}
+        />
         <ResearchMetric label="Ballpark" value={research.ballpark.rating} />
         <ResearchMetric
           indicatorTone="neutral"
           label="Run Environment"
-          value={research.ballpark.runEnvironment}
+          value={research.weather.runEnvironment}
+        />
+        <ResearchMetric
+          indicatorTone="neutral"
+          label="Park K Factor"
+          value={research.ballpark.strikeoutFactor}
         />
         <ResearchMetric
           indicatorTone={research.dataConfidence >= 75 ? "good" : "watch"}
@@ -306,37 +416,112 @@ function ModelExplanation({
   );
 }
 
-function MatchupPlaceholder() {
-  const items = [
-    "Pitch Arsenal",
-    "Pitch Usage",
-    "Pitch Movement",
-    "Zone Match %",
-    "Pitch Match %",
-    "Overall Match %",
-  ];
-
+function MatchupIntelligence({
+  research,
+}: {
+  research: PitcherResearchViewModel;
+}) {
+  const breakdowns = research.strikeoutMatchup.breakdowns;
   return (
     <ResearchCard>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <ResearchSectionHeader
-          eyebrow="Coming Soon"
+          eyebrow="Strikeout Lab"
           title="Matchup Intelligence"
         />
-        <Pill tone="neutral">Not connected to this UI yet</Pill>
+        <div className="flex flex-wrap gap-2">
+          <Pill tone="blue">
+            Confidence {research.strikeoutMatchup.confidence}%
+          </Pill>
+          <Pill tone="neutral">Source {capitalize(research.strikeoutMatchup.source)}</Pill>
+        </div>
       </div>
-      <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {items.map((item) => (
-          <div
-            className="rounded-xl border border-dashed border-white/10 bg-white/[0.02] p-4"
-            key={item}
-          >
-            <p className="text-sm font-semibold text-white">{item}</p>
-            <p className="mt-3 text-sm text-slate-500">Coming Soon</p>
-          </div>
-        ))}
+
+      <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <BreakdownCard breakdown={breakdowns.pitchMatch} />
+        <BreakdownCard breakdown={breakdowns.zoneMatch} />
+        <BreakdownCard breakdown={breakdowns.recentForm} />
+        <BreakdownCard breakdown={breakdowns.overall} />
+      </div>
+
+      <div className="mt-5 rounded-xl border border-white/10 bg-white/[0.025] p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm font-semibold text-white">Pitch Arsenal</p>
+          <span className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+            Usage · Velo · Whiff · Movement
+          </span>
+        </div>
+        <div className="mt-4 grid gap-2">
+          {research.strikeoutMatchup.arsenal.length > 0 ? (
+            research.strikeoutMatchup.arsenal.map((pitch) => (
+              <div
+                className="grid gap-2 rounded-lg bg-slate-950/60 px-3 py-2 text-sm sm:grid-cols-[1fr_0.7fr_0.7fr_0.7fr_1fr_0.5fr]"
+                key={pitch.pitchName}
+              >
+                <span className="font-semibold text-white">{pitch.pitchName}</span>
+                <span className="text-slate-300">{pitch.usage}</span>
+                <span className="text-slate-300">{pitch.velocity} MPH</span>
+                <span className="text-slate-300">{pitch.whiff}</span>
+                <span className="text-slate-400">{pitch.movement}</span>
+                <span className="font-semibold text-blue-100">{pitch.score}</span>
+              </div>
+            ))
+          ) : (
+            <p className="text-sm text-slate-500">
+              Pitch arsenal data is unavailable for this pitcher in the current mode.
+            </p>
+          )}
+        </div>
       </div>
     </ResearchCard>
+  );
+}
+
+function BreakdownCard({
+  breakdown,
+}: {
+  breakdown: PitcherResearchViewModel["strikeoutMatchup"]["breakdowns"]["overall"];
+}) {
+  return (
+    <details className="rounded-xl border border-white/10 bg-white/[0.025] p-4" open>
+      <summary className="cursor-pointer list-none">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-white">{breakdown.label}</p>
+            <p className="mt-1 text-xs text-slate-500">Expandable breakdown</p>
+          </div>
+          <p className="text-lg font-semibold text-blue-100">
+            {breakdown.score}/100
+          </p>
+        </div>
+      </summary>
+      <p className="mt-3 text-sm leading-6 text-slate-400">
+        {breakdown.explanation}
+      </p>
+      <div className="mt-3 grid gap-2 border-t border-white/10 pt-3">
+        {breakdown.details.map((detail) => (
+          <MetricRow key={detail.label} {...detail} />
+        ))}
+      </div>
+      {breakdown.reasons.length > 0 ? (
+        <ul className="mt-3 space-y-2 border-t border-white/10 pt-3">
+          {breakdown.reasons.slice(0, 4).map((reason) => (
+            <li className="text-sm text-slate-500" key={reason}>
+              {reason}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </details>
+  );
+}
+
+function MetricRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-slate-500">{label}</span>
+      <span className="font-medium text-slate-200">{value}</span>
+    </div>
   );
 }
 
