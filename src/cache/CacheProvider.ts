@@ -12,6 +12,7 @@ export const CACHE_TTL_SECONDS = {
   matchup: 86400,
   odds: 60,
   pitcher: 3600,
+  pitcherGameLogs: 86400,
   recentForm: 1800,
   schedule: 300,
   teamStrength: 3600,

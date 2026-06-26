@@ -16,6 +16,8 @@ TrueLine is an MLB-first sports betting analytics dashboard with:
 - Live MLB venue and Baseball Savant ballpark intelligence.
 - Matchup Intelligence foundation for pitch arsenals and batter pitch-type
   profiles.
+- Player Intelligence foundation for pitcher game logs, rolling summaries,
+  trends, consistency, and recent form.
 - Live 7, 14, and 30-game recent form and momentum.
 - Live-configured sportsbook odds integration.
 - Deterministic Prediction Engine V1.
@@ -222,6 +224,27 @@ The branch is stacked on `test-codex-auth`. Pull requests remain unmerged pendin
 - Current limitation:
   - Daily Slate does not yet automatically enrich every game with matchup
     intelligence until provider load and backtest behavior are validated.
+
+### Player Intelligence
+
+- Current status: Pitcher Intelligence foundation implemented.
+- Default: Live official MLB player game-log hydrate endpoint.
+- Replay: Supported with normalized fixtures.
+- Mock: Supported with the same provider contract.
+- Cache: In-memory, 24 hours per pitcher and season.
+- Current outputs:
+  - PitcherGameLog.
+  - Rolling last 3, last 5, last 10, season, home, away, day, and night splits.
+  - TrendSignal.
+  - ConsistencyMetrics.
+  - PitcherRecentFormScore.
+  - PitcherIntelligence.
+- Future-ready placeholders:
+  - `getBatter()`.
+  - `getBatterGameLogs()`.
+- Current limitation:
+  - Pitcher Research does not yet consume Player Intelligence directly.
+  - Batter Intelligence remains a future phase.
 
 ### Predictions
 

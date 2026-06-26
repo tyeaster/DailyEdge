@@ -18,6 +18,7 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 - [Confirmed Lineup Model](docs/LINEUP_MODEL.md)
 - [Recent Form Model](docs/RECENT_FORM_MODEL.md)
 - [Model Intelligence](docs/MODEL_INTELLIGENCE.md)
+- [Player Intelligence](docs/PLAYER_INTELLIGENCE.md)
 - [Project State](docs/PROJECT_STATE.md)
 - [Scoring](docs/SCORING.md)
 - [Style Guide](docs/STYLE_GUIDE.md)

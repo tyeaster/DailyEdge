@@ -38,6 +38,19 @@ export type {
   ZoneMatch,
 } from "./matchup";
 export {
+  getConfiguredPitcherGameLogProvider,
+  playerIntelligenceService,
+  PlayerIntelligenceService,
+} from "./player-intelligence";
+export type {
+  ConsistencyMetrics,
+  PitcherGameLog,
+  PitcherIntelligence,
+  PitcherRecentFormScore,
+  PitcherRollingSummary,
+  TrendSignal,
+} from "./player-intelligence";
+export {
   getConfiguredRecentFormProvider,
   recentFormService,
   RecentFormService,
