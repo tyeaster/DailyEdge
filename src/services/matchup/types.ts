@@ -52,6 +52,7 @@ export interface ZoneHeatMap {
 export interface PitchProfile {
   averageReleasePoint: AverageReleasePoint;
   averageVelocityMph: number | null;
+  extensionFeet: number | null;
   groundBallPercent: number | null;
   hardHitPercent: number | null;
   horizontalBreakInches: number | null;
@@ -64,6 +65,8 @@ export interface PitchProfile {
   pitchName: string;
   pitchType: string;
   putAwayPercent: number | null;
+  releaseHeightFeet: number | null;
+  releaseSideFeet: number | null;
   sampleSize: number;
   spinRateRpm: number | null;
   strikePercent: number | null;
@@ -89,6 +92,7 @@ export interface PitchArsenal {
 
 export interface BatterPitchProfile {
   average: number | null;
+  averageExitVelocityMph: number | null;
   barrelPercent: number | null;
   chasePercent: number | null;
   contactPercent: number | null;
@@ -96,12 +100,16 @@ export interface BatterPitchProfile {
   expectedDamageRating: number;
   expectedSlugging: number | null;
   hardHitPercent: number | null;
+  isolatedPower: number | null;
+  launchAngleDegrees: number | null;
   pitchName: string;
   pitchType: string;
   runValue: number | null;
   sampleSize: number;
   slugging: number | null;
   swingPercent: number | null;
+  strikeoutPercent: number | null;
+  sweetSpotPercent: number | null;
   takePercent: number | null;
   whiffPercent: number | null;
 }
@@ -116,6 +124,7 @@ export interface BatterMatchupProfile {
   pitchProfiles: BatterPitchProfile[];
   season: number;
   source: MatchupDataSource;
+  zoneHeatMap?: ZoneHeatMap;
 }
 
 export interface MatchupScoreExplanation {
@@ -124,11 +133,31 @@ export interface MatchupScoreExplanation {
 }
 
 export interface ZoneMatch {
+  coldZones?: MatchupZone[];
+  hotZones?: MatchupZone[];
+  overlay?: MatchupZoneOverlayCell[];
   reasons: string[];
   score: number;
 }
 
+export interface MatchupZone {
+  damageRating: number;
+  frequencyPercent: number;
+  zone: number | null;
+}
+
+export interface MatchupZoneOverlayCell {
+  batterDamageRating: number;
+  classification: "advantage" | "neutral" | "risk";
+  pitcherFrequencyPercent: number;
+  score: number;
+  xBucket: number;
+  zBucket: number;
+  zone: number | null;
+}
+
 export interface PitchTypeMatch {
+  explanation?: string;
   batterDamageRating: number;
   contactMatch: number;
   expectedDamageMatch: number;
@@ -138,8 +167,42 @@ export interface PitchTypeMatch {
   reasons: string[];
   sampleSize: number;
   score: number;
+  topAdvantages?: string[];
+  topWeaknesses?: string[];
   usagePercent: number;
   velocityMatch: number;
+  zoneMatch: ZoneMatch;
+}
+
+export interface MatchupRecentScore {
+  confidence: number;
+  explanation: string;
+  score: number;
+}
+
+export interface MatchupContextScore {
+  explanation: string;
+  label: string;
+  score: number;
+}
+
+export interface MatchupIntelligenceResult {
+  arsenal: PitchArsenal;
+  batterProfiles: BatterMatchupProfile[];
+  confidence: number;
+  contextScores: MatchupContextScore[];
+  fetchedAt: string;
+  overallMatchupScore: number;
+  pitchMix: PitchUsage[];
+  pitchTypeMatch: {
+    explanation: string;
+    score: number;
+    topAdvantages: string[];
+    topWeaknesses: string[];
+    matches: PitchTypeMatch[];
+  };
+  reasons: string[];
+  recentMatchup: MatchupRecentScore;
   zoneMatch: ZoneMatch;
 }
 

@@ -101,9 +101,9 @@ implementations, not as changes to services or UI.
 Statcast, replay, or mock provider
   -> MatchupService
   -> normalized PitchArsenal and BatterMatchupProfile
-  -> deterministic pitch/zone/match scoring
-  -> OverallPitchMatch
-  -> future PredictionEngine and UI consumers
+  -> Matchup Intelligence engines
+  -> MatchupIntelligenceResult
+  -> future research, prop, slate, and prediction consumers
 ```
 
 Files:
@@ -113,6 +113,7 @@ Files:
 - `src/providers/matchup/ReplayMatchupProvider.ts`
 - `src/providers/matchup/MockMatchupProvider.ts`
 - `src/services/matchup/MatchupService.ts`
+- `src/services/matchup/engines.ts`
 - `src/services/matchup/normalization.ts`
 - `src/services/matchup/types.ts`
 
@@ -161,12 +162,14 @@ data quality, handedness, primary pitch, and overall arsenal quality.
 
 Represents batter performance against a pitch type, including AVG, SLG, xBA,
 xSLG approximation, hard-hit rate, barrel rate, whiff rate, chase rate,
-contact, swing, take, and expected damage rating.
+contact, swing, take, average exit velocity, launch angle, ISO, K%, sweet-spot
+rate, and expected damage rating.
 
 ### ZoneMatch
 
-Scores pitcher location tendencies against available batter profile data from
-0 to 100.
+Scores pitcher location tendencies against available batter zone-damage data
+from 0 to 100. It returns overlay-ready cells, hitter hot zones, hitter cold
+zones, and explainable reasons.
 
 ### PitchTypeMatch
 
@@ -180,10 +183,26 @@ Scores each pitch type from 0 to 100 using deterministic component scores:
 
 Each score includes reasons.
 
-### OverallPitchMatch
+### MatchupIntelligenceResult
+
+The production analytics result returned by `buildMatchupIntelligence()` and
+`MatchupService.analyzeMatchup()`. It includes:
+
+- Pitch arsenal and pitch mix.
+- Batter pitch-type profiles.
+- Pitch Type Match score.
+- Zone Match score.
+- Recent Matchup score from Player Intelligence.
+- Weather, ballpark, bullpen, and lineup context scores when supplied.
+- Overall Matchup Score.
+- Confidence score.
+- Explainable reasons.
+
+### OverallPitchMatch Legacy Summary
 
 Combines pitch-type and zone matches into a 0-100 pitcher-batter compatibility
-score. It also includes input sources, missing inputs, and data-quality scores.
+score. It remains supported for existing consumers and replay compatibility.
+New research and model consumers should prefer `MatchupIntelligenceResult`.
 
 ## Deterministic Calculations
 
@@ -205,12 +224,42 @@ Overall score:
 
 ```text
 overall =
-  weighted pitch-type score * 0.75 +
-  overall zone match * 0.25 -
-  data-quality penalty
+  Pitch Type Match * 0.42 +
+  Zone Match * 0.18 +
+  Recent Form * 0.18 +
+  Weather * 0.08 +
+  Ballpark * 0.08 +
+  Bullpen * 0.06
 ```
 
-Pitch-type scores are weighted by pitch usage.
+Pitch-type scores are weighted by pitch usage. Missing optional context returns
+neutral 50 values and lowers confidence rather than failing the analysis.
+
+## Engines
+
+### Pitch Type Match
+
+Compares the pitcher's arsenal against batter pitch-type performance. It
+scores contact pressure, velocity, movement, zone fit, and expected damage. It
+returns per-pitch scores plus top advantages and top weaknesses.
+
+### Zone Match
+
+Aggregates pitcher location tendencies into normalized zone cells and compares
+them with batter damage zones. It returns overlay-ready data for future UI:
+zone, bucket coordinates, pitcher frequency, batter damage rating,
+classification, and cell score.
+
+### Recent Matchup Score
+
+Consumes `PitcherIntelligence` output rather than raw game logs. It combines
+recent form, consistency, and trend signals. This keeps the matchup engine
+dependent on normalized services, not providers.
+
+### Overall Matchup Score
+
+Combines pitch type, zone, recent form, weather, ballpark, and bullpen context
+through centralized weights in `MATCHUP_INTELLIGENCE_CONFIG`.
 
 Missing data returns neutral values and marks missing inputs. It never fails
 prediction generation.
@@ -260,9 +309,10 @@ matchups.
 - Pitch arsenal normalization.
 - Batter pitch-type profile normalization.
 - Pitch location and heat-map preparation.
-- Pitch-type match scoring.
-- Zone match scoring.
-- Overall matchup scoring.
+- Production Pitch Type Match engine.
+- Production Zone Match engine with overlay-ready cells.
+- Recent Matchup Score consuming Player Intelligence.
+- Overall Matchup Score with weather, ballpark, and bullpen context.
 - Explainable reasons for each score.
 - Service-level caching and graceful fallback.
 - Optional PredictionEngine consumption.

@@ -9,6 +9,7 @@ import {
 } from "../../providers/matchup/index.ts";
 import type {
   BatterMatchupProfile,
+  MatchupIntelligenceResult,
   MatchupRequest,
   OverallPitchMatch,
   PitchArsenal,
@@ -17,6 +18,10 @@ import type {
   ZoneMatch,
 } from "./types.ts";
 import { MATCHUP_INTELLIGENCE_CONFIG } from "./config.ts";
+import {
+  buildMatchupIntelligence,
+  type MatchupIntelligenceInput,
+} from "./engines.ts";
 
 type MatchupInput = {
   arsenal: PitchArsenal;
@@ -57,6 +62,10 @@ export class MatchupService {
       return createUnavailableMatchup(request);
     }
   }
+
+  analyzeMatchup(input: MatchupIntelligenceInput): MatchupIntelligenceResult {
+    return buildMatchupIntelligence(input);
+  }
 }
 
 export const matchupService = new MatchupService();
@@ -91,12 +100,14 @@ export function calculateOverallPitchMatch({
         );
   const zoneMatch = calculateOverallZoneMatch(arsenal, batterProfiles);
   const overallWeights = MATCHUP_INTELLIGENCE_CONFIG.overallWeights;
+  const foundationWeightTotal = overallWeights.pitchType + overallWeights.zone;
   const dataPenalty =
     ((100 - arsenal.dataQuality) + (100 - getBatterDataQuality(batterProfiles))) /
     12;
   const score = clampScore(
-    weightedScore * overallWeights.pitchType +
-      zoneMatch.score * overallWeights.zone -
+    (weightedScore * overallWeights.pitchType +
+      zoneMatch.score * overallWeights.zone) /
+      foundationWeightTotal -
       dataPenalty,
   );
   const missingInputs = [

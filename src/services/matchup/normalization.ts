@@ -226,6 +226,7 @@ function buildPitchProfile(pitchType: string, rows: StatcastPitchRow[], totalRow
   return {
     averageReleasePoint: averageReleasePoint(rows),
     averageVelocityMph: averageNumber(rows.map((row) => row.releaseSpeed)),
+    extensionFeet: averageNumber(rows.map((row) => row.releaseExtension)),
     groundBallPercent: percentage(groundBalls.length, ballsInPlay.length),
     hardHitPercent: percentage(hardHit.length, ballsInPlay.length),
     horizontalBreakInches: averageNumber(rows.map((row) => row.pfxX === null || row.pfxX === undefined ? null : row.pfxX * 12)),
@@ -234,6 +235,8 @@ function buildPitchProfile(pitchType: string, rows: StatcastPitchRow[], totalRow
     pitchName: rows.find((row) => row.pitchName)?.pitchName ?? pitchType,
     pitchType,
     putAwayPercent: percentage(putAways.length, putAwayRows.length),
+    releaseHeightFeet: averageNumber(rows.map((row) => row.releasePosZ)),
+    releaseSideFeet: averageNumber(rows.map((row) => row.releasePosX)),
     sampleSize: rows.length,
     spinRateRpm: averageNumber(rows.map((row) => row.releaseSpinRate)),
     strikePercent: percentage(rows.filter((row) => STRIKE_DESCRIPTIONS.has(row.description ?? "") || row.type === "S").length, rows.length),
@@ -258,11 +261,16 @@ function buildBatterPitchProfile(pitchType: string, rows: StatcastPitchRow[]): B
   const outOfZone = rows.filter((row) => !IN_ZONE.has(row.zone ?? 0));
   const avg = percentageRatio(hits.length, atBats.length);
   const slg = percentageRatio(totalBases, atBats.length);
+  const strikeouts = rows.filter((row) => row.events === "strikeout");
   const expectedWoba = averageNumber(rows.map((row) => row.estimatedWobaUsingSpeedangle));
   const expectedBa = averageNumber(rows.map((row) => row.estimatedBaUsingSpeedangle));
+  const sweetSpots = ballsInPlay.filter(
+    (row) => (row.launchAngle ?? -100) >= 8 && (row.launchAngle ?? -100) <= 32,
+  );
 
   return {
     average: avg,
+    averageExitVelocityMph: averageNumber(ballsInPlay.map((row) => row.launchSpeed)),
     barrelPercent: percentage(barrels.length, ballsInPlay.length),
     chasePercent: percentage(chases.length, outOfZone.length),
     contactPercent: percentage(swings.length - whiffs.length, swings.length),
@@ -270,12 +278,16 @@ function buildBatterPitchProfile(pitchType: string, rows: StatcastPitchRow[]): B
     expectedDamageRating: calculateExpectedDamageRating({ hardHitPercent: percentage(hardHits.length, ballsInPlay.length), slg, xwoba: expectedWoba }),
     expectedSlugging: expectedWoba === null ? slg : round(expectedWoba * 2.2, 3),
     hardHitPercent: percentage(hardHits.length, ballsInPlay.length),
+    isolatedPower: avg === null || slg === null ? null : round(slg - avg, 3),
+    launchAngleDegrees: averageNumber(ballsInPlay.map((row) => row.launchAngle)),
     pitchName: rows.find((row) => row.pitchName)?.pitchName ?? pitchType,
     pitchType,
     runValue: null,
     sampleSize: rows.length,
     slugging: slg,
     swingPercent: percentage(swings.length, rows.length),
+    strikeoutPercent: percentage(strikeouts.length, atBats.length),
+    sweetSpotPercent: percentage(sweetSpots.length, ballsInPlay.length),
     takePercent: percentage(rows.length - swings.length, rows.length),
     whiffPercent: percentage(whiffs.length, swings.length),
   };

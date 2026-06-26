@@ -5,9 +5,20 @@ import path from "node:path";
 import test from "node:test";
 
 import { MemoryCache } from "../src/cache/MemoryCache.ts";
-import { type Game, type Pitcher, type Team } from "../src/models/mlb.ts";
+import {
+  type BallparkProfile,
+  type BullpenRating,
+  type Game,
+  type Pitcher,
+  type Team,
+  type WeatherProfile,
+} from "../src/models/mlb.ts";
 import { MockMatchupProvider } from "../src/providers/matchup/MockMatchupProvider.ts";
 import { ReplayMatchupProvider } from "../src/providers/matchup/ReplayMatchupProvider.ts";
+import {
+  buildMockLogs,
+  MockPitcherGameLogProvider,
+} from "../src/providers/player-intelligence/MockPitcherGameLogProvider.ts";
 import {
   buildStatcastUrl,
   parseStatcastCsv,
@@ -15,12 +26,17 @@ import {
 } from "../src/providers/matchup/StatcastMatchupProvider.ts";
 import {
   buildBatterMatchupProfiles,
+  buildMatchupIntelligence,
   buildPitchArsenal,
+  calculatePitchTypeMatchEngine,
+  calculateRecentMatchupScore,
+  calculateZoneMatchEngine,
   calculateOverallPitchMatch,
   calculatePitchTypeMatch,
   MatchupService,
   type StatcastPitchRow,
 } from "../src/services/matchup/index.ts";
+import { PlayerIntelligenceService } from "../src/services/player-intelligence/PlayerIntelligenceService.ts";
 import { PredictionEngine } from "../src/services/predictions/PredictionEngine.ts";
 
 const request = {
@@ -72,6 +88,9 @@ test("parses Statcast CSV and normalizes a pitch arsenal", () => {
   assert.equal(arsenal.primaryPitchType, "FF");
   assert.equal(arsenal.profiles[0].usagePercent, 66.7);
   assert.equal(arsenal.profiles[0].averageVelocityMph, 96.25);
+  assert.equal(arsenal.profiles[0].extensionFeet, 6.23);
+  assert.equal(arsenal.profiles[0].releaseHeightFeet, 5.7);
+  assert.equal(arsenal.profiles[0].releaseSideFeet, -1.8);
   assert.ok((arsenal.profiles[0].spinRateRpm ?? 0) > 2300);
   assert.ok(arsenal.dataQuality > 0);
 });
@@ -107,6 +126,112 @@ test("normalizes batter pitch profiles and deterministic matchup scores", () => 
   assert.ok(fastballMatch.reasons.length > 0);
   assert.ok(overall.score >= 0 && overall.score <= 100);
   assert.ok(overall.pitchTypeMatches.length > 0);
+});
+
+test("matchup engine builds pitch, zone, recent, and overall intelligence", async () => {
+  const pitcherRows = pitcherRowsFixture();
+  const batterRows = batterRowsFixture();
+  const arsenal = buildPitchArsenal({
+    fetchedAt: "2026-06-26T12:00:00.000Z",
+    pitcherId: request.pitcherId,
+    pitcherMlbId: request.pitcherMlbId,
+    pitcherName: request.pitcherName,
+    request,
+    rows: pitcherRows,
+    season: request.season,
+    source: "live",
+  });
+  const batterProfiles = buildBatterMatchupProfiles({
+    batterIds: request.batterIds,
+    batterMlbIds: request.batterMlbIds,
+    batterNames: request.batterNames,
+    fetchedAt: "2026-06-26T12:00:00.000Z",
+    rows: batterRows,
+    season: request.season,
+    source: "live",
+  }).map((profile) => ({
+    ...profile,
+    zoneHeatMap: {
+      cells: [
+        {
+          damageRating: 25,
+          frequencyPercent: 40,
+          xBucket: 1,
+          zBucket: 2,
+          zone: 2,
+        },
+        {
+          damageRating: 82,
+          frequencyPercent: 25,
+          xBucket: 3,
+          zBucket: 3,
+          zone: 5,
+        },
+      ],
+      sampleSize: 65,
+    },
+  }));
+  const playerIntelligence = await new PlayerIntelligenceService(
+    new MockPitcherGameLogProvider(),
+    new MemoryCache(),
+  ).getPitcher({
+    fallbackGameLogs: buildMockLogs(),
+    pitcher: buildPitcher("pitcher-1", "Test Pitcher"),
+    season: request.season,
+  });
+  const pitchTypeMatch = calculatePitchTypeMatchEngine({
+    arsenal,
+    batterProfiles,
+  });
+  const zoneMatch = calculateZoneMatchEngine({ arsenal, batterProfiles });
+  const recentMatchup = calculateRecentMatchupScore({
+    pitcherIntelligence: playerIntelligence,
+  });
+  const intelligence = buildMatchupIntelligence({
+    arsenal,
+    ballpark: buildBallparkProfile(),
+    batterProfiles,
+    bullpen: buildBullpenRating(),
+    pitcherIntelligence: playerIntelligence,
+    weather: buildWeatherProfile(),
+  });
+
+  assert.ok(pitchTypeMatch.score >= 0 && pitchTypeMatch.score <= 100);
+  assert.ok(pitchTypeMatch.matches[0].topAdvantages?.length ?? 0);
+  assert.ok(zoneMatch.overlay?.length);
+  assert.ok(zoneMatch.hotZones?.length);
+  assert.ok(zoneMatch.coldZones?.length);
+  assert.ok(recentMatchup.score >= 0 && recentMatchup.score <= 100);
+  assert.ok(intelligence.overallMatchupScore >= 0);
+  assert.ok(intelligence.overallMatchupScore <= 100);
+  assert.ok(intelligence.contextScores.some((context) => context.label === "Weather"));
+  assert.ok(intelligence.reasons.length > 0);
+});
+
+test("matchup service exposes normalized analytics without provider calls", async () => {
+  let calls = 0;
+  const service = new MatchupService(
+    {
+      id: "unused-provider",
+      async getMatchupData(input) {
+        calls += 1;
+        return new MockMatchupProvider().getMatchupData(input);
+      },
+    },
+    new MemoryCache(),
+  );
+  const provider = new MockMatchupProvider();
+  const response = await provider.getMatchupData(request);
+  const intelligence = service.analyzeMatchup({
+    arsenal: response.arsenal,
+    batterProfiles: response.batterProfiles,
+  });
+
+  assert.equal(calls, 0);
+  assert.ok(intelligence.pitchMix.length > 0);
+  assert.ok(intelligence.pitchTypeMatch.matches.length > 0);
+  assert.ok(intelligence.zoneMatch.score >= 0);
+  assert.ok(intelligence.confidence >= 0);
 });
 
 test("live, mock, and replay matchup providers preserve the contract", async () => {
@@ -313,6 +438,7 @@ function buildPitcher(id: string, fullName: string): Pitcher {
     arsenal: ["FF", "SL"],
     bats: "R",
     era: id === "home-pitcher" ? 3.1 : 4.2,
+    externalIds: { mlb: request.pitcherMlbId },
     fullName,
     handedness: "R",
     id,
@@ -322,6 +448,105 @@ function buildPitcher(id: string, fullName: string): Pitcher {
     teamId: id === "home-pitcher" ? "home" : "away",
     throws: "R",
     whip: id === "home-pitcher" ? 1.08 : 1.3,
+  };
+}
+
+function buildBullpenRating(): BullpenRating {
+  return {
+    available: true,
+    era: 3.45,
+    strikeoutRate: 26,
+    value: 70,
+    whip: 1.16,
+    workloadRating: 68,
+  };
+}
+
+function buildWeatherProfile(): WeatherProfile {
+  return {
+    airDensityKgM3: 1.18,
+    airPressureHpa: 1012,
+    cancellationProbability: 2,
+    cloudCoverPercent: 25,
+    crosswindMph: 4,
+    delayProbability: 4,
+    dewPointF: 58,
+    fetchedAt: "2026-06-26T12:00:00.000Z",
+    flyBallEnvironment: 51,
+    gameId: "game-1",
+    groundBallEnvironment: 50,
+    gustMph: 11,
+    headwindMph: 5,
+    hitterFriendlyRating: 48,
+    homeRunEnvironment: 47,
+    humidityPercent: 55,
+    id: "weather-1",
+    indoor: false,
+    offenseEnvironment: 49,
+    pitcherFriendlyRating: 55,
+    pitchingEnvironment: 56,
+    rainChancePercent: 8,
+    rainIntensityInchesPerHour: 0,
+    relativeWindDirection: "Headwind",
+    roofStatus: "not-applicable",
+    runEnvironment: 48,
+    source: "mock",
+    stadium: "Test Park",
+    stormRisk: 2,
+    strikeoutEnvironment: 58,
+    summary: "Mild pitcher-friendly weather",
+    tailwindMph: 0,
+    temperatureF: 72,
+    visibilityMiles: 10,
+    weatherApplicable: true,
+    weatherConfidence: 80,
+    weatherSeverity: 10,
+    windDirection: "In from center",
+    windDirectionDegrees: 180,
+    windMph: 8,
+  };
+}
+
+function buildBallparkProfile(): BallparkProfile {
+  return {
+    altitudeFeet: 25,
+    azimuthDegrees: 45,
+    babipFactor: 99,
+    dimensions: {
+      center: 400,
+      leftCenter: 370,
+      leftLine: 330,
+      rightCenter: 370,
+      rightLine: 330,
+    },
+    doublesFactor: 100,
+    fetchedAt: "2026-06-26T12:00:00.000Z",
+    flyBallFactor: null,
+    foulTerritoryFactor: null,
+    groundBallFactor: null,
+    historicalConfidence: 82,
+    hitterFriendlyRating: 46,
+    homeRunFactor: 96,
+    league: "AL",
+    leftHandedHomeRunFactor: 94,
+    latitude: 40,
+    longitude: -73,
+    name: "Test Park",
+    outfieldSpeed: null,
+    overallParkRating: 48,
+    pitcherFriendlyRating: 58,
+    powerFriendlyRating: 44,
+    rightHandedHomeRunFactor: 97,
+    roofType: "open",
+    runFactor: 97,
+    singlesFactor: 99,
+    source: "mock",
+    speedFriendlyRating: 50,
+    strikeoutFactor: 104,
+    surface: "grass",
+    triplesFactor: 98,
+    venueId: 1,
+    walkFactor: 101,
   };
 }
 

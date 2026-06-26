@@ -1,6 +1,6 @@
 # TrueLine Project State
 
-Last updated: June 25, 2026
+Last updated: June 26, 2026
 
 ## Product Status
 
@@ -14,8 +14,8 @@ TrueLine is an MLB-first sports betting analytics dashboard with:
 - Live confirmed lineups with projected fallback.
 - Live game-time weather intelligence.
 - Live MLB venue and Baseball Savant ballpark intelligence.
-- Matchup Intelligence foundation for pitch arsenals and batter pitch-type
-  profiles.
+- Matchup Intelligence engine for pitch arsenals, batter pitch-type profiles,
+  zone overlays, recent matchup context, and overall matchup scoring.
 - Player Intelligence foundation for pitcher game logs, rolling summaries,
   trends, consistency, and recent form.
 - Live 7, 14, and 30-game recent form and momentum.
@@ -203,7 +203,7 @@ The branch is stacked on `test-codex-auth`. Pull requests remain unmerged pendin
 
 ### Matchup Intelligence
 
-- Current status: Foundation implemented.
+- Current status: Production analytics engine implemented.
 - Default: Live Baseball Savant Statcast CSV provider.
 - Replay: Supported with normalized fixtures.
 - Mock: Supported with the same provider contract.
@@ -217,13 +217,26 @@ The branch is stacked on `test-codex-auth`. Pull requests remain unmerged pendin
   - BatterPitchProfile.
   - ZoneMatch.
   - PitchTypeMatch.
+  - MatchupRecentScore.
+  - MatchupContextScore.
+  - MatchupIntelligenceResult.
   - OverallPitchMatch.
+- Engine capabilities:
+  - Pitch Type Match from arsenal quality versus batter pitch-type damage.
+  - Zone Match with overlay-ready hot-zone and cold-zone cells.
+  - Recent Matchup Score consuming Player Intelligence outputs.
+  - Overall Matchup Score using centralized weights for pitch type, zone,
+    recent form, weather, ballpark, and bullpen context.
+  - Explainable advantages, weaknesses, and overall reasons.
 - PredictionEngine consumption:
   - Optional summary pass-through and explainable context.
   - No current win-probability formula changes.
 - Current limitation:
   - Daily Slate does not yet automatically enrich every game with matchup
     intelligence until provider load and backtest behavior are validated.
+  - Batter Intelligence is not fully implemented, so batter pitch profiles are
+    currently supplied by the Matchup provider rather than a full batter-level
+    intelligence service.
 
 ### Player Intelligence
 
@@ -365,6 +378,9 @@ Automated tests cover:
 - Weather and ballpark normalization, ratings, live/replay/mock providers,
   caching, fixtures, and graceful degradation.
 - Environmental projected-run adjustment and PredictionEngine integration.
+- Matchup provider live/replay/mock behavior and replay fixtures.
+- Matchup pitch arsenal and batter pitch-profile normalization.
+- Matchup Pitch Type, Zone, Recent, Overall, and explanation engines.
 
 ## Known Limitations
 
@@ -383,28 +399,26 @@ Automated tests cover:
   historically calibrated.
 - Baseball Savant park data is parsed from a public leaderboard contract.
 - Historical prediction storage, ROI, and closing line value tracking are not implemented.
+- Matchup Intelligence is not yet surfaced in production UI beyond existing
+  developer and optional prediction-context paths.
 
 ## Recommended Next Task
 
-Add live injury impact and late-scratch monitoring, then begin Pitch Matchup
-Intelligence with platoon-aware pitcher-versus-lineup inputs.
+Complete Batter Intelligence and connect Matchup Intelligence to Pitcher
+Research diagnostics before using it to adjust prediction weights.
 
 ## Phase 3 Readiness
 
-The provider, replay, cache, normalized-model, diagnostics, and graceful
-degradation foundations are ready for Phase 3.
+Phase 3 scoring has begun. The core Matchup Intelligence engine is implemented
+and remains independent from PredictionEngine.
 
-Pitch Matchup Intelligence should not begin its scoring work until these input
-gaps are closed:
+Remaining Phase 3 gaps before prediction-weight integration:
 
-1. Live pitcher throwing hand must replace the current schedule-adapter
-   placeholder.
-2. Batter performance splits versus left- and right-handed pitching must be
-   normalized.
-3. Pitcher platoon splits must be normalized.
-4. Pitch-mix or arsenal data must replace the current placeholder.
-5. Confirmed lineup players must be joined reliably to the matchup split
-   records.
+1. Full Batter Intelligence with recent form and pitch-type game logs.
+2. Platoon-aware batter and pitcher splits.
+3. Confirmed-lineup aggregation into pitcher-versus-lineup matchup scores.
+4. Backtests against strikeouts, hits, total bases, home runs, and team totals.
+5. UI diagnostics for pitch mix, zone overlays, and matchup reasons.
 
-Once those data contracts and replay fixtures exist, Phase 3 can add matchup
-ratings without changing the Prediction Engine interface.
+Once these are validated, Matchup Intelligence can become an input to
+PredictionEngine without changing the engine interface.

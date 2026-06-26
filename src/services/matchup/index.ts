@@ -2,6 +2,15 @@ export {
   MATCHUP_INTELLIGENCE_CONFIG,
 } from "./config.ts";
 export {
+  buildMatchupIntelligence,
+  calculateOverallMatchupScore,
+  calculatePitchTypeMatchDetail,
+  calculatePitchTypeMatchEngine,
+  calculateRecentMatchupScore,
+  calculateZoneMatchEngine,
+} from "./engines.ts";
+export type { MatchupIntelligenceInput } from "./engines.ts";
+export {
   calculateOverallPitchMatch,
   calculatePitchTypeMatch,
   calculatePitchZoneMatch,
@@ -20,10 +29,15 @@ export type {
   AverageReleasePoint,
   BatterMatchupProfile,
   BatterPitchProfile,
+  MatchupContextScore,
   MatchupDataSource,
+  MatchupIntelligenceResult,
   MatchupProviderMode,
   MatchupProviderResponse,
+  MatchupRecentScore,
   MatchupRequest,
+  MatchupZone,
+  MatchupZoneOverlayCell,
   OverallPitchMatch,
   PitchArsenal,
   PitchHeatMap,
