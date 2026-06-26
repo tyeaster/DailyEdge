@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 
 import type { Game, Pitcher, Team, Weather } from "@/src/models/mlb";
@@ -313,9 +314,13 @@ function PitcherSummary({
 
   return (
     <div className={cn("min-w-0", alignment)}>
-      <p className="truncate text-sm font-semibold text-white">
+      <Link
+        className="block truncate text-sm font-semibold text-white transition hover:text-blue-200"
+        href={`/pitcher-research?pitcher=${encodeURIComponent(pitcher.id)}`}
+        onClick={(event) => event.stopPropagation()}
+      >
         {pitcher.fullName}
-      </p>
+      </Link>
       <div className="mt-2 space-y-1 text-xs text-slate-400">
         <p>ERA {formatPitcherStat(pitcher.era, 2)}</p>
         <p>WHIP {formatPitcherStat(pitcher.whip, 2)}</p>

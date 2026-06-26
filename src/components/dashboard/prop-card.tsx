@@ -1,4 +1,6 @@
-import type { Player, PlayerProp, Team } from "@/src/models/mlb";
+import Link from "next/link";
+
+import type { Pitcher, Player, PlayerProp, Team } from "@/src/models/mlb";
 
 import { DashboardCard } from "./dashboard-card";
 
@@ -7,7 +9,7 @@ export function PropCard({
   prop,
   team,
 }: {
-  player: Player;
+  player: Player | Pitcher;
   prop: PlayerProp;
   team: Team;
 }) {
@@ -18,9 +20,7 @@ export function PropCard({
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
             {prop.category}
           </p>
-          <h3 className="mt-3 truncate text-lg font-semibold text-white">
-            {player.fullName}
-          </h3>
+          <PlayerTitle player={player} />
           <p className="mt-1 text-sm text-slate-500">{team.abbreviation}</p>
         </div>
         <span className="rounded-full border border-blue-300/20 bg-blue-400/10 px-3 py-1 text-sm font-semibold text-blue-100">
@@ -36,6 +36,25 @@ export function PropCard({
 
       <p className="mt-4 text-sm leading-6 text-slate-400">{prop.reasoning}</p>
     </DashboardCard>
+  );
+}
+
+function PlayerTitle({ player }: { player: Player | Pitcher }) {
+  if ("arsenal" in player) {
+    return (
+      <Link
+        className="mt-3 block truncate text-lg font-semibold text-white transition hover:text-blue-200"
+        href={`/pitcher-research?pitcher=${encodeURIComponent(player.id)}`}
+      >
+        {player.fullName}
+      </Link>
+    );
+  }
+
+  return (
+    <h3 className="mt-3 truncate text-lg font-semibold text-white">
+      {player.fullName}
+    </h3>
   );
 }
 

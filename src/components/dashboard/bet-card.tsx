@@ -1,4 +1,6 @@
-import type { BetRecommendation, Player, Team } from "@/src/models/mlb";
+import Link from "next/link";
+
+import type { BetRecommendation, Pitcher, Player, Team } from "@/src/models/mlb";
 
 import { Badge } from "@/src/components/ui";
 
@@ -10,7 +12,7 @@ export function BetCard({
   team,
 }: {
   bet: BetRecommendation;
-  player?: Player;
+  player?: Player | Pitcher;
   team?: Team;
 }) {
   const title = player?.fullName ?? team?.name ?? bet.selection;
@@ -22,7 +24,7 @@ export function BetCard({
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
             {bet.selection}
           </p>
-          <h3 className="mt-3 truncate text-lg font-semibold text-white">{title}</h3>
+          <BetTitle player={player} title={title} />
           <p className="mt-1 text-sm text-blue-200">Line {bet.odds.displayLine}</p>
         </div>
         <Badge className="border-emerald-300/20 bg-emerald-400/10 text-emerald-200">
@@ -44,6 +46,27 @@ export function BetCard({
       <p className="mt-4 text-sm leading-6 text-slate-400">{bet.prediction.reasoning}</p>
     </DashboardCard>
   );
+}
+
+function BetTitle({
+  player,
+  title,
+}: {
+  player?: Player | Pitcher;
+  title: string;
+}) {
+  if (player && "arsenal" in player) {
+    return (
+      <Link
+        className="mt-3 block truncate text-lg font-semibold text-white transition hover:text-blue-200"
+        href={`/pitcher-research?pitcher=${encodeURIComponent(player.id)}`}
+      >
+        {title}
+      </Link>
+    );
+  }
+
+  return <h3 className="mt-3 truncate text-lg font-semibold text-white">{title}</h3>;
 }
 
 function MiniMetric({ label, value }: { label: string; value: string }) {
