@@ -2,22 +2,37 @@ import { CACHE_TTL_SECONDS, type CacheProvider } from "../../cache/CacheProvider
 import { memoryCache } from "../../cache/MemoryCache.ts";
 import type { Pitcher, Player } from "../../models/mlb.ts";
 import {
+  MLBBatterGameLogProvider,
   MLBPitcherGameLogProvider,
+  MockBatterGameLogProvider,
   MockPitcherGameLogProvider,
+  ReplayBatterGameLogProvider,
   ReplayPitcherGameLogProvider,
+  type BatterGameLog,
+  type BatterGameLogProvider,
+  type BatterGameLogRequest,
   type PitcherGameLog,
   type PitcherGameLogProvider,
   type PitcherGameLogRequest,
   type PlayerIntelligenceMode,
 } from "../../providers/player-intelligence/index.ts";
 import {
+  analyzeBatterTrends,
   analyzePitcherTrends,
+  buildBatterProfile,
+  calculateBatterConsistency,
+  calculateBatterRecentForm,
+  calculateBatterRollingSummary,
   calculateConsistency,
   calculatePitcherRecentForm,
   calculateRollingSummary,
 } from "./metrics.ts";
 import type {
   BatterIntelligencePlaceholder,
+  BatterIntelligence,
+  BatterRecentFormScore,
+  BatterConsistencyMetrics,
+  BatterRollingSummary,
   PitcherIntelligence,
   PlayerContext,
   ProjectionContext,
@@ -35,14 +50,25 @@ export interface PitcherIntelligenceRequest {
   season: number;
 }
 
+export interface BatterIntelligenceRequest {
+  batter: Player;
+  context?: PlayerContext;
+  fallbackGameLogs?: BatterGameLog[];
+  projectionContext?: ProjectionContext;
+  season: number;
+}
+
 export class PlayerIntelligenceService {
+  private readonly batterGameLogProvider: BatterGameLogProvider;
   private readonly cache: CacheProvider;
   private readonly gameLogProvider: PitcherGameLogProvider;
 
   constructor(
     gameLogProvider: PitcherGameLogProvider = getConfiguredPitcherGameLogProvider(),
     cache: CacheProvider = memoryCache,
+    batterGameLogProvider: BatterGameLogProvider = getConfiguredBatterGameLogProvider(),
   ) {
+    this.batterGameLogProvider = batterGameLogProvider;
     this.gameLogProvider = gameLogProvider;
     this.cache = cache;
   }
@@ -130,21 +156,108 @@ export class PlayerIntelligenceService {
     return calculateRollingSummary(logs);
   }
 
-  getBatter(player: Player): BatterIntelligencePlaceholder {
+  async getBatter(
+    requestOrPlayer: BatterIntelligenceRequest | Player,
+  ): Promise<BatterIntelligence | BatterIntelligencePlaceholder> {
+    if (!("batter" in requestOrPlayer)) {
+      return {
+        available: false,
+        player: requestOrPlayer,
+        reason: "Batter Intelligence requires a season and MLB player ID.",
+      };
+    }
+
+    const request = requestOrPlayer;
+    const gameLogs = await this.getBatterGameLogs({
+      batterId: request.batter.externalIds?.mlb ?? 0,
+      fallbackLogs: request.fallbackGameLogs,
+      season: request.season,
+    });
+    const trends = this.getBatterTrends(gameLogs);
+    const rolling = this.getBatterRollingStats(gameLogs);
+    const consistency = this.getBatterConsistency(gameLogs);
+    const recentForm = this.getBatterRecentForm(gameLogs, trends);
+
     return {
-      available: false,
-      player,
-      reason: "Batter Intelligence is reserved for the next player intelligence phase.",
+      available: true,
+      batter: request.batter,
+      consistency,
+      context: request.context ?? {},
+      fetchedAt: new Date().toISOString(),
+      gameLogs,
+      player: request.batter,
+      profile: buildBatterProfile(gameLogs),
+      projectionContext: request.projectionContext ?? {},
+      recentForm,
+      rolling,
+      source: gameLogs.length > 0 ? this.resolveBatterSource() : "unavailable",
+      trends,
     };
   }
 
-  async getBatterGameLogs(): Promise<[]> {
-    return [];
+  async getBatterGameLogs(
+    request: BatterGameLogRequest,
+  ): Promise<BatterGameLog[]> {
+    if (!request.batterId) {
+      return request.fallbackLogs ?? [];
+    }
+
+    const cacheKey = [
+      "batter-game-logs",
+      this.batterGameLogProvider.id,
+      request.batterId,
+      request.season,
+      request.asOfDate ?? "season",
+    ].join(":");
+    const cached = await this.cache.get<BatterGameLog[]>(cacheKey);
+
+    if (cached) {
+      return cached;
+    }
+
+    try {
+      const response = await this.batterGameLogProvider.getBatterGameLogs(request);
+
+      await this.cache.set(
+        cacheKey,
+        response.logs,
+        CACHE_TTL_SECONDS.batterGameLogs,
+      );
+
+      return response.logs;
+    } catch {
+      return request.fallbackLogs ?? [];
+    }
+  }
+
+  getBatterRollingStats(logs: BatterGameLog[]): BatterRollingSummary {
+    return calculateBatterRollingSummary(logs);
+  }
+
+  getBatterTrends(logs: BatterGameLog[]): TrendSignal[] {
+    return analyzeBatterTrends(logs);
+  }
+
+  getBatterConsistency(logs: BatterGameLog[]): BatterConsistencyMetrics {
+    return calculateBatterConsistency(logs);
+  }
+
+  getBatterRecentForm(
+    logs: BatterGameLog[],
+    trends: TrendSignal[] = this.getBatterTrends(logs),
+  ): BatterRecentFormScore {
+    return calculateBatterRecentForm(logs, trends);
   }
 
   private resolveSource() {
     if (this.gameLogProvider.id.includes("mock")) return "mock";
     if (this.gameLogProvider.id.includes("replay")) return "replay";
+    return "live";
+  }
+
+  private resolveBatterSource() {
+    if (this.batterGameLogProvider.id.includes("mock")) return "mock";
+    if (this.batterGameLogProvider.id.includes("replay")) return "replay";
     return "live";
   }
 }
@@ -163,6 +276,20 @@ export function getConfiguredPitcherGameLogProvider(
   }
 
   return new MLBPitcherGameLogProvider();
+}
+
+export function getConfiguredBatterGameLogProvider(
+  mode: PlayerIntelligenceMode = getPlayerIntelligenceMode(),
+) {
+  if (mode === "replay") {
+    return new ReplayBatterGameLogProvider();
+  }
+
+  if (mode === "mock") {
+    return new MockBatterGameLogProvider();
+  }
+
+  return new MLBBatterGameLogProvider();
 }
 
 function getPlayerIntelligenceMode(): PlayerIntelligenceMode {
@@ -185,4 +312,3 @@ function getPlayerIntelligenceMode(): PlayerIntelligenceMode {
 
   return "live";
 }
-

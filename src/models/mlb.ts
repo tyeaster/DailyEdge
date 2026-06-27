@@ -220,6 +220,9 @@ export interface Team {
 
 export interface Player {
   bats: BattingSide;
+  externalIds?: {
+    mlb?: number;
+  };
   fullName: string;
   id: string;
   position: string;

@@ -1,17 +1,33 @@
 export {
+  getConfiguredBatterGameLogProvider,
   getConfiguredPitcherGameLogProvider,
   playerIntelligenceService,
   PlayerIntelligenceService,
+  type BatterIntelligenceRequest,
 } from "./PlayerIntelligenceService.ts";
 export {
+  analyzeBatterTrends,
   analyzePitcherTrends,
+  buildBatterProfile,
+  calculateBatterConsistency,
+  calculateBatterRecentForm,
+  calculateBatterRollingSummary,
   calculateConsistency,
   calculatePitcherRecentForm,
   calculateRollingSummary,
+  summarizeBatterLogs,
   summarizeLogs,
 } from "./metrics.ts";
 export type {
+  BatterConsistencyMetrics,
+  BatterGameLog,
+  BatterGameLogProviderResponse,
+  BatterGameLogRequest,
+  BatterIntelligence,
   BatterIntelligencePlaceholder,
+  BatterProfile,
+  BatterRecentFormScore,
+  BatterRollingSummary,
   ConsistencyMetrics,
   PitcherGameLog,
   PitcherGameLogProviderResponse,

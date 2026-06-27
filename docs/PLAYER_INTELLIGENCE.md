@@ -10,12 +10,16 @@ multiple providers.
 ```text
 Live, replay, or mock providers
   -> PlayerIntelligenceService
-  -> normalized PitcherIntelligence
+  -> normalized PitcherIntelligence or BatterIntelligence
   -> Pitcher Research, Batter Research, labs, slate diagnostics
 ```
 
 Current files:
 
+- `src/providers/player-intelligence/BatterGameLogProvider.ts`
+- `src/providers/player-intelligence/MLBBatterGameLogProvider.ts`
+- `src/providers/player-intelligence/ReplayBatterGameLogProvider.ts`
+- `src/providers/player-intelligence/MockBatterGameLogProvider.ts`
 - `src/providers/player-intelligence/PitcherGameLogProvider.ts`
 - `src/providers/player-intelligence/MLBPitcherGameLogProvider.ts`
 - `src/providers/player-intelligence/ReplayPitcherGameLogProvider.ts`
@@ -38,10 +42,11 @@ PLAYER_INTELLIGENCE_MODE=mock
 ## Provider Source
 
 The first live implementation uses the official MLB Stats API player hydrate
-game-log path:
+game-log paths:
 
 ```text
 /api/v1/people/{playerId}?hydrate=stats(group=[pitching],type=[gameLog],season={season})
+/api/v1/people/{playerId}?hydrate=stats(group=[hitting],type=[gameLog],season={season})
 ```
 
 This keeps player identity and historical pitching logs in the same official
@@ -70,6 +75,33 @@ Normalized fields:
 Unavailable fields remain `null` or neutral and never break intelligence
 generation.
 
+## Batter Game Logs
+
+Normalized fields:
+
+- Date
+- Opponent
+- Home / away
+- At-bats
+- Plate appearances
+- Hits
+- Singles, doubles, triples, and home runs
+- RBI
+- Runs
+- Walks
+- Strikeouts
+- Hit by pitch
+- Total bases
+- Stolen bases
+- Average exit velocity when available
+- Average launch angle when available
+- Barrels when available
+- Hard-hit balls when available
+
+The official MLB game-log feed does not consistently include Statcast
+quality-of-contact fields. Those fields remain nullable in live mode and are
+filled by replay/mock fixtures when available.
+
 ## Derived Metrics
 
 `PlayerIntelligenceService` calculates:
@@ -85,6 +117,17 @@ generation.
 - 6+ inning percentage.
 - 100+ pitch percentage.
 - Average batters faced.
+
+For batters it calculates:
+
+- Last 3, last 5, last 10, and season rolling summaries.
+- Home, away, day, and night splits.
+- Splits versus left-handed and right-handed pitchers when available.
+- Rolling AVG, OBP, SLG, OPS, ISO, hard-hit percentage, barrel percentage,
+  strikeout percentage, and walk percentage.
+- A normalized BatterProfile with AVG, OBP, SLG, OPS, ISO, BABIP, K%, BB%,
+  hard-hit rate, barrel rate, sweet-spot rate, average exit velocity, average
+  launch angle, batted-ball mix, and future-ready plate-discipline fields.
 
 ## Trend Engine
 
@@ -103,13 +146,22 @@ Initial pitcher trends include:
 - Efficiency.
 - Recent workload.
 
-Future Statcast-backed trends can add velocity, hard contact, pitch mix, and
-command location once those feeds are connected to Player Intelligence.
+Batter trends include:
+
+- Power.
+- Contact.
+- Strikeouts.
+- Barrel rate.
+- Hard-hit rate.
+- Plate discipline.
+
+Future Statcast-backed trends can improve chase, contact, zone-contact, pull,
+center, and opposite-field rates once those feeds are connected per game.
 
 ## Consistency Engine
 
-The consistency engine currently supports pitcher strikeouts and can be reused
-for innings, pitch count, hits allowed, or future batter metrics.
+The consistency engine supports pitcher strikeouts and batter hit/total-base
+ranges.
 
 It returns:
 
@@ -139,21 +191,30 @@ Inputs:
 - Quality starts.
 - Recent trend signals.
 
+Batter Recent Form is scored from:
+
+- Hits.
+- Power.
+- Hard contact.
+- Strikeouts.
+- Walks.
+- Quality of contact.
+- Trend signals.
+
 ## Caching and Replay
 
-- Pitcher game logs cache for 24 hours.
+- Pitcher and batter game logs cache for 24 hours.
 - Replay fixtures live in `replay/player-intelligence`.
 - `PLAYER_INTELLIGENCE_RECORD=true` records live provider responses.
 - Mock mode mirrors the live provider contract.
 
 ## Current Limitations
 
-- Batter Intelligence is intentionally a placeholder.
-- Velocity, command, and hard-contact trends require Statcast-backed game logs
-  or matchup inputs and are not fully implemented yet.
+- Chase, contact, zone-contact, pull, center, and opposite-field rates require
+  a Statcast-backed per-game batter feed and remain nullable.
 - Game result and game score depend on availability in the MLB game-log split.
-- Player Intelligence is not yet wired into Pitcher Research; that should be
-  the next UI integration step.
+- Batter pitch-type performance remains in Matchup Intelligence until Batter
+  Research consumes the full batter profile.
 
 ## Future Consumers
 

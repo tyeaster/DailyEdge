@@ -1,9 +1,15 @@
 import { PLAYER_INTELLIGENCE_CONFIG } from "./config.ts";
 import type {
+  BatterConsistencyMetrics,
+  BatterGameLog,
+  BatterProfile,
+  BatterRecentFormScore,
+  BatterRollingSummary,
   ConsistencyMetrics,
   PitcherGameLog,
   PitcherRecentFormScore,
   PitcherRollingSummary,
+  RollingBatterStats,
   RollingPitcherStats,
   TrendSignal,
   TrendStrength,
@@ -24,6 +30,25 @@ const EMPTY_ROLLING: RollingPitcherStats = {
   whip: 0,
 };
 
+const EMPTY_BATTER_ROLLING: RollingBatterStats = {
+  atBats: 0,
+  battingAverage: 0,
+  barrelPercent: 0,
+  doubles: 0,
+  games: 0,
+  hardHitPercent: 0,
+  hits: 0,
+  homeRuns: 0,
+  isolatedPower: 0,
+  onBasePercentage: 0,
+  onBasePlusSlugging: 0,
+  plateAppearances: 0,
+  sluggingPercentage: 0,
+  strikeoutPercent: 0,
+  totalBases: 0,
+  walkPercent: 0,
+};
+
 export function calculateRollingSummary(
   logs: PitcherGameLog[],
 ): PitcherRollingSummary {
@@ -38,6 +63,61 @@ export function calculateRollingSummary(
     last5: summarizeLogs(sorted.slice(0, 5)),
     night: summarizeLogs(sorted.filter((log) => !isDayGame(log))),
     season: summarizeLogs(sorted),
+  };
+}
+
+export function calculateBatterRollingSummary(
+  logs: BatterGameLog[],
+): BatterRollingSummary {
+  const sorted = sortBatterLogs(logs);
+
+  return {
+    away: summarizeBatterLogs(sorted.filter((log) => log.homeAway === "away")),
+    day: summarizeBatterLogs(sorted.filter((log) => isDayGame(log))),
+    home: summarizeBatterLogs(sorted.filter((log) => log.homeAway === "home")),
+    last10: summarizeBatterLogs(sorted.slice(0, 10)),
+    last3: summarizeBatterLogs(sorted.slice(0, 3)),
+    last5: summarizeBatterLogs(sorted.slice(0, 5)),
+    night: summarizeBatterLogs(sorted.filter((log) => !isDayGame(log))),
+    season: summarizeBatterLogs(sorted),
+    vsLHP: summarizeBatterLogs(sorted.filter((log) => log.opposingPitcherHand === "L")),
+    vsRHP: summarizeBatterLogs(sorted.filter((log) => log.opposingPitcherHand === "R")),
+  };
+}
+
+export function summarizeBatterLogs(logs: BatterGameLog[]): RollingBatterStats {
+  if (logs.length === 0) {
+    return { ...EMPTY_BATTER_ROLLING };
+  }
+
+  const atBats = sum(logs, (log) => log.atBats);
+  const plateAppearances = sum(logs, (log) => log.plateAppearances);
+  const hits = sum(logs, (log) => log.hits);
+  const walks = sum(logs, (log) => log.walks);
+  const hbp = sum(logs, (log) => log.hbp);
+  const totalBases = sum(logs, (log) => log.totalBases);
+  const hardHits = nullableSum(logs.map((log) => log.hardHits));
+  const barrels = nullableSum(logs.map((log) => log.barrels));
+
+  return {
+    atBats,
+    battingAverage: rate(hits, atBats, 3),
+    barrelPercent: rate(barrels ?? 0, Math.max(1, atBats), 1) * 100,
+    doubles: sum(logs, (log) => log.doubles),
+    games: logs.length,
+    hardHitPercent: rate(hardHits ?? 0, Math.max(1, atBats), 1) * 100,
+    hits,
+    homeRuns: sum(logs, (log) => log.homeRuns),
+    isolatedPower: rate(totalBases - hits, atBats, 3),
+    onBasePercentage: rate(hits + walks + hbp, plateAppearances, 3),
+    onBasePlusSlugging:
+      rate(hits + walks + hbp, plateAppearances, 3) +
+      rate(totalBases, atBats, 3),
+    plateAppearances,
+    sluggingPercentage: rate(totalBases, atBats, 3),
+    strikeoutPercent: rate(sum(logs, (log) => log.strikeouts), plateAppearances, 3) * 100,
+    totalBases,
+    walkPercent: rate(walks, plateAppearances, 3) * 100,
   };
 }
 
@@ -89,6 +169,19 @@ export function analyzePitcherTrends(logs: PitcherGameLog[]): TrendSignal[] {
   ];
 }
 
+export function analyzeBatterTrends(logs: BatterGameLog[]): TrendSignal[] {
+  const sorted = sortBatterLogs(logs).slice(0, 10).reverse();
+
+  return [
+    trend("power", "Power", sorted.map((log) => log.totalBases), "Power"),
+    trend("contact", "Contact", sorted.map((log) => log.hits - log.strikeouts), "Contact"),
+    trend("strikeouts", "Strikeouts", sorted.map((log) => log.strikeouts), "Strikeouts"),
+    trend("barrels", "Barrel Rate", sorted.map((log) => log.barrels ?? 0), "Barrel rate"),
+    trend("hardHit", "Hard Hit", sorted.map((log) => log.hardHits ?? 0), "Hard-hit rate"),
+    trend("discipline", "Plate Discipline", sorted.map((log) => log.walks - log.strikeouts), "Plate discipline"),
+  ];
+}
+
 export function calculateConsistency(
   logs: PitcherGameLog[],
   metric: keyof Pick<PitcherGameLog, "strikeouts" | "inningsPitched" | "pitchCount"> = "strikeouts",
@@ -132,6 +225,50 @@ export function calculateConsistency(
   };
 }
 
+export function calculateBatterConsistency(
+  logs: BatterGameLog[],
+): BatterConsistencyMetrics {
+  const sorted = sortBatterLogs(logs);
+  const hits = sorted.map((log) => log.hits);
+  const totalBases = sorted.map((log) => log.totalBases);
+
+  if (hits.length === 0) {
+    return {
+      ceiling: 0,
+      consistencyScore: 0,
+      expectedHitRange: { high: 0, low: 0 },
+      expectedTotalBaseRange: { high: 0, low: 0 },
+      floor: 0,
+      median: 0,
+      standardDeviation: 0,
+    };
+  }
+
+  const hitMean = average(hits);
+  const hitStdDev = getStandardDeviation(hits);
+  const totalBaseMean = average(totalBases);
+  const totalBaseStdDev = getStandardDeviation(totalBases);
+  const consistencyScore = clampScore(
+    100 - (hitStdDev / Math.max(1, hitMean)) * 55 - (totalBaseStdDev / Math.max(1, totalBaseMean)) * 35,
+  );
+
+  return {
+    ceiling: Math.max(...hits),
+    consistencyScore: Math.round(consistencyScore),
+    expectedHitRange: {
+      high: round(hitMean + hitStdDev, 1),
+      low: round(Math.max(0, hitMean - hitStdDev), 1),
+    },
+    expectedTotalBaseRange: {
+      high: round(totalBaseMean + totalBaseStdDev, 1),
+      low: round(Math.max(0, totalBaseMean - totalBaseStdDev), 1),
+    },
+    floor: Math.min(...hits),
+    median: round(getMedian(hits), 2),
+    standardDeviation: round(hitStdDev, 2),
+  };
+}
+
 export function calculatePitcherRecentForm(
   logs: PitcherGameLog[],
   trends: TrendSignal[] = analyzePitcherTrends(logs),
@@ -158,6 +295,77 @@ export function calculatePitcherRecentForm(
   return {
     explanation: `Last 5: ${recent.averageStrikeouts.toFixed(1)} K, ${recent.averageInnings.toFixed(1)} IP, ${recent.averagePitchCount.toFixed(1)} pitches, ${recent.era.toFixed(2)} ERA.`,
     score: Math.round(clampScore(score)),
+  };
+}
+
+export function calculateBatterRecentForm(
+  logs: BatterGameLog[],
+  trends: TrendSignal[] = analyzeBatterTrends(logs),
+): BatterRecentFormScore {
+  const rolling = calculateBatterRollingSummary(logs);
+  const recent = rolling.last5;
+  const weights = PLAYER_INTELLIGENCE_CONFIG.batterRecentFormWeights;
+  const trendScore = average(
+    trends.map((signal) => {
+      if (signal.key === "strikeouts") {
+        return signal.direction === "down" ? 65 : signal.direction === "up" ? 38 : 50;
+      }
+
+      return signal.direction === "up" ? 65 : signal.direction === "down" ? 38 : 50;
+    }),
+  );
+  const score =
+    normalizeRange(recent.hits / Math.max(1, recent.games), 0.4, 2.2) *
+      weights.hits +
+    normalizeRange(recent.isolatedPower, 0.05, 0.35) * weights.power +
+    normalizeRange(recent.hardHitPercent, 20, 55) * weights.hardContact +
+    (100 - normalizeRange(recent.strikeoutPercent, 12, 35)) *
+      weights.strikeouts +
+    normalizeRange(recent.walkPercent, 3, 16) * weights.walks +
+    normalizeRange(recent.barrelPercent, 2, 18) * weights.qualityOfContact +
+    trendScore * weights.trends;
+
+  return {
+    explanation: `Last 5: ${recent.battingAverage.toFixed(3)} AVG, ${recent.sluggingPercentage.toFixed(3)} SLG, ${recent.hardHitPercent.toFixed(1)}% hard hit, ${recent.strikeoutPercent.toFixed(1)}% K.`,
+    score: Math.round(clampScore(score)),
+  };
+}
+
+export function buildBatterProfile(logs: BatterGameLog[]): BatterProfile {
+  const rolling = summarizeBatterLogs(logs);
+  const ballsInPlay = Math.max(
+    1,
+    rolling.atBats - sum(logs, (log) => log.strikeouts) - sum(logs, (log) => log.homeRuns),
+  );
+  return {
+    average: rolling.battingAverage,
+    averageExitVelocityMph: nullableAverage(logs.map((log) => log.averageExitVelocityMph)),
+    averageLaunchAngleDegrees: nullableAverage(logs.map((log) => log.averageLaunchAngleDegrees)),
+    babip: rate(
+      rolling.hits - rolling.homeRuns,
+      ballsInPlay,
+      3,
+    ),
+    barrelPercent: rolling.barrelPercent,
+    battingAverage: rolling.battingAverage,
+    chasePercent: null,
+    contactPercent: null,
+    flyBallPercent: rate(nullableSum(logs.map((log) => log.averageLaunchAngleDegrees !== null && log.averageLaunchAngleDegrees > 25 ? 1 : 0)) ?? 0, logs.length, 3) * 100,
+    groundBallPercent: rate(nullableSum(logs.map((log) => log.averageLaunchAngleDegrees !== null && log.averageLaunchAngleDegrees < 10 ? 1 : 0)) ?? 0, logs.length, 3) * 100,
+    hardHitPercent: rolling.hardHitPercent,
+    isolatedPower: rolling.isolatedPower,
+    lineDrivePercent: rate(nullableSum(logs.map((log) => log.averageLaunchAngleDegrees !== null && log.averageLaunchAngleDegrees >= 10 && log.averageLaunchAngleDegrees <= 25 ? 1 : 0)) ?? 0, logs.length, 3) * 100,
+    onBasePercentage: rolling.onBasePercentage,
+    onBasePlusSlugging: rolling.onBasePlusSlugging,
+    oppositePercent: null,
+    pullPercent: null,
+    sluggingPercentage: rolling.sluggingPercentage,
+    strikeoutPercent: rolling.strikeoutPercent,
+    sweetSpotPercent: rate(nullableSum(logs.map((log) => log.averageLaunchAngleDegrees !== null && log.averageLaunchAngleDegrees >= 8 && log.averageLaunchAngleDegrees <= 32 ? 1 : 0)) ?? 0, logs.length, 3) * 100,
+    swingPercent: null,
+    walkPercent: rolling.walkPercent,
+    whiffPercent: null,
+    zoneContactPercent: null,
   };
 }
 
@@ -228,7 +436,13 @@ function sortLogs(logs: PitcherGameLog[]) {
   );
 }
 
-function isDayGame(log: PitcherGameLog) {
+function sortBatterLogs(logs: BatterGameLog[]) {
+  return [...logs].sort(
+    (left, right) => new Date(right.date).getTime() - new Date(left.date).getTime(),
+  );
+}
+
+function isDayGame(log: { date: string }) {
   const hour = new Date(log.date).getUTCHours();
 
   return hour >= 16 && hour < 22;
@@ -245,6 +459,20 @@ function sum<T>(items: T[], select: (item: T) => number) {
   return items.reduce((total, item) => total + select(item), 0);
 }
 
+function nullableSum(values: Array<number | null>) {
+  const valid = values.filter((value): value is number => value !== null);
+
+  return valid.length === 0
+    ? null
+    : valid.reduce((total, value) => total + value, 0);
+}
+
+function nullableAverage(values: Array<number | null>) {
+  const valid = values.filter((value): value is number => value !== null);
+
+  return valid.length === 0 ? null : round(average(valid), 1);
+}
+
 function getMedian(values: number[]) {
   const sorted = [...values].sort((left, right) => left - right);
   const middle = Math.floor(sorted.length / 2);
@@ -258,6 +486,20 @@ function average(values: number[]) {
   return values.length === 0
     ? 0
     : values.reduce((total, value) => total + value, 0) / values.length;
+}
+
+function getStandardDeviation(values: number[]) {
+  const mean = average(values);
+
+  return Math.sqrt(average(values.map((value) => (value - mean) ** 2)));
+}
+
+function rate(numerator: number, denominator: number, digits: number) {
+  if (denominator <= 0) {
+    return 0;
+  }
+
+  return round(numerator / denominator, digits);
 }
 
 function normalizeRange(value: number, low: number, high: number) {

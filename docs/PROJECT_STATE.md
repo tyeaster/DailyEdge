@@ -17,7 +17,7 @@ TrueLine is an MLB-first sports betting analytics dashboard with:
 - Matchup Intelligence engine for pitch arsenals, batter pitch-type profiles,
   zone overlays, recent matchup context, and overall matchup scoring.
 - Player Intelligence foundation for pitcher game logs, rolling summaries,
-  trends, consistency, and recent form.
+  batter game logs, rolling summaries, trends, consistency, and recent form.
 - Live 7, 14, and 30-game recent form and momentum.
 - Live-configured sportsbook odds integration.
 - Deterministic Prediction Engine V1.
@@ -240,23 +240,28 @@ The branch is stacked on `test-codex-auth`. Pull requests remain unmerged pendin
 
 ### Player Intelligence
 
-- Current status: Pitcher Intelligence foundation implemented.
+- Current status: Pitcher and Batter Intelligence implemented.
 - Default: Live official MLB player game-log hydrate endpoint.
 - Replay: Supported with normalized fixtures.
 - Mock: Supported with the same provider contract.
-- Cache: In-memory, 24 hours per pitcher and season.
+- Cache: In-memory, 24 hours per player and season.
 - Current outputs:
   - PitcherGameLog.
+  - BatterGameLog.
   - Rolling last 3, last 5, last 10, season, home, away, day, and night splits.
+  - Batter splits versus left-handed and right-handed pitchers when available.
   - TrendSignal.
   - ConsistencyMetrics.
+  - BatterConsistencyMetrics.
   - PitcherRecentFormScore.
+  - BatterRecentFormScore.
   - PitcherIntelligence.
-- Future-ready placeholders:
-  - `getBatter()`.
-  - `getBatterGameLogs()`.
+  - BatterIntelligence.
 - Current limitation:
-  - Batter Intelligence remains a future phase.
+  - Live MLB batter game logs do not consistently expose Statcast chase,
+    zone-contact, pull, center, and opposite-field rates; those advanced
+    profile fields remain nullable until a pitch-level batter game-log feed is
+    added.
 
 ### Predictions
 
@@ -395,6 +400,9 @@ Automated tests cover:
 - Matchup Pitch Type, Zone, Recent, Overall, and explanation engines.
 - Strikeout Lab V1 view-model assembly from Daily Slate, Player Intelligence,
   and Matchup Intelligence.
+- Batter game-log live/replay/mock providers and replay fixtures.
+- Batter rolling stats, advanced profile, trends, consistency, recent form,
+  provider behavior, and service assembly.
 
 ## Known Limitations
 
@@ -418,8 +426,8 @@ Automated tests cover:
 
 ## Recommended Next Task
 
-Complete Batter Intelligence and connect Matchup Intelligence to Pitcher
-Research diagnostics before using it to adjust prediction weights.
+Build Hits Lab V1 and Total Bases Lab V1 on top of Batter Intelligence before
+using hitter intelligence to adjust prediction weights.
 
 ## Phase 3 Readiness
 
@@ -428,11 +436,12 @@ and remains independent from PredictionEngine.
 
 Remaining Phase 3 gaps before prediction-weight integration:
 
-1. Full Batter Intelligence with recent form and pitch-type game logs.
-2. Platoon-aware batter and pitcher splits.
+1. Batter pitch-type game logs and pitch-level Statcast trend backfills.
+2. Platoon-aware batter and pitcher splits beyond game-log availability.
 3. Confirmed-lineup aggregation into pitcher-versus-lineup matchup scores.
 4. Backtests against strikeouts, hits, total bases, home runs, and team totals.
-5. UI diagnostics for pitch mix, zone overlays, and matchup reasons.
+5. UI diagnostics for hits, total bases, home runs, pitch mix, zone overlays,
+   and matchup reasons.
 
 Once these are validated, Matchup Intelligence can become an input to
 PredictionEngine without changing the engine interface.

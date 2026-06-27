@@ -1,4 +1,13 @@
 export const PLAYER_INTELLIGENCE_CONFIG = {
+  batterRecentFormWeights: {
+    hardContact: 0.16,
+    hits: 0.22,
+    power: 0.18,
+    qualityOfContact: 0.12,
+    strikeouts: 0.12,
+    trends: 0.1,
+    walks: 0.1,
+  },
   recentFormWeights: {
     era: 0.18,
     innings: 0.16,
