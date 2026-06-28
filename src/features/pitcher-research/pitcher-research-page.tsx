@@ -41,7 +41,7 @@ function PitcherResearchLayout({
               Back to Daily Slate
             </Link>
             <p className="mt-5 text-xs font-semibold uppercase tracking-[0.24em] text-blue-200/70">
-              Pitcher Research
+              Strikeout Lab
             </p>
             <h1 className="mt-3 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
               {research.pitcher.fullName}

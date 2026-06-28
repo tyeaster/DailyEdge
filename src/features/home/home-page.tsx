@@ -5,9 +5,7 @@ import {
   InjuryCard,
   PropCard,
   SectionHeader,
-  Sidebar,
   StatCard,
-  TopNav,
   WeatherCard,
 } from "@/src/components/dashboard";
 
@@ -25,13 +23,7 @@ export async function HomePage() {
 function DailySlatePage({ slate }: { slate: DailySlateViewModel }) {
   return (
     <main className="min-h-screen bg-[#030812] text-white">
-      <Sidebar items={slate.dashboardNavItems} />
-
-      <div className="min-h-screen md:pl-20 xl:pl-72">
-        <TopNav currentDate={slate.slateMeta.currentDate} />
-        <MobileNavigation items={slate.dashboardNavItems} />
-
-        <div className="mx-auto max-w-[1680px] px-4 py-6 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-[1680px] px-4 py-6 sm:px-6 lg:px-8">
           <section id="daily-slate" className="edge-panel">
             <DashboardCard className="overflow-hidden p-0">
               <div className="relative">
@@ -198,7 +190,6 @@ function DailySlatePage({ slate }: { slate: DailySlateViewModel }) {
               </div>
             </DashboardCard>
           </section>
-        </div>
       </div>
     </main>
   );
@@ -211,30 +202,6 @@ function HeroPill({ label, value }: { label: string; value: string }) {
         {label}
       </p>
       <p className="mt-2 text-sm font-semibold text-white">{value}</p>
-    </div>
-  );
-}
-
-function MobileNavigation({ items }: { items: DailySlateViewModel["dashboardNavItems"] }) {
-  return (
-    <div className="border-b border-slate-800 bg-[#050915] px-4 py-3 md:hidden">
-      <div className="flex gap-2 overflow-x-auto">
-        {items.map((item) => (
-          <a
-            key={item.label}
-            href={item.href}
-            className="flex shrink-0 items-center gap-2 rounded-full border border-slate-800 bg-white/[0.03] px-3 py-2 text-sm text-slate-300"
-          >
-            <span>{item.icon}</span>
-            <span>{item.label}</span>
-            {item.badge ? (
-              <span className="rounded-full bg-white/[0.08] px-2 py-0.5 text-xs">
-                {item.badge}
-              </span>
-            ) : null}
-          </a>
-        ))}
-      </div>
     </div>
   );
 }

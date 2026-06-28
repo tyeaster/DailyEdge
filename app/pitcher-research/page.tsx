@@ -1,12 +1,4 @@
-import type { Metadata } from "next";
-
-import { PitcherResearchPage } from "@/src/features/pitcher-research/pitcher-research-page";
-
-export const metadata: Metadata = {
-  title: "Pitcher Research | TrueLine",
-  description:
-    "Evaluate MLB starting pitchers for strikeout prop research using TrueLine model context, market lines, recent form, matchup inputs, weather, and ballpark data.",
-};
+import { redirect } from "next/navigation";
 
 export default async function Page({
   searchParams,
@@ -16,6 +8,7 @@ export default async function Page({
   const params = await searchParams;
   const pitcher =
     typeof params.pitcher === "string" ? params.pitcher : params.pitcher?.[0];
+  const query = pitcher ? `?pitcher=${encodeURIComponent(pitcher)}` : "";
 
-  return <PitcherResearchPage pitcherId={pitcher} />;
+  redirect(`/pitching/strikeouts${query}`);
 }
