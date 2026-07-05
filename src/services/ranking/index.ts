@@ -24,6 +24,7 @@ export type {
   BetMarketType,
   BetSupportingFactor,
   ConfidenceTier,
+  HistoricalRankingPerformance,
   OverallGrade,
   RankedBetCandidate,
   RankingFilters,

@@ -52,6 +52,7 @@ export interface BetCandidate {
   edgePercent: number;
   expectedValuePercent: number;
   fairOdds: number;
+  historicalPerformance?: HistoricalRankingPerformance;
   marketType: BetMarketType;
   modelProbability: number;
   opponent?: {
@@ -74,11 +75,18 @@ export interface BetCandidate {
   variance: number;
 }
 
+export interface HistoricalRankingPerformance {
+  calibration: number;
+  roi: number;
+  winRate: number;
+}
+
 export interface RankedBetCandidate {
   candidate: BetCandidate;
   confidenceTier: ConfidenceTier;
   explanations: string[];
   grade: OverallGrade;
+  historicalPerformance?: HistoricalRankingPerformance;
   rank: number;
   recommendationTier: RecommendationTier;
   riskTier: RiskTier;

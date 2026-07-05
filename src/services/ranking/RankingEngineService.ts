@@ -66,6 +66,7 @@ export function scoreCandidate(candidate: BetCandidate): RankedBetCandidate {
     confidenceTier: getConfidenceTier(candidate.confidence),
     explanations: buildExplanations(candidate),
     grade: getOverallGrade(trueLineScore),
+    historicalPerformance: candidate.historicalPerformance,
     rank: 0,
     recommendationTier: getRecommendationTier(trueLineScore),
     riskTier: getRiskTier(candidate),
