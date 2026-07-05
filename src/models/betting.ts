@@ -2,6 +2,7 @@ import type { SupportedSport } from "@/src/constants/sports";
 
 export type BettingMarketType =
   | "moneyline"
+  | "run-line"
   | "spread"
   | "total"
   | "player-prop"

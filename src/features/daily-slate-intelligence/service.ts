@@ -567,6 +567,7 @@ function marketLabel(marketType: BetMarketType) {
     "home-runs": "Home Run",
     hits: "Hits",
     moneyline: "Moneyline",
+    "run-line": "Run Line",
     parlay: "Parlay",
     prizepicks: "PrizePicks",
     strikeouts: "Strikeouts",

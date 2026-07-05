@@ -4,6 +4,7 @@ export type BetMarketType =
   | "total-bases"
   | "home-runs"
   | "moneyline"
+  | "run-line"
   | "team-total"
   | "game-total"
   | "prizepicks"

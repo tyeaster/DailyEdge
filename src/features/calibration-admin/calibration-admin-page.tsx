@@ -241,6 +241,7 @@ function metricTone(value: number) {
 
 function marketLabel(market: ModelScorecard["market"]) {
   if (market === "home-runs") return "Home Runs";
+  if (market === "run-line") return "Run Line";
   if (market === "team-total") return "Team Totals";
   if (market === "game-total") return "Game Totals";
   if (market === "total-bases") return "Total Bases";

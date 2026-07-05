@@ -389,6 +389,7 @@ function marketLabel(marketType: DailySlateRankedBet["ranked"]["candidate"]["mar
     "home-runs": "Home Run",
     hits: "Hits",
     moneyline: "Moneyline",
+    "run-line": "Run Line",
     parlay: "Parlay",
     prizepicks: "PrizePicks",
     strikeouts: "Strikeouts",
