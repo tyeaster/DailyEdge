@@ -8,7 +8,10 @@ import { cn } from "@/src/lib/cn";
 
 const navigationGroups = [
   {
-    items: [{ href: "/", label: "Daily Slate" }],
+    items: [
+      { href: "/", label: "Daily Slate" },
+      { href: "/best-bets", label: "Best Bets" },
+    ],
     label: "Slate",
   },
   {
@@ -51,6 +54,7 @@ const navigationGroups = [
 
 const primaryLinks = [
   { href: "/", label: "Daily Slate" },
+  { href: "/best-bets", label: "Best Bets" },
   { href: "/pitching/strikeouts", label: "Pitching" },
   { href: "/hitting/hits", label: "Hitting" },
   { href: "/matchups/zone-intelligence", label: "Matchups" },
@@ -187,6 +191,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 }
 
 function getCurrentSection(pathname: string) {
+  if (pathname.startsWith("/best-bets")) return "Best Bets";
   if (pathname.startsWith("/pitching")) return "Pitching";
   if (pathname.startsWith("/hitting")) return "Hitting";
   if (pathname.startsWith("/matchups")) return "Matchups";
