@@ -32,7 +32,7 @@ const navigationGroups = [
   },
   {
     items: [
-      { href: "/team/moneyline", label: "Moneyline" },
+      { href: "/betting/moneyline", label: "Moneyline" },
       { href: "/team/team-total", label: "Team Total" },
       { href: "/team/game-total", label: "Game Total" },
     ],
@@ -53,7 +53,7 @@ const primaryLinks = [
   { href: "/pitching/strikeouts", label: "Pitching" },
   { href: "/hitting/hits", label: "Hitting" },
   { href: "/matchups/zone-intelligence", label: "Matchups" },
-  { href: "/team/moneyline", label: "Team Betting" },
+  { href: "/betting/moneyline", label: "Team Betting" },
   { href: "/research/players", label: "Research" },
 ];
 
@@ -189,7 +189,7 @@ function getCurrentSection(pathname: string) {
   if (pathname.startsWith("/pitching")) return "Pitching";
   if (pathname.startsWith("/hitting")) return "Hitting";
   if (pathname.startsWith("/matchups")) return "Matchups";
-  if (pathname.startsWith("/team")) return "Team Betting";
+  if (pathname.startsWith("/betting") || pathname.startsWith("/team")) return "Team Betting";
   if (pathname.startsWith("/research")) return "Research";
   return "Daily Slate";
 }
