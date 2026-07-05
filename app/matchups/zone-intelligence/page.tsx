@@ -1,12 +1,26 @@
 import type { Metadata } from "next";
 
-import { ComingSoonPage } from "@/src/features/coming-soon/coming-soon-page";
+import { ZoneIntelligencePage } from "@/src/features/zone-intelligence/zone-intelligence-page";
 
 export const metadata: Metadata = {
-  description: "Zone Intelligence is coming soon to TrueLine.",
+  description:
+    "Analyze pitcher-vs-batter zone overlap, pitch arsenals, damage profiles, and matchup explainability in TrueLine.",
   title: "Zone Intelligence | TrueLine",
 };
 
-export default function Page() {
-  return <ComingSoonPage pageKey="zone-intelligence" />;
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    batter?: string | string[];
+    pitcher?: string | string[];
+  }>;
+}) {
+  const params = await searchParams;
+  const batter = Array.isArray(params.batter) ? params.batter[0] : params.batter;
+  const pitcher = Array.isArray(params.pitcher)
+    ? params.pitcher[0]
+    : params.pitcher;
+
+  return <ZoneIntelligencePage batterId={batter} pitcherId={pitcher} />;
 }
