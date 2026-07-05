@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 
-import { ComingSoonPage } from "@/src/features/coming-soon/coming-soon-page";
+import { HomeRunIntelligencePage } from "@/src/features/home-run-intelligence/home-run-intelligence-page";
 
 export const metadata: Metadata = {
-  description: "Home Run Lab is coming soon to TrueLine.",
+  description:
+    "Find the best home run environments and hitter matchups using TrueLine Home Run Intelligence.",
   title: "Home Run Lab | TrueLine",
 };
 
 export default function Page() {
-  return <ComingSoonPage pageKey="home-runs" />;
+  return <HomeRunIntelligencePage />;
 }
