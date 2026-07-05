@@ -1,0 +1,93 @@
+{
+  "fetchedAt": "2026-06-22T16:00:00.000Z",
+  "candidates": [
+    {
+      "betId": "replay-wheeler-k",
+      "marketType": "strikeouts",
+      "player": {
+        "id": "pitcher-wheeler",
+        "name": "Zack Wheeler"
+      },
+      "team": {
+        "id": "team-phi",
+        "name": "Phillies"
+      },
+      "opponent": {
+        "id": "team-nym",
+        "name": "Mets"
+      },
+      "sportsbook": "DraftKings",
+      "sportsbookOdds": 104,
+      "modelProbability": 0.57,
+      "fairOdds": -132,
+      "edgePercent": 7.1,
+      "expectedValuePercent": 6.4,
+      "confidence": 84,
+      "variance": 42,
+      "dataQuality": 88,
+      "recommendation": "Play",
+      "supportingFactors": [
+        {
+          "key": "matchupStrength",
+          "label": "Matchup Strength",
+          "score": 86,
+          "summary": "Opponent strikeout profile is elevated."
+        },
+        {
+          "key": "recentForm",
+          "label": "Recent Form",
+          "score": 82,
+          "summary": "Recent strikeout form is strong."
+        },
+        {
+          "key": "lineupCertainty",
+          "label": "Lineup Certainty",
+          "score": 74,
+          "summary": "Projected lineup has enough confidence."
+        }
+      ],
+      "timestamp": "2026-06-22T16:00:00.000Z"
+    },
+    {
+      "betId": "replay-judge-hr",
+      "marketType": "home-runs",
+      "player": {
+        "id": "player-judge",
+        "name": "Aaron Judge"
+      },
+      "team": {
+        "id": "team-nyy",
+        "name": "Yankees"
+      },
+      "opponent": {
+        "id": "team-bos",
+        "name": "Red Sox"
+      },
+      "sportsbook": "DraftKings",
+      "sportsbookOdds": 285,
+      "modelProbability": 0.29,
+      "fairOdds": 245,
+      "edgePercent": 4.9,
+      "expectedValuePercent": 4.1,
+      "confidence": 72,
+      "variance": 78,
+      "dataQuality": 76,
+      "recommendation": "Lean",
+      "supportingFactors": [
+        {
+          "key": "matchupStrength",
+          "label": "Matchup Strength",
+          "score": 75,
+          "summary": "Fastball matchup is favorable."
+        },
+        {
+          "key": "weatherImpact",
+          "label": "Weather Impact",
+          "score": 82,
+          "summary": "Tailwind supports carry."
+        }
+      ],
+      "timestamp": "2026-06-22T16:00:00.000Z"
+    }
+  ]
+}
