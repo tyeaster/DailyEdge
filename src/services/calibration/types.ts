@@ -74,14 +74,17 @@ export interface ResultRecordInput {
 }
 
 export interface CalibrationMetricSummary {
+  averageClv: number;
   averageClosingEdge: number;
   averageConfidence: number;
   averageEdge: number;
   averageEv: number;
   calibrationError: number;
+  closingAccuracy: number;
   confidenceAccuracy: number;
   expectedValueAccuracy: number;
   predictionCount: number;
+  predictionVsMarket: number;
   roi: number;
   winRate: number;
 }

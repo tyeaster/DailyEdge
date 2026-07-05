@@ -49,6 +49,7 @@ export interface BacktestSettings {
   awayOnly?: boolean;
   weatherMin?: number;
   zoneMatchMin?: number;
+  lineSource?: "closing" | "current" | "opening";
 }
 
 export interface BankrollSettings {
@@ -137,6 +138,7 @@ export interface BacktestOutput {
   equityCurve: EquityPoint[];
   marketBreakdown: BacktestChartPoint[];
   monthlyPerformance: BacktestChartPoint[];
+  roiByLineSource: BacktestChartPoint[];
   summary: BacktestSummary;
   topFilters: BacktestChartPoint[];
   worstFilters: BacktestChartPoint[];

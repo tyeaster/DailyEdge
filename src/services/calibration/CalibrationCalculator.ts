@@ -51,6 +51,9 @@ export class CalibrationCalculator {
     const totalStake = completed.reduce((total, item) => total + item.stake, 0);
 
     return {
+      averageClv: average(
+        completed.map((item) => item.prediction.edgePercent - (item.result.closingEdgePercent ?? item.prediction.edgePercent)),
+      ),
       averageClosingEdge: average(
         completed.map((item) => item.result.closingEdgePercent ?? item.prediction.edgePercent),
       ),
@@ -58,8 +61,14 @@ export class CalibrationCalculator {
       averageEdge: average(completed.map((item) => item.prediction.edgePercent)),
       averageEv: average(completed.map((item) => item.prediction.expectedValuePercent)),
       calibrationError: average(records.map((item) => item.calibrationError)),
+      closingAccuracy: average(
+        completed.map((item) => 100 - Math.abs(item.prediction.edgePercent - (item.result.closingEdgePercent ?? item.prediction.edgePercent))),
+      ),
       confidenceAccuracy: average(records.map((item) => item.confidenceAccuracy)),
       expectedValueAccuracy: average(records.map((item) => item.expectedValueAccuracy)),
+      predictionVsMarket: average(
+        completed.map((item) => item.prediction.modelProbability * 100 - probabilityFromAmericanOdds(item.prediction.odds) * 100),
+      ),
       predictionCount: completed.length,
       roi: totalStake === 0 ? 0 : (totalProfit / totalStake) * 100,
       winRate: graded.length === 0 ? 0 : (wins / graded.length) * 100,
@@ -122,4 +131,10 @@ function average(values: number[]) {
   if (values.length === 0) return 0;
 
   return values.reduce((total, value) => total + value, 0) / values.length;
+}
+
+function probabilityFromAmericanOdds(odds: number) {
+  if (odds > 0) return 100 / (odds + 100);
+
+  return Math.abs(odds) / (Math.abs(odds) + 100);
 }

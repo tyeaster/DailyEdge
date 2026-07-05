@@ -1,0 +1,61 @@
+{
+  "fetchedAt": "2026-06-22T18:00:00.000Z",
+  "history": [
+    {
+      "predictionId": "replay-odds-k-1",
+      "gameId": "game-replay-odds-k-1",
+      "market": "strikeouts",
+      "sportsbook": "DraftKings",
+      "openingOdds": 104,
+      "currentOdds": 96,
+      "fairOdds": -132,
+      "probability": 0.62,
+      "timestamp": "2026-06-22T12:00:00.000Z"
+    },
+    {
+      "predictionId": "replay-odds-k-1",
+      "gameId": "game-replay-odds-k-1",
+      "market": "strikeouts",
+      "sportsbook": "DraftKings",
+      "openingOdds": 104,
+      "currentOdds": -118,
+      "fairOdds": -132,
+      "probability": 0.62,
+      "timestamp": "2026-06-22T16:00:00.000Z"
+    },
+    {
+      "predictionId": "replay-odds-ml-1",
+      "gameId": "game-replay-odds-ml-1",
+      "market": "moneyline",
+      "sportsbook": "FanDuel",
+      "openingOdds": 112,
+      "currentOdds": 106,
+      "fairOdds": -132,
+      "probability": 0.57,
+      "timestamp": "2026-06-22T13:00:00.000Z"
+    },
+    {
+      "predictionId": "replay-odds-ml-1",
+      "gameId": "game-replay-odds-ml-1",
+      "market": "moneyline",
+      "sportsbook": "FanDuel",
+      "openingOdds": 112,
+      "currentOdds": -118,
+      "fairOdds": -132,
+      "probability": 0.57,
+      "timestamp": "2026-06-22T18:00:00.000Z"
+    }
+  ],
+  "closings": [
+    {
+      "predictionId": "replay-odds-k-1",
+      "closingOdds": -124,
+      "timestamp": "2026-06-22T22:55:00.000Z"
+    },
+    {
+      "predictionId": "replay-odds-ml-1",
+      "closingOdds": -122,
+      "timestamp": "2026-06-22T22:55:00.000Z"
+    }
+  ]
+}

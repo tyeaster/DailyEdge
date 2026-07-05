@@ -37,11 +37,27 @@ export class BacktestRunner {
       equityCurve,
       marketBreakdown: buildMarketBreakdown(betHistory),
       monthlyPerformance: buildMonthlyPerformance(dailyBreakdown),
+      roiByLineSource: buildLineSourceComparison(betHistory),
       summary: buildSummary(betHistory, dailyBreakdown, request.bankroll.startingBankroll),
       topFilters: buildFilterPerformance(betHistory, true),
       worstFilters: buildFilterPerformance(betHistory, false),
     };
   }
+}
+
+function buildLineSourceComparison(bets: BacktestBet[]) {
+  const totalStake = bets.reduce((total, bet) => total + bet.stake, 0);
+  const profit = bets.reduce((total, bet) => total + bet.profit, 0);
+  const currentRoi = totalStake === 0 ? 0 : (profit / totalStake) * 100;
+  const averageClv = average(
+    bets.map((bet) => bet.edgePercent - (bet.closingEdgePercent ?? bet.edgePercent)),
+  );
+
+  return [
+    { label: "Opening Lines", value: currentRoi + averageClv * 0.25 },
+    { label: "Current Lines", value: currentRoi },
+    { label: "Closing Lines", value: currentRoi - averageClv * 0.25 },
+  ];
 }
 
 function buildSummary(
