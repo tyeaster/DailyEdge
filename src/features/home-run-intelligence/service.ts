@@ -101,6 +101,13 @@ export class HomeRunIntelligenceService {
   async getHomeRunIntelligence(): Promise<HomeRunIntelligenceViewModel> {
     const { getDailySlate } = await import("../../services/daily-slate/service.ts");
     const slate = await getDailySlate();
+
+    return this.getHomeRunIntelligenceFromSlate(slate);
+  }
+
+  async getHomeRunIntelligenceFromSlate(
+    slate: DailySlateViewModel,
+  ): Promise<HomeRunIntelligenceViewModel> {
     const selections = selectCandidates(slate);
     const candidates = await Promise.all(
       selections.map((selection) => this.buildCandidate(selection)),

@@ -91,6 +91,13 @@ export class MoneylineIntelligenceService {
   async getMoneylineIntelligence(): Promise<MoneylineIntelligenceViewModel> {
     const { getDailySlate } = await import("../../services/daily-slate/service.ts");
     const slate = await getDailySlate();
+
+    return this.getMoneylineIntelligenceFromSlate(slate);
+  }
+
+  async getMoneylineIntelligenceFromSlate(
+    slate: DailySlateViewModel,
+  ): Promise<MoneylineIntelligenceViewModel> {
     const games = await Promise.all(
       slate.games.map(async (game) => buildMoneylineGameEvaluation(await loadGameContext(game))),
     );
