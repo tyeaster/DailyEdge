@@ -41,6 +41,7 @@ const navigationGroups = [
     items: [
       { href: "/betting/moneyline", label: "Moneyline" },
       { href: "/betting/run-line", label: "Run Line" },
+      { href: "/betting/total-bases", label: "Total Bases" },
       { href: "/betting/team-totals", label: "Team Totals" },
       { href: "/betting/game-totals", label: "Game Totals" },
     ],

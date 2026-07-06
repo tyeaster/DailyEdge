@@ -10,6 +10,7 @@ import type { HomeRunIntelligenceViewModel } from "../src/features/home-run-inte
 import type { MoneylineIntelligenceViewModel } from "../src/features/moneyline-intelligence/service.ts";
 import type { RunLineViewModel } from "../src/features/run-line-intelligence/service.ts";
 import type { TeamTotalsViewModel } from "../src/features/team-totals-intelligence/service.ts";
+import type { TotalBasesViewModel } from "../src/features/total-bases-intelligence/service.ts";
 import type { CalibrationDashboardViewModel } from "../src/services/calibration/index.ts";
 import type { DailySlateViewModel } from "../src/services/daily-slate/types.ts";
 import type { OddsIntelligenceDashboardViewModel } from "../src/services/odds-intelligence/types.ts";
@@ -86,6 +87,7 @@ function buildViewModel(filters: Parameters<typeof buildBestBetsViewModel>[0]["f
     runLine: buildRunLine(),
     slate: buildSlate(),
     teamTotals: buildTeamTotals(),
+    totalBases: buildTotalBases(),
   });
 }
 
@@ -239,6 +241,37 @@ function buildTeamTotals(): TeamTotalsViewModel {
       },
     ],
   } as unknown as TeamTotalsViewModel;
+}
+
+function buildTotalBases(): TotalBasesViewModel {
+  return {
+    candidates: [
+      {
+        batter: buildPlayer("player-tb", "Bryce Harper", "team-phi"),
+        confidence: 77,
+        edgePercent: 4.9,
+        expectedValuePercent: 3.8,
+        factors: [{ explanation: "Strong total-base context", label: "Player Intelligence", score: 79 }],
+        fairLineDisplay: "2.2",
+        game: {
+          awayTeam: buildTeam("team-phi", "Phillies", "PHI"),
+          game: buildGame("team-phi", "team-nym"),
+          homeTeam: buildTeam("team-nym", "Mets", "NYM"),
+        },
+        gameGrade: 79,
+        matchup: { overall: 81, pitch: 78, zone: 77 },
+        opponent: buildTeam("team-nym", "Mets", "NYM"),
+        playerIntelligence: { recentForm: 78 },
+        projectedTotalBases: 2.2,
+        reasons: ["Pitch Match favors the hitter"],
+        recommendation: "Play",
+        sportsbookLine: 1.5,
+        sportsbookLineDisplay: "Over 1.5 Total Bases",
+        sportsbookOdds: 105,
+        team: buildTeam("team-phi", "Phillies", "PHI"),
+      },
+    ],
+  } as unknown as TotalBasesViewModel;
 }
 
 function buildGameTotals(): GameTotalsViewModel {

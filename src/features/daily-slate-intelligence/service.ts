@@ -15,6 +15,11 @@ import {
   type MoneylineGameEvaluation,
   type MoneylineIntelligenceViewModel,
 } from "../moneyline-intelligence/service.ts";
+import {
+  totalBasesIntelligenceService,
+  type TotalBasesCandidate,
+  type TotalBasesViewModel,
+} from "../total-bases-intelligence/service.ts";
 
 export type DailySlateAlertSeverity = "high" | "medium" | "low";
 export type DailySlateAlertType = "weather" | "bullpen" | "lineup";
@@ -65,6 +70,7 @@ export interface DailySlateIntelligenceViewModel {
     sectionsPopulated: number;
   };
   strikeouts: DailySlateIntelligenceSection;
+  totalBases: DailySlateIntelligenceSection;
   topBets: DailySlateRankedBet[];
   weatherAlerts: DailySlateAlert[];
 }
@@ -75,6 +81,7 @@ interface DailySlateOrchestratorDependencies {
     slate: DailySlateViewModel,
   ) => Promise<MoneylineIntelligenceViewModel>;
   loadSlate?: () => Promise<DailySlateViewModel>;
+  loadTotalBases?: (slate: DailySlateViewModel) => Promise<TotalBasesViewModel>;
   rankingEngine?: RankingEngineService;
 }
 
@@ -86,6 +93,7 @@ export class DailySlateOrchestratorService {
     slate: DailySlateViewModel,
   ) => Promise<MoneylineIntelligenceViewModel>;
   private readonly loadSlate: () => Promise<DailySlateViewModel>;
+  private readonly loadTotalBases: (slate: DailySlateViewModel) => Promise<TotalBasesViewModel>;
   private readonly rankingEngine: RankingEngineService;
 
   constructor(dependencies: DailySlateOrchestratorDependencies = {}) {
@@ -95,6 +103,9 @@ export class DailySlateOrchestratorService {
     this.loadMoneyline =
       dependencies.loadMoneyline ??
       ((slate) => moneylineIntelligenceService.getMoneylineIntelligenceFromSlate(slate));
+    this.loadTotalBases =
+      dependencies.loadTotalBases ??
+      ((slate) => totalBasesIntelligenceService.getTotalBasesIntelligenceFromSlate(slate));
     this.loadSlate =
       dependencies.loadSlate ??
       (async () => {
@@ -107,9 +118,10 @@ export class DailySlateOrchestratorService {
 
   async getDailySlateIntelligence(): Promise<DailySlateIntelligenceViewModel> {
     const slate = await this.loadSlate();
-    const [homeRuns, moneyline] = await Promise.all([
+    const [homeRuns, moneyline, totalBases] = await Promise.all([
       this.loadHomeRuns(slate),
       this.loadMoneyline(slate),
+      this.loadTotalBases(slate),
     ]);
 
     return buildDailySlateIntelligenceViewModel({
@@ -117,6 +129,7 @@ export class DailySlateOrchestratorService {
       moneyline,
       rankingEngine: this.rankingEngine,
       slate,
+      totalBases,
     });
   }
 }
@@ -132,15 +145,18 @@ export function buildDailySlateIntelligenceViewModel({
   moneyline,
   rankingEngine = new RankingEngineService(),
   slate,
+  totalBases,
 }: {
   homeRuns: HomeRunIntelligenceViewModel;
   moneyline: MoneylineIntelligenceViewModel;
   rankingEngine?: RankingEngineService;
   slate: DailySlateViewModel;
+  totalBases: TotalBasesViewModel;
 }): DailySlateIntelligenceViewModel {
   const candidates = [
     ...buildPropCandidates(slate, "Strikeouts"),
     ...buildPropCandidates(slate, "Hits"),
+    ...totalBases.candidates.map(buildTotalBasesCandidate),
     ...homeRuns.candidates.map(buildHomeRunCandidate),
     ...moneyline.games.map(buildMoneylineCandidate),
   ];
@@ -160,6 +176,13 @@ export function buildDailySlateIntelligenceViewModel({
     marketType: "hits",
     title: "Top Hits Bets",
   });
+  const totalBasesSection = buildSection({
+    bets: rankedBets,
+    href: "/betting/total-bases",
+    label: "Total Bases",
+    marketType: "total-bases",
+    title: "Top Total Bases Bets",
+  });
   const homeRunSection = buildSection({
     bets: rankedBets,
     href: "/hitting/home-runs",
@@ -177,7 +200,7 @@ export function buildDailySlateIntelligenceViewModel({
   const weatherAlerts = buildWeatherAlerts(slate);
   const bullpenAlerts = buildBullpenAlerts(slate);
   const lineupAlerts = buildLineupAlerts(slate);
-  const sections = [strikeouts, hits, homeRunSection, moneylineSection];
+  const sections = [strikeouts, hits, totalBasesSection, homeRunSection, moneylineSection];
 
   return {
     alerts: [...weatherAlerts, ...bullpenAlerts, ...lineupAlerts].sort(
@@ -197,6 +220,7 @@ export function buildDailySlateIntelligenceViewModel({
       sectionsPopulated: sections.filter((section) => section.bets.length > 0).length,
     },
     strikeouts,
+    totalBases: totalBasesSection,
     topBets: rankedBets.slice(0, 25),
     weatherAlerts,
   };
@@ -284,6 +308,45 @@ function buildHomeRunCandidate(candidate: HomeRunCandidate): BetCandidate {
     },
     timestamp: candidate.prop?.prop.odds.updatedAt ?? candidate.game.game.scheduledAt,
     variance: 82,
+  };
+}
+
+function buildTotalBasesCandidate(candidate: TotalBasesCandidate): BetCandidate {
+  return {
+    betId: `total-bases-${candidate.batter.id}-${candidate.game.game.id}`,
+    confidence: candidate.confidence,
+    dataQuality: Math.round(average([
+      candidate.gameGrade,
+      candidate.matchup.overall,
+      candidate.playerIntelligence.recentForm,
+      candidate.team.lineup?.lineupConfidence,
+      candidate.game.game.prediction?.dataQuality.score,
+    ])),
+    edgePercent: candidate.edgePercent,
+    expectedValuePercent: candidate.expectedValuePercent,
+    fairOdds: candidate.sportsbookOdds,
+    marketType: "total-bases",
+    modelProbability: clampProbability(0.5 + (candidate.projectedTotalBases - candidate.sportsbookLine) * 0.12),
+    opponent: {
+      id: candidate.opponent.id,
+      name: candidate.opponent.name,
+    },
+    player: {
+      id: candidate.batter.id,
+      name: candidate.batter.fullName,
+    },
+    recommendation: candidate.recommendation,
+    sportsbook: candidate.prop?.prop.odds.sportsbook,
+    sportsbookOdds: candidate.sportsbookOdds,
+    supportingFactors: candidate.factors.map((item) =>
+      factor(factorKey(item.label), item.label, item.score, item.explanation),
+    ),
+    team: {
+      id: candidate.team.id,
+      name: candidate.team.name,
+    },
+    timestamp: candidate.prop?.prop.odds.updatedAt ?? candidate.game.game.scheduledAt,
+    variance: 64,
   };
 }
 
@@ -533,6 +596,10 @@ function getCandidateHref(candidate: BetCandidate) {
     return `/hitting/hits${candidate.player ? `?batter=${candidate.player.id}` : ""}`;
   }
 
+  if (candidate.marketType === "total-bases") {
+    return `/betting/total-bases${candidate.player ? `?batter=${candidate.player.id}` : ""}`;
+  }
+
   if (candidate.marketType === "home-runs") return "/hitting/home-runs";
   if (candidate.marketType === "moneyline") return "/betting/moneyline";
 
@@ -580,6 +647,12 @@ function marketLabel(marketType: BetMarketType) {
 
 function scoreFromEdge(edgePercent: number) {
   return clamp(50 + edgePercent * 5);
+}
+
+function average(values: Array<number | null | undefined>) {
+  const valid = values.filter((value): value is number => typeof value === "number" && Number.isFinite(value));
+  if (valid.length === 0) return 50;
+  return valid.reduce((total, value) => total + value, 0) / valid.length;
 }
 
 function clampProbability(value: number) {

@@ -81,6 +81,7 @@ function DailySlateIntelligenceLayout({
         <section className="mt-8 grid gap-5 2xl:grid-cols-2">
           <BetSection section={viewModel.strikeouts} />
           <BetSection section={viewModel.hits} />
+          <BetSection section={viewModel.totalBases} />
           <BetSection section={viewModel.homeRuns} />
           <BetSection section={viewModel.moneyline} />
         </section>

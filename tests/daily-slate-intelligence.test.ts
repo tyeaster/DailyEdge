@@ -13,6 +13,10 @@ import type {
   MoneylineGameEvaluation,
   MoneylineIntelligenceViewModel,
 } from "../src/features/moneyline-intelligence/service.ts";
+import type {
+  TotalBasesCandidate,
+  TotalBasesViewModel,
+} from "../src/features/total-bases-intelligence/service.ts";
 import type { DailySlateViewModel } from "../src/services/daily-slate/types.ts";
 import type { Pitcher, Player, Team, Weather } from "../src/models/mlb.ts";
 
@@ -24,15 +28,17 @@ test("builds Daily Slate Intelligence sections from existing service outputs", (
     homeRuns,
     moneyline,
     slate,
+    totalBases: buildTotalBases(slate),
   });
 
   assert.ok(viewModel.topBets.length > 0);
   assert.ok(viewModel.topBets.length <= 25);
   assert.ok(viewModel.strikeouts.bets.length > 0);
   assert.ok(viewModel.hits.bets.length > 0);
+  assert.equal(viewModel.totalBases.bets.length, 1);
   assert.equal(viewModel.homeRuns.bets.length, 1);
   assert.equal(viewModel.moneyline.bets.length, 1);
-  assert.equal(viewModel.slateMeta.sectionsPopulated, 4);
+  assert.equal(viewModel.slateMeta.sectionsPopulated, 5);
 });
 
 test("uses RankingEngineService output for ranks grades and explanations", () => {
@@ -41,6 +47,7 @@ test("uses RankingEngineService output for ranks grades and explanations", () =>
     homeRuns: buildHomeRuns(slate),
     moneyline: buildMoneyline(slate),
     slate,
+    totalBases: buildTotalBases(slate),
   });
   const top = viewModel.topBets[0];
 
@@ -57,6 +64,7 @@ test("generates weather bullpen and lineup alerts from normalized slate context"
     homeRuns: buildHomeRuns(slate),
     moneyline: buildMoneyline(slate),
     slate,
+    totalBases: buildTotalBases(slate),
   });
 
   assert.ok(viewModel.weatherAlerts.length > 0);
@@ -87,6 +95,16 @@ test("handles empty slate inputs without failing", () => {
       },
     },
     slate: buildEmptySlate(),
+    totalBases: {
+      candidates: [],
+      slateMeta: {
+        averageConfidence: "0%",
+        candidateCount: 0,
+        dataSource: "mock",
+        lastUpdated: "2026-06-22T16:00:00.000Z",
+      },
+      topCandidate: undefined,
+    },
   });
 
   assert.equal(viewModel.topBets.length, 0);
@@ -113,6 +131,11 @@ test("orchestrator loads slate once and reuses it for dependent services", async
       assert.equal(loadedSlate, slate);
 
       return buildMoneyline(loadedSlate);
+    },
+    loadTotalBases: async (loadedSlate) => {
+      assert.equal(loadedSlate, slate);
+
+      return buildTotalBases(loadedSlate);
     },
     loadSlate: async () => {
       slateCalls += 1;
@@ -386,6 +409,76 @@ function buildHomeRuns(slate: DailySlateViewModel): HomeRunIntelligenceViewModel
     candidates: [candidate],
     context: [],
     slateMeta: {
+      candidateCount: 1,
+      dataSource: slate.dataSource,
+      lastUpdated: slate.slateMeta.lastUpdated,
+    },
+    topCandidate: candidate,
+  };
+}
+
+function buildTotalBases(slate: DailySlateViewModel): TotalBasesViewModel {
+  const game = slate.games[0];
+  const batter = slate.propCategories[1]?.props[0]?.player ?? buildPlayer("player-harper", "Bryce Harper", game.awayTeam.id);
+  const candidate = {
+    batter,
+    battingOrder: "3",
+    confidence: 78,
+    edgePercent: 4.9,
+    edgePercentDisplay: "+4.9%",
+    expectedPlateAppearances: "4.3",
+    expectedValueDisplay: "+3.8%",
+    expectedValuePercent: 3.8,
+    factors: [
+      {
+        details: [],
+        explanation: "Player intelligence grades well for total bases.",
+        label: "Player Intelligence",
+        score: 76,
+        weight: "20%",
+      },
+      {
+        details: [],
+        explanation: "Pitch and zone matchup are favorable.",
+        label: "Matchup Intelligence",
+        score: 80,
+        weight: "16%",
+      },
+    ],
+    fairLine: 2.2,
+    fairLineDisplay: "2.2",
+    game,
+    gameGrade: 79,
+    matchup: {
+      overall: 81,
+      pitch: 78,
+      zone: 77,
+    },
+    opponent: game.homeTeam,
+    opponentPitcher: game.homePitcher,
+    playerIntelligence: {
+      average: ".286",
+      barrelPercent: "11%",
+      hardHitPercent: "47%",
+      ops: ".861",
+      recentForm: 78,
+      slugging: ".512",
+    },
+    projectedTotalBases: 2.2,
+    projectedTotalBasesDisplay: "2.2",
+    reasons: ["Pitch Match favors the hitter", "Recent total-base production is positive"],
+    recommendation: "Play",
+    sportsbookLine: 1.5,
+    sportsbookLineDisplay: "Over 1.5 Total Bases",
+    sportsbookOdds: 105,
+    sportsbookOddsDisplay: "+105",
+    team: game.awayTeam,
+  } satisfies TotalBasesCandidate;
+
+  return {
+    candidates: [candidate],
+    slateMeta: {
+      averageConfidence: "78%",
       candidateCount: 1,
       dataSource: slate.dataSource,
       lastUpdated: slate.slateMeta.lastUpdated,

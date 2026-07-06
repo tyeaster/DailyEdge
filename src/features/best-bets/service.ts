@@ -38,6 +38,11 @@ import {
   type TeamTotalCandidate,
   type TeamTotalsViewModel,
 } from "../team-totals-intelligence/service.ts";
+import {
+  totalBasesIntelligenceService,
+  type TotalBasesCandidate,
+  type TotalBasesViewModel,
+} from "../total-bases-intelligence/service.ts";
 
 export interface BestBetsFilters {
   market?: BetMarketType;
@@ -127,6 +132,7 @@ interface BestBetsDependencies {
   loadRunLine?: (slate: DailySlateViewModel) => Promise<RunLineViewModel>;
   loadSlate?: () => Promise<DailySlateViewModel>;
   loadTeamTotals?: (slate: DailySlateViewModel) => Promise<TeamTotalsViewModel>;
+  loadTotalBases?: (slate: DailySlateViewModel) => Promise<TotalBasesViewModel>;
   rankingEngine?: RankingEngineService;
 }
 
@@ -149,6 +155,7 @@ export class BestBetsService {
   private readonly loadRunLine: (slate: DailySlateViewModel) => Promise<RunLineViewModel>;
   private readonly loadSlate: () => Promise<DailySlateViewModel>;
   private readonly loadTeamTotals: (slate: DailySlateViewModel) => Promise<TeamTotalsViewModel>;
+  private readonly loadTotalBases: (slate: DailySlateViewModel) => Promise<TotalBasesViewModel>;
   private readonly rankingEngine: RankingEngineService;
 
   constructor(dependencies: BestBetsDependencies = {}) {
@@ -178,6 +185,9 @@ export class BestBetsService {
     this.loadTeamTotals =
       dependencies.loadTeamTotals ??
       ((slate) => teamTotalsIntelligenceService.getTeamTotalsIntelligenceFromSlate(slate));
+    this.loadTotalBases =
+      dependencies.loadTotalBases ??
+      ((slate) => totalBasesIntelligenceService.getTotalBasesIntelligenceFromSlate(slate));
     this.rankingEngine = dependencies.rankingEngine ?? new RankingEngineService();
   }
 
@@ -189,6 +199,7 @@ export class BestBetsService {
       teamTotals,
       gameTotals,
       runLine,
+      totalBases,
       calibration,
       oddsIntelligence,
     ] = await Promise.all([
@@ -197,6 +208,7 @@ export class BestBetsService {
       this.loadTeamTotals(slate),
       this.loadGameTotals(slate),
       this.loadRunLine(slate),
+      this.loadTotalBases(slate),
       this.loadCalibration().catch(() => undefined),
       this.loadOddsIntelligence().catch(() => undefined),
     ]);
@@ -212,6 +224,7 @@ export class BestBetsService {
       runLine,
       slate,
       teamTotals,
+      totalBases,
     });
   }
 }
@@ -233,6 +246,7 @@ export function buildBestBetsViewModel({
   runLine,
   slate,
   teamTotals,
+  totalBases,
 }: {
   calibration?: CalibrationDashboardViewModel;
   filters?: BestBetsFilters;
@@ -244,6 +258,7 @@ export function buildBestBetsViewModel({
   runLine: RunLineViewModel;
   slate: DailySlateViewModel;
   teamTotals: TeamTotalsViewModel;
+  totalBases: TotalBasesViewModel;
 }): BestBetsViewModel {
   const normalized = normalizeAllCandidates({
     gameTotals,
@@ -252,6 +267,7 @@ export function buildBestBetsViewModel({
     runLine,
     slate,
     teamTotals,
+    totalBases,
   });
   const filtered = applyBestBetFilters(normalized, filters);
   const ranked = rankingEngine.rankCandidates(filtered.map((item) => item.candidate));
@@ -291,6 +307,7 @@ function normalizeAllCandidates({
   runLine,
   slate,
   teamTotals,
+  totalBases,
 }: {
   gameTotals: GameTotalsViewModel;
   homeRuns: HomeRunIntelligenceViewModel;
@@ -298,17 +315,67 @@ function normalizeAllCandidates({
   runLine: RunLineViewModel;
   slate: DailySlateViewModel;
   teamTotals: TeamTotalsViewModel;
+  totalBases: TotalBasesViewModel;
 }) {
   return [
     ...normalizeProps(slate, "Strikeouts"),
     ...normalizeProps(slate, "Hits"),
-    ...normalizeProps(slate, "Total Bases"),
+    ...totalBases.candidates.map(normalizeTotalBases),
     ...homeRuns.candidates.map(normalizeHomeRun),
     ...moneyline.games.map(normalizeMoneyline),
     ...teamTotals.candidates.map(normalizeTeamTotal),
     ...gameTotals.candidates.map(normalizeGameTotal),
     ...runLine.candidates.map(normalizeRunLine),
   ];
+}
+
+function normalizeTotalBases(candidate: TotalBasesCandidate): NormalizedCandidate {
+  const betCandidate: BetCandidate = {
+    betId: `total-bases-${candidate.batter.id}-${candidate.game.game.id}`,
+    confidence: candidate.confidence,
+    dataQuality: Math.round(average([
+      candidate.gameGrade,
+      candidate.matchup.overall,
+      candidate.playerIntelligence.recentForm,
+      candidate.team.lineup?.lineupConfidence,
+      candidate.game.game.prediction?.dataQuality.score,
+    ])),
+    edgePercent: candidate.edgePercent,
+    expectedValuePercent: candidate.expectedValuePercent,
+    fairOdds: candidate.sportsbookOdds,
+    marketType: "total-bases",
+    modelProbability: clampProbability(0.5 + (candidate.projectedTotalBases - candidate.sportsbookLine) * 0.12),
+    opponent: {
+      id: candidate.opponent.id,
+      name: candidate.opponent.name,
+    },
+    player: {
+      id: candidate.batter.id,
+      name: candidate.batter.fullName,
+    },
+    recommendation: candidate.recommendation,
+    sportsbook: candidate.prop?.prop.odds.sportsbook,
+    sportsbookOdds: candidate.sportsbookOdds,
+    supportingFactors: candidate.factors.map((item) =>
+      factor(factorKey(item.label), item.label, item.score, item.explanation),
+    ),
+    team: {
+      id: candidate.team.id,
+      name: candidate.team.name,
+    },
+    timestamp: candidate.prop?.prop.odds.updatedAt ?? candidate.game.game.scheduledAt,
+    variance: 64,
+  };
+
+  return {
+    candidate: betCandidate,
+    fairLine: candidate.fairLineDisplay,
+    gameGrade: candidate.gameGrade,
+    href: "/betting/total-bases",
+    reasons: candidate.reasons,
+    sportsbookLine: candidate.sportsbookLineDisplay,
+    title: `${candidate.batter.fullName} Total Bases`,
+  };
 }
 
 function normalizeProps(
@@ -740,7 +807,7 @@ function getMarketHref(market: BetMarketType) {
     "run-line": "/betting/run-line",
     strikeouts: "/pitching/strikeouts",
     "team-total": "/betting/team-totals",
-    "total-bases": "/hitting/total-bases",
+    "total-bases": "/betting/total-bases",
   };
 
   return hrefs[market];
