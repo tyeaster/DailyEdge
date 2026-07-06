@@ -58,6 +58,12 @@ export interface BestBetDisplayCandidate {
     roiDisplay: string;
     winRateDisplay: string;
   };
+  correlation?: {
+    badge: string;
+    exposureBadge: string;
+    portfolioRisk: string;
+    relatedBets: string[];
+  };
   display: {
     confidence: string;
     edge: string;
@@ -261,19 +267,20 @@ export function buildBestBetsViewModel({
     )
     .filter((item): item is BestBetDisplayCandidate => item !== undefined)
     .filter((item) => (filters.riskTier ? item.ranked.riskTier === filters.riskTier : true));
+  const correlatedDisplayCandidates = attachCorrelationBadges(displayCandidates);
 
   return {
     filters,
-    marketSummary: buildMarketSummary(displayCandidates),
+    marketSummary: buildMarketSummary(correlatedDisplayCandidates),
     slateMeta: {
-      candidateCount: displayCandidates.length,
+      candidateCount: correlatedDisplayCandidates.length,
       dataSource: slate.dataSource,
       lastUpdated: slate.slateMeta.lastUpdated,
-      markets: new Set(displayCandidates.map((item) => item.market)).size,
+      markets: new Set(correlatedDisplayCandidates.map((item) => item.market)).size,
     },
-    top10: displayCandidates.slice(0, 10),
-    top25: displayCandidates.slice(0, 25),
-    top50: displayCandidates.slice(0, 50),
+    top10: correlatedDisplayCandidates.slice(0, 10),
+    top25: correlatedDisplayCandidates.slice(0, 25),
+    top50: correlatedDisplayCandidates.slice(0, 50),
   };
 }
 
@@ -677,6 +684,36 @@ function buildMarketSummary(candidates: BestBetDisplayCandidate[]) {
       topScore: Math.max(...items.map((item) => item.ranked.trueLineScore)),
     }))
     .sort((left, right) => right.topScore - left.topScore);
+}
+
+function attachCorrelationBadges(candidates: BestBetDisplayCandidate[]) {
+  return candidates.map((candidate) => {
+    const related = candidates
+      .filter((item) => item.id !== candidate.id)
+      .filter((item) =>
+        Boolean(
+          (candidate.player?.id && candidate.player.id === item.player?.id) ||
+            (candidate.team?.id && candidate.team.id === item.team?.id) ||
+            (candidate.team?.id && candidate.team.id === item.opponent?.id) ||
+            (candidate.sportsbook && candidate.sportsbook === item.sportsbook),
+        ),
+      );
+    const exposureScore = Math.min(
+      100,
+      related.length * 14 +
+        (candidate.ranked.riskTier === "High" ? 20 : candidate.ranked.riskTier === "Medium" ? 10 : 0),
+    );
+
+    return {
+      ...candidate,
+      correlation: {
+        badge: exposureScore >= 70 ? "High Correlation" : exposureScore >= 40 ? "Moderate Correlation" : "Low Correlation",
+        exposureBadge: exposureScore >= 70 ? "High Exposure" : exposureScore >= 40 ? "Moderate Exposure" : "Low Exposure",
+        portfolioRisk: `${exposureScore}/100`,
+        relatedBets: related.slice(0, 4).map((item) => item.title),
+      },
+    };
+  });
 }
 
 function getScorecard(

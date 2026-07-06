@@ -99,6 +99,16 @@ function BestBetCard({
             <Pill tone="blue">#{bet.ranked.rank}</Pill>
             <Pill tone="neutral">{bet.marketLabel}</Pill>
             <Pill tone={riskTone(bet.ranked.riskTier)}>{bet.ranked.riskTier} Risk</Pill>
+            {bet.correlation && (
+              <Pill tone={correlationTone(bet.correlation.badge)}>
+                {bet.correlation.badge}
+              </Pill>
+            )}
+            {bet.correlation && (
+              <Pill tone={correlationTone(bet.correlation.exposureBadge)}>
+                {bet.correlation.exposureBadge}
+              </Pill>
+            )}
           </div>
           <h2 className="mt-3 text-xl font-semibold text-white">{bet.title}</h2>
           <p className="mt-1 text-sm text-slate-500">
@@ -135,6 +145,11 @@ function BestBetCard({
         />
         <ResearchMetric label="ROI" meta="Historical" value={bet.calibration.roiDisplay} />
         <ResearchMetric label="CLV" meta="Odds Intel" value={bet.calibration.clvDisplay} />
+        <ResearchMetric
+          label="Portfolio Risk"
+          meta="Correlation"
+          value={bet.correlation?.portfolioRisk ?? "-"}
+        />
       </div>
 
       {!compact && (
@@ -176,6 +191,16 @@ function BestBetCard({
               bets {bet.calibration.historicalSimilarBets}.
             </p>
           </div>
+          {bet.correlation && (
+            <div className="rounded-lg bg-slate-950/70 p-3">
+              <p className="font-semibold text-slate-200">Related Bets</p>
+              <p className="mt-3 text-sm leading-6 text-slate-500">
+                {bet.correlation.relatedBets.length > 0
+                  ? bet.correlation.relatedBets.join(", ")
+                  : "No major related bets detected."}
+              </p>
+            </div>
+          )}
         </div>
       </details>
     </ResearchCard>
@@ -198,4 +223,10 @@ function riskTone(risk: BestBetDisplayCandidate["ranked"]["riskTier"]) {
   if (risk === "Low") return "green";
   if (risk === "Medium") return "blue";
   return "neutral";
+}
+
+function correlationTone(label: string) {
+  if (label.startsWith("High")) return "neutral";
+  if (label.startsWith("Moderate")) return "blue";
+  return "green";
 }

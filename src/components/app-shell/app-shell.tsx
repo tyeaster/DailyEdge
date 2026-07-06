@@ -34,6 +34,10 @@ const navigationGroups = [
     label: "Matchups",
   },
   {
+    items: [{ href: "/analysis/correlation", label: "Correlation" }],
+    label: "Analysis",
+  },
+  {
     items: [
       { href: "/betting/moneyline", label: "Moneyline" },
       { href: "/betting/run-line", label: "Run Line" },
@@ -55,6 +59,7 @@ const navigationGroups = [
 const primaryLinks = [
   { href: "/", label: "Daily Slate" },
   { href: "/best-bets", label: "Best Bets" },
+  { href: "/analysis/correlation", label: "Analysis" },
   { href: "/pitching/strikeouts", label: "Pitching" },
   { href: "/hitting/hits", label: "Hitting" },
   { href: "/matchups/zone-intelligence", label: "Matchups" },
@@ -192,6 +197,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
 function getCurrentSection(pathname: string) {
   if (pathname.startsWith("/best-bets")) return "Best Bets";
+  if (pathname.startsWith("/analysis")) return "Analysis";
   if (pathname.startsWith("/pitching")) return "Pitching";
   if (pathname.startsWith("/hitting")) return "Hitting";
   if (pathname.startsWith("/matchups")) return "Matchups";
