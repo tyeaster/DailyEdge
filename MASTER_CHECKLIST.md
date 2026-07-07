@@ -2,16 +2,16 @@
 
 Living project roadmap and status document. Update this file after every major feature lands so it always reflects the project's true state — do not let it go stale like `docs/PROJECT_STATE.md` did.
 
-Last updated: 2026-07-07 (admin auth added)
+Last updated: 2026-07-07 (durable odds-history recorder added, Phase 2 started)
 Baseline: `codex/trueline-rebrand` @ `59b4d79` ("Add AI handoff documentation")
 Working branch: `claude/trueline-development`
 
 Validation at time of writing (all passing):
 ```
 npx tsc --noEmit                    -> clean
-npm run build                       -> 26 routes compiled (added /admin/login)
-npm test (no DATABASE_URL)          -> 165 pass, 3 skipped (persistence tests)
-npm test (with DATABASE_URL)        -> 168/168 passing, verified against a real local Postgres 16 instance
+npm run build                       -> 26 routes compiled
+npm test (no DATABASE_URL)          -> 166 pass, 5 skipped (persistence + odds-recorder DB tests)
+npm test (with DATABASE_URL)        -> 171/171 passing, verified against a real local Postgres 16 instance
 npm run dev (no secrets set)        -> boots fine, logs env issues (dev is lenient)
 npm run build && npm start (no secrets set) -> fails to boot with a clear error (production is strict)
 npm run build && npm start (admin secrets set) -> full auth flow verified with real Playwright/Chromium
@@ -27,9 +27,9 @@ npm run build && npm start (admin secrets set) -> full auth flow verified with r
 | Data intelligence layer (weather/ballpark/bullpen/lineup/pitcher/team-strength/recent-form/matchup) | 85% | High — live+replay+mock all present, tested |
 | Prediction / Ranking / Correlation engines | 80% | High — deterministic V1s complete, not calibrated |
 | Betting market products (8 markets) | 70% | Medium — built and ranked, several rely on incomplete prop odds |
-| Analytics admin (Calibration / Backtesting / Odds Intelligence) | 40% | Medium — scaffolds + tests exist, no durable data behind them |
-| Production infrastructure (auth, persistence, cache, observability) | 35% | High — persistence layer (tested against real Postgres), runtime env validation, and admin route auth (verified end-to-end with real browser automation) all exist now; still no production cache, no observability, and no engine writes to persistence yet |
-| **Overall product** | **~60%** | Weighted toward infra being the largest remaining gap |
+| Analytics admin (Calibration / Backtesting / Odds Intelligence) | 42% | Medium — scaffolds + tests exist; Odds Intelligence now has a real recorder writing live odds history (Section 8d), but the engine itself doesn't read it yet, and Calibration/Backtesting still have no durable data flowing in |
+| Production infrastructure (auth, persistence, cache, observability) | 38% | High — persistence layer (tested against real Postgres), runtime env validation, admin route auth, and now a live odds-history writer all exist and are verified; still no production cache, no observability |
+| **Overall product** | **~61%** | Weighted toward infra being the largest remaining gap |
 
 ---
 
@@ -68,7 +68,7 @@ Verified via code inspection, `tsc`, build output, and passing tests — not jus
 | Odds (OddsPipe) | Real live HTTP provider, replay, mock, error handling, requires `ODDSPIPE_API_KEY` | Player-prop odds coverage incomplete; no durable rate-limit/backoff strategy documented |
 | Calibration Engine | Service, admin dashboard (`/admin/calibration`), tests, mock/replay records | `predictions`/`prediction_results` tables now exist (Section 8) but nothing writes to them yet or reads them into this engine; still not authoritative for live recommendations |
 | Backtesting Engine | `BacktestRunner`, `StrategyEvaluator`, `BankrollSimulator`, admin dashboard, tests | Historical slates are mock/replay only; persistence tables exist but this engine doesn't consume them yet |
-| Odds Intelligence | `ClosingLineCalculator`, `MarketMovementAnalyzer`, `SteamMoveDetector`, admin dashboard, tests | `odds_snapshots` table exists (Section 8) but no recorder process writes to it yet; movement attribution (injury/weather-driven) is limited |
+| Odds Intelligence | `ClosingLineCalculator`, `MarketMovementAnalyzer`, `SteamMoveDetector`, admin dashboard, tests, and now a live recorder writing to `odds_snapshots` (Section 8d) | The engine itself still reads mock/replay data, not yet wired to read from `odds_snapshots`; movement attribution (injury/weather-driven) is limited |
 | Pitch Intelligence (`/matchups/pitch-intelligence`) | Route exists | Materially less complete than Zone Intelligence — treat as unfinished |
 | Entity research (`/research/players`, `/research/teams`, `/research/ballparks`) | Placeholder routes exist | Not yet searchable/functional entity pages |
 | Best Bets filtering/sorting | Static ranked board renders | No interactive filters or sort controls yet |
@@ -82,7 +82,7 @@ Ranked by what actually blocks a real launch:
 1. [x] **Authentication & authorization** — done 2026-07-07 (shared-password admin gate, not full user accounts — see Section 8c for why and what's still deferred)
 2. [x] **Production persistence layer** — done 2026-07-07. See Section 8 for details.
 3. **Live injuries provider** — mock only, no real feed
-4. **Durable odds-history recorder** — no process records real line movement over time
+4. [x] **Durable odds-history recorder** — done 2026-07-07. See Section 8d.
 5. **Historical results ingestion** — nothing populates real outcomes for calibration/backtesting to learn from
 6. **Production cache adapter** — in-memory cache only, doesn't survive restarts or scale across instances
 7. [x] **Runtime env schema validation** — done 2026-07-07. See Section 8b for details.
@@ -122,7 +122,7 @@ Work roughly top-to-bottom; items within a phase can interleave.
 7. [x] Auth + admin route protection — done 2026-07-07 (see Section 8c)
 
 **Phase 2 — Make the data real**
-8. Durable odds-history recorder (depends on #5)
+8. [x] Durable odds-history recorder — done 2026-07-07 (see Section 8d)
 9. Historical results ingestion pipeline (depends on #5)
 10. Live injuries provider
 
@@ -198,6 +198,21 @@ Implementation, two layers of defense-in-depth (the proxy docs explicitly warn n
 Verified for real with a real browser (Playwright/Chromium against a genuine `npm run build && npm start`), not just type-checked: unauthenticated request → redirected to login with `from` preserved; wrong password → error shown, no cookie; correct password → `httpOnly` session cookie set, redirected to the originally-requested page; reload with session → page loads, shows Log out; click Log out → cookie cleared, redirected to login; subsequent request → redirected to login again. All three admin routes individually confirmed to redirect when unauthenticated.
 
 **Not yet done, deliberately out of scope**: real user accounts, roles/permissions beyond a single shared admin gate, password rotation/hashing (it's one shared plaintext-in-env password, not per-user credentials — acceptable for a single-operator admin gate, not for multi-user auth).
+
+---
+
+## 8d. Durable Odds-History Recorder (added 2026-07-07)
+
+Location: `src/services/OddsSnapshotRecorder.ts`, wired into `src/services/OddsService.ts`.
+
+- `recordOddsSnapshot(response)` is called from `OddsService.getOdds()` right after every cache-miss fetch (so it runs at most once per odds cache TTL window, ~60s — no extra rate-limiting needed, the existing cache already provides it). Only persists when `response.mode === "live"`: mock and replay data is synthetic and would just pollute real market history with fake rows.
+- Writes through the `OddsSnapshotsRepository` built in Section 8, so every live odds fetch adds a new row per record to `odds_snapshots` rather than overwriting — that's what lets closing-line-value and steam-move detection reconstruct movement over time later.
+- Deliberately a standalone module, not a method on `OddsService` itself: `OddsService`'s constructor uses TypeScript parameter-property shorthand (like several other service classes — the Section 8 gotcha), so keeping the recorder in its own plain-function file kept it directly unit-testable under Node's native test runner without touching `OddsService`'s existing style.
+- Never throws: wrapped in try/catch, logs and swallows any persistence error so a database hiccup can never break odds serving to the dashboard. Also no-ops immediately if `DATABASE_URL` isn't set, rather than letting the repository's constructor throw.
+
+Verified for real: `tests/odds-snapshot-recorder.test.ts` (3 tests) confirms non-live responses are never persisted, live responses actually land in `odds_snapshots` via a real Postgres round-trip, and the whole thing resolves cleanly with no `DATABASE_URL` at all. Full suite: 166 pass / 5 skip without `DATABASE_URL`, 171/171 with it pointed at the same local Postgres 16 instance used in Section 8.
+
+**Not yet done, deliberately out of scope**: nothing yet reads from `odds_snapshots` — `OddsIntelligenceService` (`ClosingLineCalculator`, `MarketMovementAnalyzer`, `SteamMoveDetector`) still runs on mock/replay data. Wiring that engine to read real history is the next checklist item (Phase 3: "Odds Intelligence CLV/movement backed by durable history").
 
 ---
 

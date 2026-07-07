@@ -10,6 +10,8 @@ import {
   type OddsProviderResponse,
 } from "@/src/providers/odds";
 
+import { recordOddsSnapshot } from "./OddsSnapshotRecorder.ts";
+
 const defaultRequest: OddsProviderRequest = {
   sport: "mlb",
 };
@@ -31,6 +33,7 @@ export class OddsService {
     const response = await this.provider.getOdds(request);
 
     await this.cache.set(cacheKey, response, CACHE_TTL_SECONDS.odds);
+    await recordOddsSnapshot(response);
 
     return response;
   }
