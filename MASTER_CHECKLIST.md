@@ -2,7 +2,7 @@
 
 Living project roadmap and status document. Update this file after every major feature lands so it always reflects the project's true state — do not let it go stale like `docs/PROJECT_STATE.md` did.
 
-Last updated: 2026-07-07 (durable odds-history recorder added, Phase 2 started)
+Last updated: 2026-07-07 (game-results ingestion added)
 Baseline: `codex/trueline-rebrand` @ `59b4d79` ("Add AI handoff documentation")
 Working branch: `claude/trueline-development`
 
@@ -10,12 +10,14 @@ Validation at time of writing (all passing):
 ```
 npx tsc --noEmit                    -> clean
 npm run build                       -> 26 routes compiled
-npm test (no DATABASE_URL)          -> 166 pass, 5 skipped (persistence + odds-recorder DB tests)
-npm test (with DATABASE_URL)        -> 171/171 passing, verified against a real local Postgres 16 instance
+npm test (no DATABASE_URL)          -> 170 pass, 6 skipped (persistence + odds-recorder + game-results DB tests)
+npm test (with DATABASE_URL)        -> 176/176 passing, verified against a real local Postgres 16 instance
 npm run dev (no secrets set)        -> boots fine, logs env issues (dev is lenient)
 npm run build && npm start (no secrets set) -> fails to boot with a clear error (production is strict)
 npm run build && npm start (admin secrets set) -> full auth flow verified with real Playwright/Chromium
 ```
+
+**Open caveat carried forward**: the live MLB game-results parser (Section 8e) has not been verified against a real network call — this sandbox blocks outbound access to `statsapi.mlb.com`. Run one live smoke test before trusting it in production.
 
 ---
 
@@ -28,7 +30,7 @@ npm run build && npm start (admin secrets set) -> full auth flow verified with r
 | Prediction / Ranking / Correlation engines | 80% | High — deterministic V1s complete, not calibrated |
 | Betting market products (8 markets) | 70% | Medium — built and ranked, several rely on incomplete prop odds |
 | Analytics admin (Calibration / Backtesting / Odds Intelligence) | 42% | Medium — scaffolds + tests exist; Odds Intelligence now has a real recorder writing live odds history (Section 8d), but the engine itself doesn't read it yet, and Calibration/Backtesting still have no durable data flowing in |
-| Production infrastructure (auth, persistence, cache, observability) | 38% | High — persistence layer (tested against real Postgres), runtime env validation, admin route auth, and now a live odds-history writer all exist and are verified; still no production cache, no observability |
+| Production infrastructure (auth, persistence, cache, observability) | 40% | High — persistence layer, runtime env validation, admin route auth, live odds-history writer, and game-results ingestion (Section 8e — parser unverified over real network) all exist; still no production cache, no observability |
 | **Overall product** | **~61%** | Weighted toward infra being the largest remaining gap |
 
 ---
@@ -83,7 +85,7 @@ Ranked by what actually blocks a real launch:
 2. [x] **Production persistence layer** — done 2026-07-07. See Section 8 for details.
 3. **Live injuries provider** — mock only, no real feed
 4. [x] **Durable odds-history recorder** — done 2026-07-07. See Section 8d.
-5. **Historical results ingestion** — nothing populates real outcomes for calibration/backtesting to learn from
+5. [x] **Historical results ingestion** — partially done 2026-07-07, see Section 8e for exact scope and an important unverified-network caveat
 6. **Production cache adapter** — in-memory cache only, doesn't survive restarts or scale across instances
 7. [x] **Runtime env schema validation** — done 2026-07-07. See Section 8b for details.
 8. **Observability** — no structured logging, no provider health monitoring, no error tracking
@@ -123,7 +125,7 @@ Work roughly top-to-bottom; items within a phase can interleave.
 
 **Phase 2 — Make the data real**
 8. [x] Durable odds-history recorder — done 2026-07-07 (see Section 8d)
-9. Historical results ingestion pipeline (depends on #5)
+9. [x] Historical results ingestion pipeline — partially done 2026-07-07 (see Section 8e)
 10. Live injuries provider
 
 **Phase 3 — Make the analytics trustworthy**
@@ -143,6 +145,7 @@ Work roughly top-to-bottom; items within a phase can interleave.
 20. Best Bets interactive filtering/sorting
 21. Global search
 22. Live player-prop odds coverage expansion
+23. **Restructure the home page / Daily Slate navigation** — owner feedback (2026-07-07): the current nav feels "all over the place with too many tabs." Not yet scoped — needs an IA pass over `app-shell`'s nav groups (Slate, Pitching, Hitting, Matchups, Analysis, Team Betting, Research — 19 routes total) before implementation starts.
 
 ---
 
@@ -213,6 +216,28 @@ Location: `src/services/OddsSnapshotRecorder.ts`, wired into `src/services/OddsS
 Verified for real: `tests/odds-snapshot-recorder.test.ts` (3 tests) confirms non-live responses are never persisted, live responses actually land in `odds_snapshots` via a real Postgres round-trip, and the whole thing resolves cleanly with no `DATABASE_URL` at all. Full suite: 166 pass / 5 skip without `DATABASE_URL`, 171/171 with it pointed at the same local Postgres 16 instance used in Section 8.
 
 **Not yet done, deliberately out of scope**: nothing yet reads from `odds_snapshots` — `OddsIntelligenceService` (`ClosingLineCalculator`, `MarketMovementAnalyzer`, `SteamMoveDetector`) still runs on mock/replay data. Wiring that engine to read real history is the next checklist item (Phase 3: "Odds Intelligence CLV/movement backed by durable history").
+
+---
+
+## 8e. Historical Results Ingestion (added 2026-07-07 — partial, read the caveat)
+
+**Scope actually delivered**: a durable store and ingestion pipeline for real final game outcomes (final score, winning team), independent of predictions. **Not delivered**: recording predictions themselves (nothing writes to the `predictions` table yet — see below), or matching results to predictions in `prediction_results`.
+
+Why split this way: the literal checklist wording is "populates real **outcomes**." Trying to also record predictions in the same pass would have required resolving a real, pre-existing vocabulary mismatch between `OddsMarket` (used by `Prediction`/`BetRecommendation` in `src/models/mlb.ts` — `"moneyline" | "spread" | "total" | "team-total" | "player-prop"`) and `BetMarketType` (used by calibration/ranking/the `predictions` table schema — `"moneyline" | "run-line" | "team-total" | "game-total" | "strikeouts" | "hits" | "home-runs" | "total-bases" | ...`). That's a real, separate reconciliation problem (already flagged as debt in Section 5) — better solved deliberately than rushed as a side effect of this item.
+
+New pieces, following the codebase's own established provider-trio convention (`ProviderInterface.ts` / `LiveProvider.ts` / `MockProvider.ts` / `index.ts`) rather than inventing a new pattern:
+
+- `src/providers/game-results/` — `GameResultsProvider` interface, `MLBGameResultsProvider` (live, MLB Stats API schedule endpoint hydrated with `linescore`), `MockGameResultsProvider`. **No replay provider yet** — `GAME_RESULTS_MODE=replay` currently falls back to live, same known gap as schedule's own "Replay: Not implemented" in the original docs.
+- `game_results` table (Section 8's schema file) — `gameId` (PK), both teams' scores, `winningTeamId`, `completedAt`. Deliberately **not** keyed by `predictionId` like `prediction_results` — this is a standalone outcomes record so results can be ingested regardless of whether a prediction exists for that game yet.
+- `GameResultsRepository` — same repository pattern as Section 8.
+- `src/services/GameResultsService.ts` — mode selection (`GAME_RESULTS_MODE`, defaults to `"live"`, wired into `src/config/env.ts` as a 15th domain check) plus `ingestGameResults(date, provider?)`, which fetches and durably records results. Never throws; no-ops without `DATABASE_URL`.
+- **Not wired to any trigger.** This app has no cron/scheduled-job infrastructure at all, so `ingestGameResults()` is a callable function awaiting one — invoke it manually, or from a future admin action / cron endpoint once that infrastructure exists. It deliberately does not run inline in any page's request path (unlike the odds recorder) since results should be ingested periodically for *past* dates, not on every dashboard load.
+
+**Important, unresolved caveat — read before trusting this in production**: this sandbox's outbound network policy blocks `statsapi.mlb.com` (confirmed via `curl` — `CONNECT tunnel failed, response 403`), so unlike every other feature this session, **the live MLB schedule/linescore parser (`normalizeMlbScheduleResults`) was never exercised against a real network response.** It follows the long-documented, stable MLB Stats API schedule shape and defensively checks both the direct `teams.{side}.score` field and the `linescore.teams.{side}.runs` hydration fallback, but that shape assumption is unverified here. **Run one live smoke test against a real date in an environment with network access before relying on this for anything real.** Everything else about this feature — the schema, the repository, the service's mode selection and never-throws behavior, the Mock provider, and the parsing logic *given* a schedule response — is fully verified against real Postgres and real (fixture-based) inputs.
+
+Verified for real: `tests/game-results.test.ts` (6 tests) — Mock provider determinism, parser correctly extracts scores and skips non-`"Final"` games, parser's linescore-runs fallback, a genuine `ingestGameResults` → `GameResultsRepository` → Postgres round-trip, and graceful no-op without `DATABASE_URL`. New migration (`drizzle/0001_loose_galactus.sql`) generated and applied to the same local Postgres 16 instance. Full suite: 170 pass / 6 skip without `DATABASE_URL`, 176/176 with it.
+
+**Not yet done**: recording predictions (blocks joining results to predictions), a replay provider, any trigger/scheduling mechanism, and — critically — the live-network verification above.
 
 ---
 

@@ -74,3 +74,22 @@ export const oddsSnapshots = pgTable("odds_snapshots", {
   teamName: text("team_name"),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
 });
+
+/**
+ * Durable final game outcomes, independent of any specific prediction.
+ * Mirrors NormalizedGameResult (src/providers/game-results/GameResultsProvider.ts).
+ * This is the "historical results ingestion" checklist item's write target -
+ * populated regardless of whether a prediction was ever recorded for the
+ * game, so it can be joined against predictions.gameId later once
+ * predictions are durably recorded too.
+ */
+export const gameResults = pgTable("game_results", {
+  awayScore: integer("away_score").notNull(),
+  awayTeamId: text("away_team_id").notNull(),
+  completedAt: timestamp("completed_at", { withTimezone: true }).notNull(),
+  gameId: text("game_id").primaryKey(),
+  homeScore: integer("home_score").notNull(),
+  homeTeamId: text("home_team_id").notNull(),
+  recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull().defaultNow(),
+  winningTeamId: text("winning_team_id").notNull(),
+});

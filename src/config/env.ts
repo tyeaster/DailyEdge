@@ -2,6 +2,7 @@ import { getBallparkMode } from "../services/BallparkService.ts";
 import { getBacktestMode } from "../services/backtesting/providers.ts";
 import { getBullpenMode } from "../services/BullpenService.ts";
 import { getCalibrationMode } from "../services/calibration/providers.ts";
+import { getGameResultsMode } from "../services/GameResultsService.ts";
 import { getLineupMode } from "../services/LineupService.ts";
 import { getMatchupMode } from "../services/matchup/MatchupService.ts";
 import { getOddsIntelligenceMode } from "../services/odds-intelligence/providers.ts";
@@ -53,6 +54,7 @@ const domainChecks: DomainCheck[] = [
   { getMode: getCalibrationMode, name: "calibration" },
   { getMode: getBacktestMode, name: "backtesting" },
   { getMode: getOddsIntelligenceMode, name: "odds-intelligence" },
+  { getMode: getGameResultsMode, name: "game-results" },
 ];
 
 /**
@@ -109,7 +111,7 @@ export function validateEnvironment(): EnvIssue[] {
       domain: "persistence",
       level: "warning",
       message:
-        "DATABASE_URL is not set. src/persistence/* is not wired into any engine yet, so nothing needs it today, but it will throw immediately if used before this is set.",
+        "DATABASE_URL is not set. The live odds recorder and game-results ingestion no-op without it (safe), and nothing else in src/persistence/* is wired into an engine yet.",
     });
   }
 
