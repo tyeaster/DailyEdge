@@ -3,6 +3,7 @@ import { getBacktestMode } from "../services/backtesting/providers.ts";
 import { getBullpenMode } from "../services/BullpenService.ts";
 import { getCalibrationMode } from "../services/calibration/providers.ts";
 import { getGameResultsMode } from "../services/GameResultsService.ts";
+import { getInjuriesMode } from "../services/InjuriesService.ts";
 import { getLineupMode } from "../services/LineupService.ts";
 import { getMatchupMode } from "../services/matchup/MatchupService.ts";
 import { getOddsIntelligenceMode } from "../services/odds-intelligence/providers.ts";
@@ -55,6 +56,7 @@ const domainChecks: DomainCheck[] = [
   { getMode: getBacktestMode, name: "backtesting" },
   { getMode: getOddsIntelligenceMode, name: "odds-intelligence" },
   { getMode: getGameResultsMode, name: "game-results" },
+  { getMode: getInjuriesMode, name: "injuries" },
 ];
 
 /**

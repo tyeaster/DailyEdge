@@ -2,22 +2,22 @@
 
 Living project roadmap and status document. Update this file after every major feature lands so it always reflects the project's true state — do not let it go stale like `docs/PROJECT_STATE.md` did.
 
-Last updated: 2026-07-07 (game-results ingestion added)
+Last updated: 2026-07-07 (live injuries provider added — Phase 2 complete)
 Baseline: `codex/trueline-rebrand` @ `59b4d79` ("Add AI handoff documentation")
 Working branch: `claude/trueline-development`
 
 Validation at time of writing (all passing):
 ```
 npx tsc --noEmit                    -> clean
-npm run build                       -> 26 routes compiled
-npm test (no DATABASE_URL)          -> 170 pass, 6 skipped (persistence + odds-recorder + game-results DB tests)
-npm test (with DATABASE_URL)        -> 176/176 passing, verified against a real local Postgres 16 instance
+npm run build                       -> 26 routes compiled; homepage confirmed HTTP 200 after rebuild
+npm test (no DATABASE_URL)          -> 176 pass, 6 skipped (persistence + odds-recorder + game-results DB tests)
+npm test (with DATABASE_URL)        -> 182/182 passing, verified against a real local Postgres 16 instance
 npm run dev (no secrets set)        -> boots fine, logs env issues (dev is lenient)
 npm run build && npm start (no secrets set) -> fails to boot with a clear error (production is strict)
 npm run build && npm start (admin secrets set) -> full auth flow verified with real Playwright/Chromium
 ```
 
-**Open caveat carried forward**: the live MLB game-results parser (Section 8e) has not been verified against a real network call — this sandbox blocks outbound access to `statsapi.mlb.com`. Run one live smoke test before trusting it in production.
+**Open caveats carried forward**: the live MLB game-results parser (Section 8e) and the live MLB injuries/transactions parser (Section 8f) have not been verified against real network calls — this sandbox blocks outbound access to `statsapi.mlb.com`. Both have their failure/degradation paths genuinely verified (Section 8f even got a real, non-synthetic 403 during the build to prove it), but the parser's assumed response shape has not. Run one live smoke test against each before trusting them in production.
 
 ---
 
@@ -30,7 +30,7 @@ npm run build && npm start (admin secrets set) -> full auth flow verified with r
 | Prediction / Ranking / Correlation engines | 80% | High — deterministic V1s complete, not calibrated |
 | Betting market products (8 markets) | 70% | Medium — built and ranked, several rely on incomplete prop odds |
 | Analytics admin (Calibration / Backtesting / Odds Intelligence) | 42% | Medium — scaffolds + tests exist; Odds Intelligence now has a real recorder writing live odds history (Section 8d), but the engine itself doesn't read it yet, and Calibration/Backtesting still have no durable data flowing in |
-| Production infrastructure (auth, persistence, cache, observability) | 40% | High — persistence layer, runtime env validation, admin route auth, live odds-history writer, and game-results ingestion (Section 8e — parser unverified over real network) all exist; still no production cache, no observability |
+| Production infrastructure (auth, persistence, cache, observability) | 42% | High — persistence layer, runtime env validation, admin route auth, live odds-history writer, game-results ingestion, and live injuries all exist (network-dependent parsers unverified over real network, see caveat above); still no production cache, no observability |
 | **Overall product** | **~61%** | Weighted toward infra being the largest remaining gap |
 
 ---
@@ -83,7 +83,7 @@ Ranked by what actually blocks a real launch:
 
 1. [x] **Authentication & authorization** — done 2026-07-07 (shared-password admin gate, not full user accounts — see Section 8c for why and what's still deferred)
 2. [x] **Production persistence layer** — done 2026-07-07. See Section 8 for details.
-3. **Live injuries provider** — mock only, no real feed
+3. [x] **Live injuries provider** — done 2026-07-07. See Section 8f (limited scope: IL statuses only, network-unverified, same as game-results).
 4. [x] **Durable odds-history recorder** — done 2026-07-07. See Section 8d.
 5. [x] **Historical results ingestion** — partially done 2026-07-07, see Section 8e for exact scope and an important unverified-network caveat
 6. **Production cache adapter** — in-memory cache only, doesn't survive restarts or scale across instances
@@ -126,7 +126,7 @@ Work roughly top-to-bottom; items within a phase can interleave.
 **Phase 2 — Make the data real**
 8. [x] Durable odds-history recorder — done 2026-07-07 (see Section 8d)
 9. [x] Historical results ingestion pipeline — partially done 2026-07-07 (see Section 8e)
-10. Live injuries provider
+10. [x] Live injuries provider — done 2026-07-07 (see Section 8f). Phase 2 complete.
 
 **Phase 3 — Make the analytics trustworthy**
 11. Calibration powered by real results (depends on #9)
@@ -238,6 +238,24 @@ New pieces, following the codebase's own established provider-trio convention (`
 Verified for real: `tests/game-results.test.ts` (6 tests) — Mock provider determinism, parser correctly extracts scores and skips non-`"Final"` games, parser's linescore-runs fallback, a genuine `ingestGameResults` → `GameResultsRepository` → Postgres round-trip, and graceful no-op without `DATABASE_URL`. New migration (`drizzle/0001_loose_galactus.sql`) generated and applied to the same local Postgres 16 instance. Full suite: 170 pass / 6 skip without `DATABASE_URL`, 176/176 with it.
 
 **Not yet done**: recording predictions (blocks joining results to predictions), a replay provider, any trigger/scheduling mechanism, and — critically — the live-network verification above.
+
+---
+
+## 8f. Live Injuries Provider (added 2026-07-07) — Phase 2 complete
+
+Replaces the hardcoded `mockDataProvider.injuries` fallback that `LiveMLBProvider` had used for injuries (the docs' own "Injuries: No live / No replay / Yes mock — Production gap" line) with a real provider, same trio pattern as game-results.
+
+**Deliberately narrow scope**: only produces `"10-day IL"` / `"15-day IL"` statuses, parsed from the MLB Stats API **transactions** endpoint (not a dedicated injuries endpoint — MLB Stats API doesn't have one; transactions with IL-related descriptions are the closest public equivalent). The `Injury` model's other statuses (`"Probable"`, `"Questionable"`, `"Day-to-day"`) are game-day lineup calls that need a different data source (boxscore/lineup card) — out of scope here, so the live provider never fabricates those. `impactRating` always defaults to a neutral 50: scoring how much losing a *specific* player actually hurts needs player-performance context a transactions feed doesn't carry.
+
+- `src/providers/injuries/` — `InjuryProvider` interface, `MLBInjuryProvider` (live), `MockInjuryProvider`. No replay provider yet, same gap as game-results/schedule.
+- `src/services/InjuriesService.ts` — mode selection (`INJURIES_MODE`, defaults `"live"`, wired into `src/config/env.ts` as a 16th domain), implements the exact `DataProvider<Injury>` shape `LiveMLBProvider.injuries` expects. **On a live fetch failure, degrades to an empty list, not mock data** — an empty list honestly means "no known injury data," rather than silently mixing fabricated players into what's supposed to be live output.
+- Wired directly into `LiveMLBProvider.injuries` in `src/services/providers/live-mlb-provider.ts`, replacing the old mock passthrough.
+
+**Same network caveat as Section 8e, but this time verified two ways instead of one**: the transactions-parsing logic itself is unverified over live network (sandbox blocks `statsapi.mlb.com`) — but unlike game-results, I got a *second*, real confirmation of the failure-handling path for free: running `npm run build` actually attempted the live fetch (this page prerenders statically), hit the same blocked-network 403, and the build log shows `InjuriesService` catching it cleanly three times (`[injuries-service] failed to fetch injuries: MLB transactions request failed with 403`) with the build still succeeding and the homepage still returning `200`. So while the *parsing shape* remains unverified like Section 8e, the *degradation path* is now proven against a real failure, not just a synthetic one.
+
+Verified for real: `tests/injuries.test.ts` (7 tests) — Mock provider determinism, transaction parsing (both IL lengths), skipping non-IL/incomplete transactions, `InjuriesService` mapping to the `Injury` model shape, `getById` lookup, and the empty-list-on-failure degradation (both as a direct unit test with a synthetic failing provider, and for real via the build-time 403 above). Also manually confirmed the homepage (`/`, statically prerendered) still returns HTTP 200 after this change. Full suite: 176 pass / 6 skip without `DATABASE_URL`, 182/182 with it.
+
+**Not yet done**: replay provider, "Probable"/"Questionable"/"Day-to-day" statuses (need a different data source), and the parsing-shape network verification.
 
 ---
 

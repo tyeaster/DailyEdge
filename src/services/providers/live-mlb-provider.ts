@@ -12,6 +12,7 @@ import type {
 import { formatAmericanOdds } from "@/src/lib/odds";
 import { ballparkService } from "@/src/services/BallparkService";
 import { bullpenService } from "@/src/services/BullpenService";
+import { injuriesService } from "@/src/services/InjuriesService";
 import { lineupService } from "@/src/services/LineupService";
 import { pitcherService } from "@/src/services/PitcherService";
 import { predictionEngine } from "@/src/services/predictions";
@@ -225,7 +226,7 @@ export class LiveMLBProvider implements TrueLineDataProvider {
     (schedule) => schedule.games,
   );
 
-  readonly injuries: InjuriesProvider = mockDataProvider.injuries;
+  readonly injuries: InjuriesProvider = injuriesService;
 
   readonly players: PlayersProvider = new LivePlayersProvider(
     () => this.loadSchedule(),
