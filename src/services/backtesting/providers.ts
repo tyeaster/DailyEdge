@@ -1,6 +1,8 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
+import { PredictionResultsRepository } from "../../persistence/repositories/prediction-results-repository.ts";
+import { PredictionsRepository } from "../../persistence/repositories/predictions-repository.ts";
 import type {
   BacktestProviderMode,
   HistoricalSlate,
@@ -75,11 +77,76 @@ export class ReplayHistoricalSlateProvider implements HistoricalSlateProvider {
   }
 }
 
+/**
+ * Groups real recorded predictions/results (Postgres) into daily slates -
+ * the shape BacktestRunner/StrategyEvaluator already expect, built from
+ * the same durable data DurableCalibrationProvider reads (see
+ * MASTER_CHECKLIST.md Section 8h). Moneyline only, same reason as
+ * everywhere else this session: that's the only market recorded so far.
+ * Falls back to an empty StaticHistoricalSlateProvider on any failure or
+ * missing DATABASE_URL, rather than breaking the backtesting dashboard.
+ */
+export class DurableHistoricalSlateProvider implements HistoricalSlateProvider {
+  readonly id = "backtesting-durable";
+  readonly mode: BacktestProviderMode = "live";
+
+  async getSlates(): Promise<HistoricalSlateProviderResponse> {
+    if (!process.env.DATABASE_URL) {
+      return new StaticHistoricalSlateProvider().getSlates();
+    }
+
+    try {
+      const [predictions, results] = await Promise.all([
+        new PredictionsRepository().list(),
+        new PredictionResultsRepository().list(),
+      ]);
+      const resultByPredictionId = new Map(
+        results.map((result) => [result.predictionId, result]),
+      );
+      const slatesByDate = new Map<string, HistoricalSlate>();
+
+      for (const prediction of predictions) {
+        const date = prediction.timestamp.slice(0, 10);
+        const slate = slatesByDate.get(date) ?? {
+          calibrationRecords: { predictions: [], results: [] },
+          date,
+          slateId: `slate-${date}`,
+        };
+
+        slate.calibrationRecords.predictions.push(prediction);
+
+        const result = resultByPredictionId.get(prediction.predictionId);
+
+        if (result) {
+          slate.calibrationRecords.results.push(result);
+        }
+
+        slatesByDate.set(date, slate);
+      }
+
+      return {
+        fetchedAt: new Date().toISOString(),
+        mode: this.mode,
+        provider: this.id,
+        slates: [...slatesByDate.values()],
+      };
+    } catch (error) {
+      console.error(
+        "[durable-historical-slate-provider] failed to load slates:",
+        error instanceof Error ? error.message : error,
+      );
+
+      return new StaticHistoricalSlateProvider().getSlates();
+    }
+  }
+}
+
 export function getConfiguredHistoricalSlateProvider(
   mode: BacktestProviderMode = getBacktestMode(),
 ) {
   if (mode === "replay") return new ReplayHistoricalSlateProvider();
   if (mode === "mock") return new MockHistoricalSlateProvider();
+  if (mode === "live") return new DurableHistoricalSlateProvider();
 
   return new StaticHistoricalSlateProvider();
 }

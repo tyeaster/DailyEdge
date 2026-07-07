@@ -2,7 +2,7 @@
 
 Living project roadmap and status document. Update this file after every major feature lands so it always reflects the project's true state — do not let it go stale like `docs/PROJECT_STATE.md` did.
 
-Last updated: 2026-07-07 (result reconciliation + real calibration data)
+Last updated: 2026-07-07 (backtesting reading real historical slates — Phase 3's first two items done)
 Baseline: `codex/trueline-rebrand` @ `59b4d79` ("Add AI handoff documentation")
 Working branch: `claude/trueline-development`
 
@@ -10,12 +10,13 @@ Validation at time of writing (all passing):
 ```
 npx tsc --noEmit                    -> clean
 npm run build                       -> 26 routes compiled; homepage confirmed HTTP 200 after rebuild
-npm test (no DATABASE_URL)          -> 180 pass, 12 skipped (persistence + odds-recorder + game-results + prediction-recorder + reconciler + calibration DB tests)
-npm test (with DATABASE_URL)        -> 192/192 passing, verified against a real local Postgres 16 instance
+npm test (no DATABASE_URL)          -> 182 pass, 13 skipped (persistence + odds-recorder + game-results + prediction-recorder + reconciler + calibration + backtesting DB tests)
+npm test (with DATABASE_URL)        -> 195/195 passing, verified against a real local Postgres 16 instance
 npm run dev (no secrets set)        -> boots fine, logs env issues (dev is lenient)
 npm run build && npm start (no secrets set) -> fails to boot with a clear error (production is strict)
 npm run build && npm start (admin secrets set) -> full auth flow verified with real Playwright/Chromium
 npm run build && npm start (CALIBRATION_MODE=live + real DB) -> /admin/calibration verified error-free via real browser automation
+npm run build && npm start (BACKTEST_MODE=live + real DB) -> /admin/backtesting verified error-free via real browser automation
 ```
 
 **Open caveats carried forward**: the live MLB game-results parser (Section 8e) and the live MLB injuries/transactions parser (Section 8f) have not been verified against real network calls — this sandbox blocks outbound access to `statsapi.mlb.com`. Both have their failure/degradation paths genuinely verified (Section 8f even got a real, non-synthetic 403 during the build to prove it), but the parser's assumed response shape has not. Run one live smoke test against each before trusting them in production.
@@ -32,9 +33,9 @@ npm run build && npm start (CALIBRATION_MODE=live + real DB) -> /admin/calibrati
 | Data intelligence layer (weather/ballpark/bullpen/lineup/pitcher/team-strength/recent-form/matchup) | 85% | High — live+replay+mock all present, tested |
 | Prediction / Ranking / Correlation engines | 80% | High — deterministic V1s complete, not calibrated |
 | Betting market products (8 markets) | 70% | Medium — built and ranked, several rely on incomplete prop odds |
-| Analytics admin (Calibration / Backtesting / Odds Intelligence) | 48% | Medium — Calibration now reads real moneyline predictions/results end-to-end (Section 8h), verified live through the actual admin page; Odds Intelligence has a real recorder (Section 8d) but doesn't read it yet; Backtesting still has no durable data flowing in |
+| Analytics admin (Calibration / Backtesting / Odds Intelligence) | 55% | Medium — Calibration and Backtesting both now read real moneyline predictions/results end-to-end (Sections 8h, 8i), each verified live through the actual admin page; Odds Intelligence has a real recorder (Section 8d) but doesn't read it yet — the last of the three |
 | Production infrastructure (auth, persistence, cache, observability) | 44% | High — persistence layer, runtime env validation, admin route auth, live odds-history writer, game-results ingestion + reconciliation, and live injuries all exist and verified; still no production cache, no observability |
-| **Overall product** | **~62%** | Weighted toward infra being the largest remaining gap |
+| **Overall product** | **~63%** | Weighted toward infra being the largest remaining gap |
 
 ---
 
@@ -72,7 +73,7 @@ Verified via code inspection, `tsc`, build output, and passing tests — not jus
 |---|---|---|
 | Odds (OddsPipe) | Real live HTTP provider, replay, mock, error handling, requires `ODDSPIPE_API_KEY` | Player-prop odds coverage incomplete; no durable rate-limit/backoff strategy documented |
 | Calibration Engine | Service, admin dashboard (`/admin/calibration`), tests, mock/replay records, and now `DurableCalibrationProvider` reading real moneyline predictions/results from Postgres when `CALIBRATION_MODE=live` (Section 8h) | Moneyline only — 7 other markets still need the `OddsMarket`/`BetMarketType` vocabulary reconciliation before they can be recorded/calibrated; sample size will be small until this runs for a while in production |
-| Backtesting Engine | `BacktestRunner`, `StrategyEvaluator`, `BankrollSimulator`, admin dashboard, tests | Historical slates are mock/replay only; persistence tables exist but this engine doesn't consume them yet |
+| Backtesting Engine | `BacktestRunner`, `StrategyEvaluator`, `BankrollSimulator`, admin dashboard, tests, and now `DurableHistoricalSlateProvider` grouping real moneyline predictions/results into daily slates when `BACKTEST_MODE=live` (Section 8i) | Moneyline only, same vocabulary-reconciliation debt as Calibration/Odds Intelligence; real sample size will take time to accumulate |
 | Odds Intelligence | `ClosingLineCalculator`, `MarketMovementAnalyzer`, `SteamMoveDetector`, admin dashboard, tests, and now a live recorder writing to `odds_snapshots` (Section 8d) | The engine itself still reads mock/replay data, not yet wired to read from `odds_snapshots`; movement attribution (injury/weather-driven) is limited |
 | Pitch Intelligence (`/matchups/pitch-intelligence`) | Route exists | Materially less complete than Zone Intelligence — treat as unfinished |
 | Entity research (`/research/players`, `/research/teams`, `/research/ballparks`) | Placeholder routes exist | Not yet searchable/functional entity pages |
@@ -133,7 +134,7 @@ Work roughly top-to-bottom; items within a phase can interleave.
 
 **Phase 3 — Make the analytics trustworthy**
 11. [x] Calibration powered by real results — done 2026-07-07, moneyline only (see Section 8h)
-12. Backtesting powered by real historical slates (depends on #9)
+12. [x] Backtesting powered by real historical slates — done 2026-07-07, moneyline only (see Section 8i)
 13. Odds Intelligence CLV/movement backed by durable history (depends on #8)
 
 **Phase 4 — Production readiness**
@@ -289,6 +290,18 @@ Note: `src/services/calibration/PredictionRecorder.ts` (pre-existing) and the ne
 Verified for real: `tests/result-reconciler.test.ts` (4 tests — win outcome, loss outcome, no-op when no result exists yet, never-throws-without-a-database) and `tests/durable-calibration-provider.test.ts` (3 tests — reads real Postgres data, mode selection returns the right class, degrades to empty history without a database). Also drove the actual `/admin/calibration` page with real browser automation (Playwright/Chromium, `CALIBRATION_MODE=live` + real `DATABASE_URL`): logged in, landed on the calibration dashboard, page body confirmed error-free (checked for "error"/"exception"/"failed to compile" substrings — none found in 1906 chars of rendered text), zero server-side errors logged. (A couple of repeat browser-automation attempts right after timed out on the login redirect — server logs stayed clean throughout, so that's Playwright/browser-launch flakiness in this sandbox, not a product issue; the one clean run is sufficient evidence the page genuinely works.) Full suite: 180 pass / 12 skip without `DATABASE_URL`, 192/192 with it.
 
 **Not yet done**: the other 7 `BetMarketType` markets (blocked on the same vocabulary reconciliation as Sections 8e/8g), and actual production sample size — calibration is only as useful as how long this has been running for real.
+
+---
+
+## 8i. Backtesting Powered by Real Historical Slates (added 2026-07-07)
+
+Same pattern as Section 8h, applied to Backtesting: `DurableHistoricalSlateProvider` (`src/services/backtesting/providers.ts`) implements the existing `HistoricalSlateProvider` interface, grouping real `predictions`/`prediction_results` rows by the date portion of each prediction's `timestamp` into `HistoricalSlate` objects — the exact shape `BacktestRunner`/`StrategyEvaluator` already expect, so no changes were needed to the actual backtesting math, only to where its input data comes from. Wired into `getConfiguredHistoricalSlateProvider("live")`. Default `BACKTEST_MODE` stays `"mock"` — opt-in only, via `BACKTEST_MODE=live`. Degrades to an empty `StaticHistoricalSlateProvider` on any failure or missing `DATABASE_URL`.
+
+Moneyline only, same reason as everywhere else this session (Sections 8g/8h) — that's the only market recorded so far.
+
+Verified for real: `tests/durable-historical-slate-provider.test.ts` (3 tests — groups real predictions+results into a slate keyed by date, mode selection returns the right class, degrades to empty slates without a database). Also drove the actual `/admin/backtesting` page with real browser automation (`BACKTEST_MODE=live` + real `DATABASE_URL`): logged in, landed on the dashboard, confirmed error-free page content (2069 chars, no error/exception substrings), zero server-side errors logged — clean on the first attempt this time. Full suite: 182 pass / 13 skip without `DATABASE_URL`, 195/195 with it.
+
+**Not yet done**: same as Section 8h — the other 7 markets, and real production sample size. With this, Phase 3's first two items (Calibration, Backtesting) are both wired to real data for moneyline; Odds Intelligence (Phase 3's third item) still reads mock/replay only despite `odds_snapshots` now accumulating real history (Section 8d).
 
 ---
 
