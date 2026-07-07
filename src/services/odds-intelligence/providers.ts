@@ -1,12 +1,16 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
+import { OddsSnapshotsRepository } from "../../persistence/repositories/odds-snapshots-repository.ts";
+import { PredictionsRepository } from "../../persistence/repositories/predictions-repository.ts";
 import type {
   OddsClosingRecord,
   OddsHistoryRecord,
   OddsIntelligenceProviderMode,
   OddsIntelligenceProviderResponse,
 } from "./types.ts";
+
+const MONEYLINE_MARKET = "moneyline";
 
 export interface OddsIntelligenceProvider {
   readonly id: string;
@@ -88,11 +92,113 @@ export class ReplayOddsIntelligenceProvider implements OddsIntelligenceProvider 
   }
 }
 
+/**
+ * Builds OddsHistoryRecord time series from real per-game moneyline
+ * snapshots (recordGameOddsSnapshots in OddsSnapshotRecorder.ts) joined
+ * against real recorded predictions - both durable, both moneyline-only
+ * (see MASTER_CHECKLIST.md Section 8j). Each snapshot for a game becomes
+ * one record: openingOdds is fixed as that game's earliest captured
+ * price, currentOdds is that specific snapshot's price - matching how
+ * the existing mock fixtures shape multiple records per predictionId.
+ *
+ * Closings are left empty for this first pass: determining a genuine
+ * "closing" line needs to know a game has actually started/finished,
+ * which isn't tracked yet. ClosingLineCalculator/MarketMovementAnalyzer
+ * already handle an absent closing gracefully (falls back to the latest
+ * snapshot), so this doesn't break the dashboard, it just means CLV
+ * specifically isn't computed yet - only opening-to-current movement is.
+ *
+ * A game only appears if it has both a recorded prediction and at least
+ * one snapshot - if either is missing there's nothing meaningful to show
+ * for that game yet. Falls back to StaticOddsIntelligenceProvider (empty)
+ * on any failure or missing DATABASE_URL.
+ */
+export class DurableOddsIntelligenceProvider implements OddsIntelligenceProvider {
+  readonly id = "odds-intelligence-durable";
+  readonly mode: OddsIntelligenceProviderMode = "live";
+
+  async getHistory(): Promise<OddsIntelligenceProviderResponse> {
+    if (!process.env.DATABASE_URL) {
+      return new StaticOddsIntelligenceProvider().getHistory();
+    }
+
+    try {
+      const [snapshots, predictions] = await Promise.all([
+        new OddsSnapshotsRepository().listGameSnapshots(MONEYLINE_MARKET),
+        new PredictionsRepository().list(),
+      ]);
+
+      const predictionByGameId = new Map(
+        predictions
+          .filter((prediction) => prediction.market === MONEYLINE_MARKET)
+          .map((prediction) => [prediction.gameId, prediction]),
+      );
+      const snapshotsByGameId = new Map<string, typeof snapshots>();
+
+      for (const snapshot of snapshots) {
+        if (!snapshot.gameId) {
+          continue;
+        }
+
+        const forGame = snapshotsByGameId.get(snapshot.gameId) ?? [];
+
+        forGame.push(snapshot);
+        snapshotsByGameId.set(snapshot.gameId, forGame);
+      }
+
+      const history: OddsHistoryRecord[] = [];
+
+      for (const [gameId, gameSnapshots] of snapshotsByGameId) {
+        const prediction = predictionByGameId.get(gameId);
+
+        if (!prediction) {
+          continue;
+        }
+
+        const ordered = [...gameSnapshots].sort(
+          (left, right) => left.capturedAt.getTime() - right.capturedAt.getTime(),
+        );
+        const openingOdds = ordered[0].americanOdds;
+
+        for (const snapshot of ordered) {
+          history.push({
+            currentOdds: snapshot.americanOdds,
+            fairOdds: prediction.fairOdds,
+            gameId,
+            market: MONEYLINE_MARKET,
+            openingOdds,
+            predictionId: prediction.predictionId,
+            probability: prediction.modelProbability,
+            sportsbook: snapshot.sportsbook,
+            timestamp: snapshot.capturedAt.toISOString(),
+          });
+        }
+      }
+
+      return {
+        closings: [],
+        fetchedAt: new Date().toISOString(),
+        history,
+        mode: this.mode,
+        provider: this.id,
+      };
+    } catch (error) {
+      console.error(
+        "[durable-odds-intelligence-provider] failed to load history:",
+        error instanceof Error ? error.message : error,
+      );
+
+      return new StaticOddsIntelligenceProvider().getHistory();
+    }
+  }
+}
+
 export function getConfiguredOddsIntelligenceProvider(
   mode: OddsIntelligenceProviderMode = getOddsIntelligenceMode(),
 ) {
   if (mode === "replay") return new ReplayOddsIntelligenceProvider();
   if (mode === "mock") return new MockOddsIntelligenceProvider();
+  if (mode === "live") return new DurableOddsIntelligenceProvider();
 
   return new StaticOddsIntelligenceProvider();
 }

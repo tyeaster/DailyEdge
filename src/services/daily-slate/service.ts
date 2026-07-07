@@ -18,6 +18,7 @@ import {
 } from "@/src/services/predictions";
 import { liveMLBProvider, mockDataProvider } from "@/src/services/providers";
 import type { TrueLineDataProvider } from "@/src/services/providers";
+import { recordGameOddsSnapshots } from "@/src/services/OddsSnapshotRecorder";
 import { recordMoneylinePredictions } from "@/src/services/PredictionRecorder";
 import type { DashboardNavItem, KpiMetric } from "@/src/types/mlb-dashboard";
 
@@ -101,6 +102,11 @@ async function buildDailySlate(
     oddsRecords,
     teamById,
   });
+
+  if (dataSource === "live") {
+    await recordGameOddsSnapshots(oddsBackedGames, dataSource);
+  }
+
   const gamePredictions = predictionEngine.predictSlate({
     games: oddsBackedGames,
     pitcherById,

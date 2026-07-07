@@ -61,6 +61,15 @@ export const oddsSnapshots = pgTable("odds_snapshots", {
   awayTeam: text("away_team"),
   capturedAt: timestamp("captured_at", { withTimezone: true }).notNull().defaultNow(),
   eventId: text("event_id"),
+  /**
+   * Nullable, additive: raw provider records (recorded by
+   * OddsSnapshotRecorder.ts) don't carry our internal gameId - the
+   * odds<->game match only happens later in applyOddsToGames() via
+   * team-name matching, not a stable ID. Populated only by the separate
+   * per-game recording path in daily-slate/service.ts, which already has
+   * the resolved gameId at hand. See MASTER_CHECKLIST.md Section 8j.
+   */
+  gameId: text("game_id"),
   homeTeam: text("home_team"),
   id: text("id").primaryKey(),
   impliedProbability: doublePrecision("implied_probability").notNull(),

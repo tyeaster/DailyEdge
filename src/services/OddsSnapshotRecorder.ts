@@ -1,3 +1,5 @@
+import { americanOddsToImpliedProbability } from "../lib/odds.ts";
+import type { Game } from "../models/mlb.ts";
 import { OddsSnapshotsRepository } from "../persistence/repositories/odds-snapshots-repository.ts";
 import type { OddsProviderResponse } from "../providers/odds/OddsProvider.ts";
 
@@ -26,6 +28,55 @@ export async function recordOddsSnapshot(
   } catch (error) {
     console.error(
       "[odds-snapshot-recorder] failed to record odds history:",
+      error instanceof Error ? error.message : error,
+    );
+  }
+}
+
+/**
+ * Durably records each game's already-resolved moneyline price (see
+ * applyOddsToGames() in src/services/odds/game-odds.ts), with gameId
+ * populated - unlike recordOddsSnapshot() above, which persists raw
+ * provider records that don't carry our internal gameId (the odds<->game
+ * match only happens via team-name matching, not a stable ID). This is
+ * what DurableOddsIntelligenceProvider reads. Moneyline only, matching
+ * the scope of prediction recording. Only records dataSource === "live"
+ * games with a real (non-placeholder) price. Never throws.
+ */
+export async function recordGameOddsSnapshots(
+  games: Game[],
+  dataSource: "live" | "mock",
+): Promise<void> {
+  if (dataSource !== "live" || !process.env.DATABASE_URL) {
+    return;
+  }
+
+  try {
+    const repository = new OddsSnapshotsRepository();
+    const capturedAt = new Date();
+
+    for (const game of games) {
+      const moneyline = game.odds.moneyline;
+
+      if (!moneyline || !Number.isFinite(moneyline.price) || moneyline.price === 0) {
+        continue;
+      }
+
+      await repository.recordGameSnapshot({
+        americanOdds: moneyline.price,
+        capturedAt,
+        gameId: game.id,
+        impliedProbability:
+          moneyline.impliedProbability ??
+          americanOddsToImpliedProbability(moneyline.price),
+        market: "moneyline",
+        provider: "oddspipe",
+        sportsbook: moneyline.sportsbook,
+      });
+    }
+  } catch (error) {
+    console.error(
+      "[odds-snapshot-recorder] failed to record game odds snapshots:",
       error instanceof Error ? error.message : error,
     );
   }

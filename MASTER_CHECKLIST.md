@@ -2,7 +2,7 @@
 
 Living project roadmap and status document. Update this file after every major feature lands so it always reflects the project's true state — do not let it go stale like `docs/PROJECT_STATE.md` did.
 
-Last updated: 2026-07-07 (backtesting reading real historical slates — Phase 3's first two items done)
+Last updated: 2026-07-07 (Odds Intelligence reading real movement — Phase 3 complete)
 Baseline: `codex/trueline-rebrand` @ `59b4d79` ("Add AI handoff documentation")
 Working branch: `claude/trueline-development`
 
@@ -10,13 +10,14 @@ Validation at time of writing (all passing):
 ```
 npx tsc --noEmit                    -> clean
 npm run build                       -> 26 routes compiled; homepage confirmed HTTP 200 after rebuild
-npm test (no DATABASE_URL)          -> 182 pass, 13 skipped (persistence + odds-recorder + game-results + prediction-recorder + reconciler + calibration + backtesting DB tests)
-npm test (with DATABASE_URL)        -> 195/195 passing, verified against a real local Postgres 16 instance
+npm test (no DATABASE_URL)          -> 185 pass, 17 skipped (persistence + odds-recorder + game-results + prediction-recorder + reconciler + calibration + backtesting + game-odds-snapshot + odds-intelligence DB tests)
+npm test (with DATABASE_URL)        -> 202/202 passing, verified against a real local Postgres 16 instance
 npm run dev (no secrets set)        -> boots fine, logs env issues (dev is lenient)
 npm run build && npm start (no secrets set) -> fails to boot with a clear error (production is strict)
 npm run build && npm start (admin secrets set) -> full auth flow verified with real Playwright/Chromium
 npm run build && npm start (CALIBRATION_MODE=live + real DB) -> /admin/calibration verified error-free via real browser automation
 npm run build && npm start (BACKTEST_MODE=live + real DB) -> /admin/backtesting verified error-free via real browser automation
+npm run build && npm start (ODDS_INTELLIGENCE_MODE=live + real DB) -> /admin/odds-intelligence verified error-free via real browser automation
 ```
 
 **Open caveats carried forward**: the live MLB game-results parser (Section 8e) and the live MLB injuries/transactions parser (Section 8f) have not been verified against real network calls — this sandbox blocks outbound access to `statsapi.mlb.com`. Both have their failure/degradation paths genuinely verified (Section 8f even got a real, non-synthetic 403 during the build to prove it), but the parser's assumed response shape has not. Run one live smoke test against each before trusting them in production.
@@ -33,9 +34,9 @@ npm run build && npm start (BACKTEST_MODE=live + real DB) -> /admin/backtesting 
 | Data intelligence layer (weather/ballpark/bullpen/lineup/pitcher/team-strength/recent-form/matchup) | 85% | High — live+replay+mock all present, tested |
 | Prediction / Ranking / Correlation engines | 80% | High — deterministic V1s complete, not calibrated |
 | Betting market products (8 markets) | 70% | Medium — built and ranked, several rely on incomplete prop odds |
-| Analytics admin (Calibration / Backtesting / Odds Intelligence) | 55% | Medium — Calibration and Backtesting both now read real moneyline predictions/results end-to-end (Sections 8h, 8i), each verified live through the actual admin page; Odds Intelligence has a real recorder (Section 8d) but doesn't read it yet — the last of the three |
+| Analytics admin (Calibration / Backtesting / Odds Intelligence) | 60% | Medium — all three now read real moneyline data end-to-end (Sections 8h/8i/8j), each verified live through its actual admin page; CLV specifically still not computed (needs game completion tracking), and all three are moneyline-only pending the market-vocabulary reconciliation |
 | Production infrastructure (auth, persistence, cache, observability) | 44% | High — persistence layer, runtime env validation, admin route auth, live odds-history writer, game-results ingestion + reconciliation, and live injuries all exist and verified; still no production cache, no observability |
-| **Overall product** | **~63%** | Weighted toward infra being the largest remaining gap |
+| **Overall product** | **~64%** | Weighted toward infra being the largest remaining gap |
 
 ---
 
@@ -74,7 +75,7 @@ Verified via code inspection, `tsc`, build output, and passing tests — not jus
 | Odds (OddsPipe) | Real live HTTP provider, replay, mock, error handling, requires `ODDSPIPE_API_KEY` | Player-prop odds coverage incomplete; no durable rate-limit/backoff strategy documented |
 | Calibration Engine | Service, admin dashboard (`/admin/calibration`), tests, mock/replay records, and now `DurableCalibrationProvider` reading real moneyline predictions/results from Postgres when `CALIBRATION_MODE=live` (Section 8h) | Moneyline only — 7 other markets still need the `OddsMarket`/`BetMarketType` vocabulary reconciliation before they can be recorded/calibrated; sample size will be small until this runs for a while in production |
 | Backtesting Engine | `BacktestRunner`, `StrategyEvaluator`, `BankrollSimulator`, admin dashboard, tests, and now `DurableHistoricalSlateProvider` grouping real moneyline predictions/results into daily slates when `BACKTEST_MODE=live` (Section 8i) | Moneyline only, same vocabulary-reconciliation debt as Calibration/Odds Intelligence; real sample size will take time to accumulate |
-| Odds Intelligence | `ClosingLineCalculator`, `MarketMovementAnalyzer`, `SteamMoveDetector`, admin dashboard, tests, and now a live recorder writing to `odds_snapshots` (Section 8d) | The engine itself still reads mock/replay data, not yet wired to read from `odds_snapshots`; movement attribution (injury/weather-driven) is limited |
+| Odds Intelligence | `ClosingLineCalculator`, `MarketMovementAnalyzer`, `SteamMoveDetector`, admin dashboard, tests, live recorder writing to `odds_snapshots` (Section 8d), and now `DurableOddsIntelligenceProvider` reading real opening-to-current movement when `ODDS_INTELLIGENCE_MODE=live` (Section 8j) | CLV specifically isn't computed yet (closings intentionally left empty — needs game start/finish tracking); moneyline only; movement attribution (injury/weather-driven) is limited |
 | Pitch Intelligence (`/matchups/pitch-intelligence`) | Route exists | Materially less complete than Zone Intelligence — treat as unfinished |
 | Entity research (`/research/players`, `/research/teams`, `/research/ballparks`) | Placeholder routes exist | Not yet searchable/functional entity pages |
 | Best Bets filtering/sorting | Static ranked board renders | No interactive filters or sort controls yet |
@@ -135,7 +136,7 @@ Work roughly top-to-bottom; items within a phase can interleave.
 **Phase 3 — Make the analytics trustworthy**
 11. [x] Calibration powered by real results — done 2026-07-07, moneyline only (see Section 8h)
 12. [x] Backtesting powered by real historical slates — done 2026-07-07, moneyline only (see Section 8i)
-13. Odds Intelligence CLV/movement backed by durable history (depends on #8)
+13. [x] Odds Intelligence CLV/movement backed by durable history — done 2026-07-07, opening-to-current movement only, moneyline only (see Section 8j). Phase 3 complete.
 
 **Phase 4 — Production readiness**
 14. Production cache adapter (Redis/Vercel KV/Cloudflare KV) replacing `MemoryCache`
@@ -219,7 +220,7 @@ Location: `src/services/OddsSnapshotRecorder.ts`, wired into `src/services/OddsS
 
 Verified for real: `tests/odds-snapshot-recorder.test.ts` (3 tests) confirms non-live responses are never persisted, live responses actually land in `odds_snapshots` via a real Postgres round-trip, and the whole thing resolves cleanly with no `DATABASE_URL` at all. Full suite: 166 pass / 5 skip without `DATABASE_URL`, 171/171 with it pointed at the same local Postgres 16 instance used in Section 8.
 
-**Not yet done, deliberately out of scope**: nothing yet reads from `odds_snapshots` — `OddsIntelligenceService` (`ClosingLineCalculator`, `MarketMovementAnalyzer`, `SteamMoveDetector`) still runs on mock/replay data. Wiring that engine to read real history is the next checklist item (Phase 3: "Odds Intelligence CLV/movement backed by durable history").
+**Update (Section 8j)**: `OddsIntelligenceService` now does read real history via `DurableOddsIntelligenceProvider` — see below. This raw per-record recorder remains as-is; the engine reads from a *separate*, game-scoped recording path (also added in Section 8j) rather than these raw multi-sportsbook records directly, since raw records don't carry a stable gameId (see Section 8j for why).
 
 ---
 
@@ -302,6 +303,27 @@ Moneyline only, same reason as everywhere else this session (Sections 8g/8h) —
 Verified for real: `tests/durable-historical-slate-provider.test.ts` (3 tests — groups real predictions+results into a slate keyed by date, mode selection returns the right class, degrades to empty slates without a database). Also drove the actual `/admin/backtesting` page with real browser automation (`BACKTEST_MODE=live` + real `DATABASE_URL`): logged in, landed on the dashboard, confirmed error-free page content (2069 chars, no error/exception substrings), zero server-side errors logged — clean on the first attempt this time. Full suite: 182 pass / 13 skip without `DATABASE_URL`, 195/195 with it.
 
 **Not yet done**: same as Section 8h — the other 7 markets, and real production sample size. With this, Phase 3's first two items (Calibration, Backtesting) are both wired to real data for moneyline; Odds Intelligence (Phase 3's third item) still reads mock/replay only despite `odds_snapshots` now accumulating real history (Section 8d).
+
+---
+
+## 8j. Odds Intelligence Reading Real Movement (added 2026-07-07) — Phase 3 complete
+
+This one needed more than Sections 8h/8i did, and the extra work is worth understanding before touching this code again.
+
+**The actual gap, discovered while starting this**: `odds_snapshots` (Section 8d) stores *raw* provider records — and those don't carry our internal `gameId` at all. The odds↔game match only happens later, in `applyOddsToGames()` (`src/services/odds/game-odds.ts`), which matches by **team name** (with an `eventId`-based shortcut attempted first, but that's OddsPipe's own ID scheme, not guaranteed to align with our `game-{gamePk}` format). So there was no reliable way to join raw `odds_snapshots` rows back to a specific game or prediction — Calibration/Backtesting didn't hit this because `predictions`/`prediction_results`/`game_results` were all designed with `gameId` as a first-class field from the start; `odds_snapshots` wasn't.
+
+**Fix**: added a second, narrower recording path rather than retrofitting the raw one:
+- `oddsSnapshots.gameId` — new nullable, additive column (migration `drizzle/0002_lying_infant_terrible.sql`, one `ALTER TABLE ADD COLUMN`). Nullable because the existing raw-record path (Section 8d) still doesn't know the gameId and shouldn't have to.
+- `OddsSnapshotsRepository.recordGameSnapshot()` / `findHistoryByGame()` / `listGameSnapshots()` — new methods for the game-scoped path, separate from the existing raw-record methods.
+- `recordGameOddsSnapshots(games, dataSource)` (`src/services/OddsSnapshotRecorder.ts`) — records each game's **already-resolved** moneyline price (`game.odds.moneyline`, set by `applyOddsToGames()`) with `gameId` populated directly. Wired into `daily-slate/service.ts` right after `oddsBackedGames` is computed, live-only. This sidesteps re-implementing the team-name matching entirely — by the time this runs, the match has already happened.
+- `DurableOddsIntelligenceProvider` (`src/services/odds-intelligence/providers.ts`) joins these game-scoped snapshots against real `predictions` (moneyline) to build `OddsHistoryRecord[]`: for each game, the *earliest* snapshot's price becomes the fixed `openingOdds` for every record in that game's series, and each individual snapshot becomes one record with its own price as `currentOdds` — matching exactly how the existing mock fixtures already shaped multiple records per `predictionId` (verified by reading `buildMockHistory()` before writing this, not guessed). A game only appears if it has *both* a recorded prediction and at least one snapshot.
+- Wired into `getConfiguredOddsIntelligenceProvider("live")`. Default `ODDS_INTELLIGENCE_MODE` stays `"mock"`.
+
+**Deliberately left incomplete: closing-line value (CLV)**. `closings` is returned empty. A genuine "closing" line requires knowing a game has actually started or finished — that's not tracked anywhere yet (no join to `game_results`' `completedAt` was attempted here, to keep this change reviewable). This isn't a silent gap: `ClosingLineCalculator`/`MarketMovementAnalyzer` were checked first and already treat an absent closing as optional everywhere (`calculateClv` returns `0`, `calculateClosingEdge` falls back to the latest snapshot) — confirmed by reading the calculator source, not assumed — so the dashboard doesn't break, it just doesn't show CLV yet. Opening-to-current movement, which is most of what the dashboard shows, is real.
+
+Verified for real: `tests/game-odds-snapshot.test.ts` (3 tests — records with `gameId` populated, mock data source is skipped, never throws without a database) and `tests/durable-odds-intelligence-provider.test.ts` (4 tests — builds a correct two-point time series from real snapshots + a real prediction with exact opening/current values asserted, excludes games with snapshots but no matching prediction, mode selection, graceful degradation). One test bug caught and fixed along the way: the first version of the game-odds-snapshot test fixture didn't set `game.id`, so the recorder read `game-undefined-moneyline` — caught immediately because the DB-backed assertion failed (`0 !== 1`), not silently passed. Also drove the actual `/admin/odds-intelligence` page with real browser automation (`ODDS_INTELLIGENCE_MODE=live` + real `DATABASE_URL`): logged in, landed on the dashboard, confirmed error-free page content, zero server-side errors, clean on the first attempt. Full suite: 185 pass / 17 skip without `DATABASE_URL`, 202/202 with it.
+
+**Not yet done**: CLV/closing-line tracking (needs `game_results.completedAt` wired in), the other 7 markets, steam-move detection accuracy (untested against real multi-book divergence — only one sportsbook's data flows through the game-scoped path today), real production sample size. With this, all three Phase 3 items (Calibration, Backtesting, Odds Intelligence) are wired to real data for the moneyline market — Phase 3 is complete.
 
 ---
 
