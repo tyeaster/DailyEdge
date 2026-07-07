@@ -93,8 +93,8 @@ Ranked by what actually blocks a real launch:
 
 Found during independent review — not mentioned in `CLAUDE_HANDOFF.md` or `PROJECT_STATE.md`:
 
-- [ ] **Delete `src/components/layout/`** (Navbar/Footer/Sidebar/Container) — zero imports anywhere in `src/` or `app/`. Leftover from the original landing-page scaffold, abandoned commit 2 of the project.
-- [ ] **Delete or adopt `src/design-system/`** (colors/spacing/typography/shadows/theme tokens) — also zero imports anywhere; dashboard uses inline Tailwind instead, and the token values don't even match current inline colors.
+- [x] **Delete `src/components/layout/`** (Navbar/Footer/Sidebar/Container) — removed 2026-07-07. Confirmed zero imports before deletion; `tsc`, lint, build (25 routes), and all 160 tests still pass clean.
+- [x] **Delete `src/design-system/`** (colors/spacing/typography/shadows/theme tokens) — removed 2026-07-07 alongside `layout/`. Same verification as above.
 - [ ] Legacy `/team/*` routes (`/team/moneyline`, `/team/team-total`, `/team/game-total`) — superseded by `/betting/*` equivalents, should be removed or redirected.
 - [ ] `docs/PROJECT_STATE.md` is self-acknowledged stale — either refresh it or deprecate it in favor of this file.
 - [ ] Duplicate market-card/candidate-normalization patterns across market feature folders — real but low urgency; don't refactor broadly without a specific trigger.
@@ -107,10 +107,10 @@ Found during independent review — not mentioned in `CLAUDE_HANDOFF.md` or `PRO
 Work roughly top-to-bottom; items within a phase can interleave.
 
 **Phase 0 — Hygiene (do first, no dependencies, near-zero risk)**
-1. Delete dead `layout/` and `design-system/` code
+1. [x] Delete dead `layout/` and `design-system/` code — done 2026-07-07
 2. Add `.env.example` documenting every provider mode/key currently read from `process.env`
 3. Remove or redirect legacy `/team/*` routes
-4. Resolve PR #5 merge-target question (this branch → `main`)
+4. Resolve PR #5 merge-target question (this branch → `main`) — deferred, merge strategy TBD later per owner instruction
 
 **Phase 1 — Foundation for everything else**
 5. Production persistence layer (predictions, odds snapshots, results, calibration records) — almost everything downstream depends on this existing first
