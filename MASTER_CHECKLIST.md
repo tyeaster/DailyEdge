@@ -81,7 +81,7 @@ Ranked by what actually blocks a real launch:
 4. **Durable odds-history recorder** — no process records real line movement over time
 5. **Historical results ingestion** — nothing populates real outcomes for calibration/backtesting to learn from
 6. **Production cache adapter** — in-memory cache only, doesn't survive restarts or scale across instances
-7. **Runtime env schema validation** — ~50 env vars across providers, no `.env.example`, no startup validation, no secret-presence checks for live modes
+7. **Runtime env schema validation** — `.env.example` now documents all 56 vars, but there's still no startup validation or secret-presence checks for live modes
 8. **Observability** — no structured logging, no provider health monitoring, no error tracking
 9. **E2E / route smoke tests** — 160 unit tests exist, zero browser-level tests
 10. **Global search** — not implemented anywhere
@@ -108,7 +108,7 @@ Work roughly top-to-bottom; items within a phase can interleave.
 
 **Phase 0 — Hygiene (do first, no dependencies, near-zero risk)**
 1. [x] Delete dead `layout/` and `design-system/` code — done 2026-07-07
-2. Add `.env.example` documenting every provider mode/key currently read from `process.env`
+2. [x] Add `.env.example` documenting every provider mode/key currently read from `process.env` — done 2026-07-07 (56 vars across 14 domains, grouped by provider with defaults/fallback chains noted); also fixed `.gitignore`'s `.env*` rule so it doesn't swallow the example file
 3. [x] Remove or redirect legacy `/team/*` routes — done 2026-07-07
 4. Resolve PR #5 merge-target question (this branch → `main`) — deferred, merge strategy TBD later per owner instruction
 
