@@ -40,6 +40,12 @@ export class PredictionResultsRepository {
 
     return rows[0] ? toPredictionResultRecord(rows[0]) : undefined;
   }
+
+  async list(): Promise<PredictionResultRecord[]> {
+    const rows = await this.db.select().from(predictionResults);
+
+    return rows.map(toPredictionResultRecord);
+  }
 }
 
 function toPredictionResultRecord(

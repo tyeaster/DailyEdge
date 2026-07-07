@@ -6,6 +6,7 @@ import {
   type GameResultsProviderMode,
   type GameResultsRequest,
 } from "../providers/game-results/index.ts";
+import { reconcileGameResults } from "./ResultReconciler.ts";
 
 export function getGameResultsMode(): GameResultsProviderMode {
   const mode = process.env.GAME_RESULTS_MODE;
@@ -30,18 +31,20 @@ export function getConfiguredGameResultsProvider(
 }
 
 /**
- * Fetches completed games for a date from the configured provider and
- * durably records each one via GameResultsRepository. Meant to be invoked
- * by a scheduled/triggered job (none exists yet - see MASTER_CHECKLIST.md),
- * not inline in a request path, so failures are logged and swallowed
- * rather than thrown.
+ * Fetches completed games for a date from the configured provider,
+ * durably records each one via GameResultsRepository, then reconciles
+ * each against any already-recorded predictions (see ResultReconciler.ts)
+ * so calibration has real win/loss outcomes to read, not just raw scores.
+ * Meant to be invoked by a scheduled/triggered job (none exists yet - see
+ * MASTER_CHECKLIST.md), not inline in a request path, so failures are
+ * logged and swallowed rather than thrown.
  */
 export async function ingestGameResults(
   request: GameResultsRequest,
   provider: GameResultsProvider = getConfiguredGameResultsProvider(),
-): Promise<{ recorded: number }> {
+): Promise<{ reconciled: number; recorded: number }> {
   if (!process.env.DATABASE_URL) {
-    return { recorded: 0 };
+    return { reconciled: 0, recorded: 0 };
   }
 
   try {
@@ -52,13 +55,17 @@ export async function ingestGameResults(
       await repository.record(result);
     }
 
-    return { recorded: response.results.length };
+    const { reconciled } = await reconcileGameResults(
+      response.results.map((result) => result.gameId),
+    );
+
+    return { reconciled, recorded: response.results.length };
   } catch (error) {
     console.error(
       "[game-results-service] failed to ingest game results:",
       error instanceof Error ? error.message : error,
     );
 
-    return { recorded: 0 };
+    return { reconciled: 0, recorded: 0 };
   }
 }

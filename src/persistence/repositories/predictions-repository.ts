@@ -52,6 +52,12 @@ export class PredictionsRepository {
 
     return rows[0] ? toRecordedPrediction(rows[0]) : undefined;
   }
+
+  async list(): Promise<RecordedPrediction[]> {
+    const rows = await this.db.select().from(predictions);
+
+    return rows.map(toRecordedPrediction);
+  }
 }
 
 function toRecordedPrediction(

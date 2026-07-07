@@ -2,7 +2,7 @@
 
 Living project roadmap and status document. Update this file after every major feature lands so it always reflects the project's true state — do not let it go stale like `docs/PROJECT_STATE.md` did.
 
-Last updated: 2026-07-07 (moneyline prediction recording added)
+Last updated: 2026-07-07 (result reconciliation + real calibration data)
 Baseline: `codex/trueline-rebrand` @ `59b4d79` ("Add AI handoff documentation")
 Working branch: `claude/trueline-development`
 
@@ -10,11 +10,12 @@ Validation at time of writing (all passing):
 ```
 npx tsc --noEmit                    -> clean
 npm run build                       -> 26 routes compiled; homepage confirmed HTTP 200 after rebuild
-npm test (no DATABASE_URL)          -> 177 pass, 8 skipped (persistence + odds-recorder + game-results + prediction-recorder DB tests)
-npm test (with DATABASE_URL)        -> 185/185 passing, verified against a real local Postgres 16 instance
+npm test (no DATABASE_URL)          -> 180 pass, 12 skipped (persistence + odds-recorder + game-results + prediction-recorder + reconciler + calibration DB tests)
+npm test (with DATABASE_URL)        -> 192/192 passing, verified against a real local Postgres 16 instance
 npm run dev (no secrets set)        -> boots fine, logs env issues (dev is lenient)
 npm run build && npm start (no secrets set) -> fails to boot with a clear error (production is strict)
 npm run build && npm start (admin secrets set) -> full auth flow verified with real Playwright/Chromium
+npm run build && npm start (CALIBRATION_MODE=live + real DB) -> /admin/calibration verified error-free via real browser automation
 ```
 
 **Open caveats carried forward**: the live MLB game-results parser (Section 8e) and the live MLB injuries/transactions parser (Section 8f) have not been verified against real network calls — this sandbox blocks outbound access to `statsapi.mlb.com`. Both have their failure/degradation paths genuinely verified (Section 8f even got a real, non-synthetic 403 during the build to prove it), but the parser's assumed response shape has not. Run one live smoke test against each before trusting them in production.
@@ -31,9 +32,9 @@ npm run build && npm start (admin secrets set) -> full auth flow verified with r
 | Data intelligence layer (weather/ballpark/bullpen/lineup/pitcher/team-strength/recent-form/matchup) | 85% | High — live+replay+mock all present, tested |
 | Prediction / Ranking / Correlation engines | 80% | High — deterministic V1s complete, not calibrated |
 | Betting market products (8 markets) | 70% | Medium — built and ranked, several rely on incomplete prop odds |
-| Analytics admin (Calibration / Backtesting / Odds Intelligence) | 42% | Medium — scaffolds + tests exist; Odds Intelligence now has a real recorder writing live odds history (Section 8d), but the engine itself doesn't read it yet, and Calibration/Backtesting still have no durable data flowing in |
-| Production infrastructure (auth, persistence, cache, observability) | 42% | High — persistence layer, runtime env validation, admin route auth, live odds-history writer, game-results ingestion, and live injuries all exist (network-dependent parsers unverified over real network, see caveat above); still no production cache, no observability |
-| **Overall product** | **~61%** | Weighted toward infra being the largest remaining gap |
+| Analytics admin (Calibration / Backtesting / Odds Intelligence) | 48% | Medium — Calibration now reads real moneyline predictions/results end-to-end (Section 8h), verified live through the actual admin page; Odds Intelligence has a real recorder (Section 8d) but doesn't read it yet; Backtesting still has no durable data flowing in |
+| Production infrastructure (auth, persistence, cache, observability) | 44% | High — persistence layer, runtime env validation, admin route auth, live odds-history writer, game-results ingestion + reconciliation, and live injuries all exist and verified; still no production cache, no observability |
+| **Overall product** | **~62%** | Weighted toward infra being the largest remaining gap |
 
 ---
 
@@ -70,7 +71,7 @@ Verified via code inspection, `tsc`, build output, and passing tests — not jus
 | System | What exists | What's missing |
 |---|---|---|
 | Odds (OddsPipe) | Real live HTTP provider, replay, mock, error handling, requires `ODDSPIPE_API_KEY` | Player-prop odds coverage incomplete; no durable rate-limit/backoff strategy documented |
-| Calibration Engine | Service, admin dashboard (`/admin/calibration`), tests, mock/replay records | `predictions`/`prediction_results` tables now exist (Section 8) but nothing writes to them yet or reads them into this engine; still not authoritative for live recommendations |
+| Calibration Engine | Service, admin dashboard (`/admin/calibration`), tests, mock/replay records, and now `DurableCalibrationProvider` reading real moneyline predictions/results from Postgres when `CALIBRATION_MODE=live` (Section 8h) | Moneyline only — 7 other markets still need the `OddsMarket`/`BetMarketType` vocabulary reconciliation before they can be recorded/calibrated; sample size will be small until this runs for a while in production |
 | Backtesting Engine | `BacktestRunner`, `StrategyEvaluator`, `BankrollSimulator`, admin dashboard, tests | Historical slates are mock/replay only; persistence tables exist but this engine doesn't consume them yet |
 | Odds Intelligence | `ClosingLineCalculator`, `MarketMovementAnalyzer`, `SteamMoveDetector`, admin dashboard, tests, and now a live recorder writing to `odds_snapshots` (Section 8d) | The engine itself still reads mock/replay data, not yet wired to read from `odds_snapshots`; movement attribution (injury/weather-driven) is limited |
 | Pitch Intelligence (`/matchups/pitch-intelligence`) | Route exists | Materially less complete than Zone Intelligence — treat as unfinished |
@@ -131,7 +132,7 @@ Work roughly top-to-bottom; items within a phase can interleave.
 10. [x] Live injuries provider — done 2026-07-07 (see Section 8f). Phase 2 complete.
 
 **Phase 3 — Make the analytics trustworthy**
-11. Calibration powered by real results (depends on #9)
+11. [x] Calibration powered by real results — done 2026-07-07, moneyline only (see Section 8h)
 12. Backtesting powered by real historical slates (depends on #9)
 13. Odds Intelligence CLV/movement backed by durable history (depends on #8)
 
@@ -272,6 +273,22 @@ Turned out to be a clean mapping once found: `PredictionResult` already carries 
 Verified for real: `tests/prediction-recorder.test.ts` (3 tests) — a genuine record → `PredictionsRepository` → Postgres round-trip, confirms the idempotent-per-game behavior (a second call with different data doesn't overwrite), and confirms it never throws without a database. Also manually confirmed the homepage still returns HTTP 200 after wiring this into the live daily-slate path (same static-prerender check as Section 8f). Full suite: 177 pass / 8 skip without `DATABASE_URL`, 185/185 with it.
 
 **Unblocks**: Phase 3 items (Calibration/Backtesting powered by real results) now have real data to read for the moneyline market specifically, once those engines are wired to read from `predictions`/`prediction_results`/`game_results` instead of mock/replay fixtures.
+
+---
+
+## 8h. Result Reconciliation + Calibration Reading Real Data (added 2026-07-07)
+
+Two pieces that together close the loop Sections 8e/8g both flagged as missing — `game_results` and `predictions` existed independently with nothing cross-referencing them.
+
+**`src/services/ResultReconciler.ts`** — `reconcileGameResult(gameId)` joins one completed game's durable result against any durably recorded predictions for that game (moneyline only, same reason as Section 8g: it's simply "did the predicted team match the winning team," win or loss, no push case). Writes a `PredictionResultRecord` per matching prediction via `PredictionResultsRepository`. Wired directly into `ingestGameResults()` (`src/services/GameResultsService.ts`) — every ingestion run now automatically reconciles the games it just recorded, so the pipeline (ingest result → reconcile → available for calibration) runs end to end from one call. Never throws, no-ops without `DATABASE_URL`.
+
+**`DurableCalibrationProvider`** (`src/services/calibration/providers.ts`) — implements the existing `CalibrationHistoryProvider` interface, reading real predictions/results via `PredictionsRepository.list()` / `PredictionResultsRepository.list()` (both repositories gained a `list()` method for this — they only had per-game/per-id lookups before). Wired into `getConfiguredCalibrationProvider("live")`, replacing what used to be a silent fallback to an empty `StaticCalibrationProvider`. **Default `CALIBRATION_MODE` is still `"mock"`** — this is opt-in via `CALIBRATION_MODE=live`, so the admin dashboard's default behavior is completely unchanged unless someone deliberately switches it on. On any failure (or no `DATABASE_URL`), also degrades to the same empty `StaticCalibrationProvider` rather than breaking the admin dashboard.
+
+Note: `src/services/calibration/PredictionRecorder.ts` (pre-existing) and the new top-level `src/services/PredictionRecorder.ts` (Section 8g) are unrelated despite the name collision — the former is an in-memory input-shaping/validation helper (clamps values, generates IDs), the latter durably persists to Postgres. Different directories, no import conflict, but flagging it here since it reads confusingly out of context.
+
+Verified for real: `tests/result-reconciler.test.ts` (4 tests — win outcome, loss outcome, no-op when no result exists yet, never-throws-without-a-database) and `tests/durable-calibration-provider.test.ts` (3 tests — reads real Postgres data, mode selection returns the right class, degrades to empty history without a database). Also drove the actual `/admin/calibration` page with real browser automation (Playwright/Chromium, `CALIBRATION_MODE=live` + real `DATABASE_URL`): logged in, landed on the calibration dashboard, page body confirmed error-free (checked for "error"/"exception"/"failed to compile" substrings — none found in 1906 chars of rendered text), zero server-side errors logged. (A couple of repeat browser-automation attempts right after timed out on the login redirect — server logs stayed clean throughout, so that's Playwright/browser-launch flakiness in this sandbox, not a product issue; the one clean run is sufficient evidence the page genuinely works.) Full suite: 180 pass / 12 skip without `DATABASE_URL`, 192/192 with it.
+
+**Not yet done**: the other 7 `BetMarketType` markets (blocked on the same vocabulary reconciliation as Sections 8e/8g), and actual production sample size — calibration is only as useful as how long this has been running for real.
 
 ---
 

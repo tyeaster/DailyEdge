@@ -1,6 +1,8 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
+import { PredictionResultsRepository } from "../../persistence/repositories/prediction-results-repository.ts";
+import { PredictionsRepository } from "../../persistence/repositories/predictions-repository.ts";
 import type {
   CalibrationProviderMode,
   CalibrationProviderResponse,
@@ -88,11 +90,55 @@ export class ReplayCalibrationProvider implements CalibrationHistoryProvider {
   }
 }
 
+/**
+ * Reads real recorded predictions/results out of Postgres (see
+ * MASTER_CHECKLIST.md Sections 8, 8g) instead of mock/replay fixtures.
+ * Falls back to an empty StaticCalibrationProvider if DATABASE_URL isn't
+ * set, rather than throwing - "live" calibration should degrade to "no
+ * data yet" gracefully, matching every other recorder/provider this
+ * session, not break the admin dashboard.
+ */
+export class DurableCalibrationProvider implements CalibrationHistoryProvider {
+  readonly id = "calibration-durable";
+  readonly mode: CalibrationProviderMode = "live";
+
+  async getHistory(): Promise<CalibrationProviderResponse> {
+    if (!process.env.DATABASE_URL) {
+      return new StaticCalibrationProvider().getHistory();
+    }
+
+    try {
+      const predictionsRepository = new PredictionsRepository();
+      const resultsRepository = new PredictionResultsRepository();
+      const [predictions, results] = await Promise.all([
+        predictionsRepository.list(),
+        resultsRepository.list(),
+      ]);
+
+      return {
+        fetchedAt: new Date().toISOString(),
+        mode: this.mode,
+        predictions,
+        provider: this.id,
+        results,
+      };
+    } catch (error) {
+      console.error(
+        "[durable-calibration-provider] failed to load history:",
+        error instanceof Error ? error.message : error,
+      );
+
+      return new StaticCalibrationProvider().getHistory();
+    }
+  }
+}
+
 export function getConfiguredCalibrationProvider(
   mode: CalibrationProviderMode = getCalibrationMode(),
 ) {
   if (mode === "replay") return new ReplayCalibrationProvider();
   if (mode === "mock") return new MockCalibrationProvider();
+  if (mode === "live") return new DurableCalibrationProvider();
 
   return new StaticCalibrationProvider();
 }
