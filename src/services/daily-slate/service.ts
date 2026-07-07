@@ -18,6 +18,7 @@ import {
 } from "@/src/services/predictions";
 import { liveMLBProvider, mockDataProvider } from "@/src/services/providers";
 import type { TrueLineDataProvider } from "@/src/services/providers";
+import { recordMoneylinePredictions } from "@/src/services/PredictionRecorder";
 import type { DashboardNavItem, KpiMetric } from "@/src/types/mlb-dashboard";
 
 import type {
@@ -105,6 +106,11 @@ async function buildDailySlate(
     pitcherById,
     teamById,
   });
+
+  if (dataSource === "live") {
+    await recordMoneylinePredictions(gamePredictions);
+  }
+
   const predictedGames = applyPredictionsToGames({
     games: oddsBackedGames,
     predictions: gamePredictions,

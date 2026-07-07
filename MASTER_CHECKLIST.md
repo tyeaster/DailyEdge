@@ -2,7 +2,7 @@
 
 Living project roadmap and status document. Update this file after every major feature lands so it always reflects the project's true state — do not let it go stale like `docs/PROJECT_STATE.md` did.
 
-Last updated: 2026-07-07 (live injuries provider added — Phase 2 complete)
+Last updated: 2026-07-07 (moneyline prediction recording added)
 Baseline: `codex/trueline-rebrand` @ `59b4d79` ("Add AI handoff documentation")
 Working branch: `claude/trueline-development`
 
@@ -10,14 +10,16 @@ Validation at time of writing (all passing):
 ```
 npx tsc --noEmit                    -> clean
 npm run build                       -> 26 routes compiled; homepage confirmed HTTP 200 after rebuild
-npm test (no DATABASE_URL)          -> 176 pass, 6 skipped (persistence + odds-recorder + game-results DB tests)
-npm test (with DATABASE_URL)        -> 182/182 passing, verified against a real local Postgres 16 instance
+npm test (no DATABASE_URL)          -> 177 pass, 8 skipped (persistence + odds-recorder + game-results + prediction-recorder DB tests)
+npm test (with DATABASE_URL)        -> 185/185 passing, verified against a real local Postgres 16 instance
 npm run dev (no secrets set)        -> boots fine, logs env issues (dev is lenient)
 npm run build && npm start (no secrets set) -> fails to boot with a clear error (production is strict)
 npm run build && npm start (admin secrets set) -> full auth flow verified with real Playwright/Chromium
 ```
 
 **Open caveats carried forward**: the live MLB game-results parser (Section 8e) and the live MLB injuries/transactions parser (Section 8f) have not been verified against real network calls — this sandbox blocks outbound access to `statsapi.mlb.com`. Both have their failure/degradation paths genuinely verified (Section 8f even got a real, non-synthetic 403 during the build to prove it), but the parser's assumed response shape has not. Run one live smoke test against each before trusting them in production.
+
+**Real ODDSPIPE_API_KEY provided by owner (2026-07-07)**: stored in `.env.local` (gitignored, never committed, never printed to logs). **Not verifiable from this sandbox** — the same network policy that blocks `statsapi.mlb.com` also blocks `api.oddspipe.com` (confirmed via `curl -v`: the sandbox's own proxy rejects the `CONNECT` tunnel with a 403 before any request reaches OddsPipe's servers — this is unrelated to whether the key itself is valid). First real test of this key has to happen once the app is deployed somewhere with actual internet access.
 
 ---
 
@@ -237,7 +239,7 @@ New pieces, following the codebase's own established provider-trio convention (`
 
 Verified for real: `tests/game-results.test.ts` (6 tests) — Mock provider determinism, parser correctly extracts scores and skips non-`"Final"` games, parser's linescore-runs fallback, a genuine `ingestGameResults` → `GameResultsRepository` → Postgres round-trip, and graceful no-op without `DATABASE_URL`. New migration (`drizzle/0001_loose_galactus.sql`) generated and applied to the same local Postgres 16 instance. Full suite: 170 pass / 6 skip without `DATABASE_URL`, 176/176 with it.
 
-**Not yet done**: recording predictions (blocks joining results to predictions), a replay provider, any trigger/scheduling mechanism, and — critically — the live-network verification above.
+**Not yet done**: joining `game_results` to `predictions`/`prediction_results` (predictions are now recorded — see Section 8g — but nothing yet cross-references the two tables), a replay provider, any trigger/scheduling mechanism, and — critically — the live-network verification above.
 
 ---
 
@@ -256,6 +258,20 @@ Replaces the hardcoded `mockDataProvider.injuries` fallback that `LiveMLBProvide
 Verified for real: `tests/injuries.test.ts` (7 tests) — Mock provider determinism, transaction parsing (both IL lengths), skipping non-IL/incomplete transactions, `InjuriesService` mapping to the `Injury` model shape, `getById` lookup, and the empty-list-on-failure degradation (both as a direct unit test with a synthetic failing provider, and for real via the build-time 403 above). Also manually confirmed the homepage (`/`, statically prerendered) still returns HTTP 200 after this change. Full suite: 176 pass / 6 skip without `DATABASE_URL`, 182/182 with it.
 
 **Not yet done**: replay provider, "Probable"/"Questionable"/"Day-to-day" statuses (need a different data source), and the parsing-shape network verification.
+
+---
+
+## 8g. Moneyline Prediction Recording (added 2026-07-07)
+
+Closes the gap Section 8e explicitly deferred: nothing wrote to the `predictions` table. `src/services/PredictionRecorder.ts` durably records the moneyline half of every live `PredictionResult` the engine produces, wired into `buildDailySlate()` in `src/services/daily-slate/service.ts` right after `predictionEngine.predictSlate()` runs, gated to `dataSource === "live"` only (mock predictions would pollute real calibration history).
+
+**Why moneyline only, still**: `PredictionResult` (the actual engine output) uses `OddsMarket`-family semantics implicitly (it's a whole-game prediction, conceptually "moneyline"), while the `predictions` table/calibration/ranking use `BetMarketType`. Moneyline is the value identical in both vocabularies, so it required no reconciliation — the other 7 markets in `BetMarketType` (run-line, team-total, game-total, strikeouts, hits, home-runs, total-bases) don't have an equivalent direct source yet and still need that vocabulary work first (unchanged debt from Section 8e).
+
+Turned out to be a clean mapping once found: `PredictionResult` already carries every field needed with matching semantics and no recomputation — `edgePercent`, `expectedValuePercent`, `selectedFairMoneyline` → `fairOdds`, `selectedTeamId` → `teamId`, `selectedWinProbability` → `modelProbability`, `sportsbookMoneyline` → `odds`, `sportsbook`, `recommendation`, `predictionVersion` → `modelId`. Uses a stable `predictionId` (`prediction-{gameId}-moneyline`, no timestamp) with `onConflictDoNothing`, so only the *first* prediction computed for a game each day is captured — an "opening prediction" snapshot rather than a full time series like `odds_snapshots`. Good enough for V1 calibration; a closing-prediction variant can follow if that turns out to matter more. Never throws, no-ops without `DATABASE_URL`, matching every other recorder this session.
+
+Verified for real: `tests/prediction-recorder.test.ts` (3 tests) — a genuine record → `PredictionsRepository` → Postgres round-trip, confirms the idempotent-per-game behavior (a second call with different data doesn't overwrite), and confirms it never throws without a database. Also manually confirmed the homepage still returns HTTP 200 after wiring this into the live daily-slate path (same static-prerender check as Section 8f). Full suite: 177 pass / 8 skip without `DATABASE_URL`, 185/185 with it.
+
+**Unblocks**: Phase 3 items (Calibration/Backtesting powered by real results) now have real data to read for the moneyline market specifically, once those engines are wired to read from `predictions`/`prediction_results`/`game_results` instead of mock/replay fixtures.
 
 ---
 
