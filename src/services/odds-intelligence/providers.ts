@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
+import { errorFields, logger } from "../../lib/logger.ts";
 import { OddsSnapshotsRepository } from "../../persistence/repositories/odds-snapshots-repository.ts";
 import { PredictionsRepository } from "../../persistence/repositories/predictions-repository.ts";
 import type {
@@ -183,9 +184,10 @@ export class DurableOddsIntelligenceProvider implements OddsIntelligenceProvider
         provider: this.id,
       };
     } catch (error) {
-      console.error(
-        "[durable-odds-intelligence-provider] failed to load history:",
-        error instanceof Error ? error.message : error,
+      logger.error(
+        "durable-odds-intelligence-provider",
+        "failed to load history",
+        errorFields(error),
       );
 
       return new StaticOddsIntelligenceProvider().getHistory();

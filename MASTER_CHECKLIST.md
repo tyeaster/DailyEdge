@@ -2,16 +2,16 @@
 
 Living project roadmap and status document. Update this file after every major feature lands so it always reflects the project's true state — do not let it go stale like `docs/PROJECT_STATE.md` did.
 
-Last updated: 2026-07-07 (production cache adapter added — Phase 4 started)
+Last updated: 2026-07-07 (structured logging added)
 Baseline: `codex/trueline-rebrand` @ `59b4d79` ("Add AI handoff documentation")
 Working branch: `claude/trueline-development`
 
 Validation at time of writing (all passing):
 ```
 npx tsc --noEmit                    -> clean
-npm run build                       -> 26 routes compiled; homepage confirmed HTTP 200 after rebuild
-npm test (no DATABASE_URL)          -> 185 pass, 23 skipped (all recorder/provider/cache DB tests)
-npm test (with DATABASE_URL)        -> 208/208 passing, verified against a real local Postgres 16 instance
+npm run build                       -> 26 routes compiled; homepage confirmed HTTP 200 after rebuild; injuries 403 now logs as clean structured JSON
+npm test (no DATABASE_URL)          -> 191 pass, 23 skipped (all recorder/provider/cache DB tests)
+npm test (with DATABASE_URL)        -> 214/214 passing, verified against a real local Postgres 16 instance
 npm run dev (no secrets set)        -> boots fine, logs env issues (dev is lenient)
 npm run build && npm start (no secrets set) -> fails to boot with a clear error (production is strict)
 npm run build && npm start (admin secrets set) -> full auth flow verified with real Playwright/Chromium
@@ -35,7 +35,7 @@ npm run build && npm start (ODDS_INTELLIGENCE_MODE=live + real DB) -> /admin/odd
 | Prediction / Ranking / Correlation engines | 80% | High — deterministic V1s complete, not calibrated |
 | Betting market products (8 markets) | 70% | Medium — built and ranked, several rely on incomplete prop odds |
 | Analytics admin (Calibration / Backtesting / Odds Intelligence) | 60% | Medium — all three now read real moneyline data end-to-end (Sections 8h/8i/8j), each verified live through its actual admin page; CLV specifically still not computed (needs game completion tracking), and all three are moneyline-only pending the market-vocabulary reconciliation |
-| Production infrastructure (auth, persistence, cache, observability) | 50% | High — persistence layer, runtime env validation, admin route auth, live odds-history writer, game-results ingestion + reconciliation, live injuries, and a Postgres-backed production cache adapter all exist and verified; adapter isn't adopted as any service's default yet, and there's still no observability |
+| Production infrastructure (auth, persistence, cache, observability) | 54% | High — persistence layer, runtime env validation, admin route auth, live odds-history writer, game-results ingestion + reconciliation, live injuries, a Postgres-backed cache adapter, and structured logging all exist and verified; still no log aggregator/destination, no provider-health dashboard, no error tracking |
 | **Overall product** | **~65%** | Weighted toward infra being the largest remaining gap |
 
 ---
@@ -93,7 +93,7 @@ Ranked by what actually blocks a real launch:
 5. [x] **Historical results ingestion** — partially done 2026-07-07, see Section 8e for exact scope and an important unverified-network caveat
 6. [x] **Production cache adapter** — done 2026-07-07, Postgres-backed, opt-in (see Section 8k)
 7. [x] **Runtime env schema validation** — done 2026-07-07. See Section 8b for details.
-8. **Observability** — no structured logging, no provider health monitoring, no error tracking
+8. [x] **Observability** — structured logging done 2026-07-07 (see Section 8l); provider health monitoring / error tracking still not done — a real logging *destination* (Sentry, Datadog, etc.) is a separate decision from the structured-format work here
 9. **E2E / route smoke tests** — 160 unit tests exist, zero browser-level tests
 10. **Global search** — not implemented anywhere
 11. **API licensing review** — Baseball Savant / Statcast CSV and Open-Meteo usage haven't been reviewed for production terms
@@ -140,7 +140,7 @@ Work roughly top-to-bottom; items within a phase can interleave.
 
 **Phase 4 — Production readiness**
 14. [x] Production cache adapter — done 2026-07-07 (see Section 8k)
-15. Structured logging + provider health observability
+15. [x] Structured logging — done 2026-07-07, partial (see Section 8l); provider health dashboard / error-tracking destination still open
 16. E2E/route smoke test suite
 17. API licensing review (Statcast, Open-Meteo)
 
@@ -182,7 +182,7 @@ Location: `src/config/env.ts` + `instrumentation.ts` (project root).
 - `instrumentation.ts` calls this once via Next's `register()` hook on server boot. Behavior is deliberately asymmetric by environment: **logs all issues but only throws when `NODE_ENV === "production"`** — local dev keeps working out of the box against mock/live-fallback data with zero config (matching the rest of the app's graceful-degradation philosophy), while a real production boot fails fast instead of silently serving a page that 500s on first request.
 
 Verified for real, not just type-checked:
-- `npm run dev` with no secrets set: booted fine, logged `[env:error] odds: ODDSPIPE_API_KEY is not set...` and `[env:warning] persistence: DATABASE_URL is not set...`, server stayed up.
+- `npm run dev` with no secrets set: booted fine, logged an `odds`-domain error (missing `ODDSPIPE_API_KEY`) and a `persistence`-domain warning (missing `DATABASE_URL`), server stayed up. (Log format shown here predates the structured logger added in Section 8l — same content, now via `logger.error`/`logger.warn` with a `env:<domain>` tag instead of raw `console.*` calls.)
 - `npm run build` then `npm run start` (production) with no secrets set: logged the same issues, then **failed to boot** with `Error: An error occurred while loading instrumentation hook: Environment validation failed with 1 error(s)` — proving the fail-fast path actually blocks a broken production server rather than just being unreachable code.
 
 **Considered and rejected**: a standalone `npm run env:check` CLI script for CI use, independent of booting Next. Rejected because running it under Node's native `--experimental-strip-types` (the same runner `npm test` uses) requires importing the service files that hold each `getXxxMode()` function, and several of those files (e.g. `OddsService.ts`) use TypeScript parameter-property constructor shorthand — unsupported in strip-only mode (the same gotcha recorded in Section 8). Fixing that would mean refactoring class constructors across ~14 files with no other motivation, which is out of scope here. The `instrumentation.ts` hook already delivers the actual goal (fail fast in production) since it runs inside Next's own bundler, which has no such limitation.
@@ -256,7 +256,7 @@ Replaces the hardcoded `mockDataProvider.injuries` fallback that `LiveMLBProvide
 - `src/services/InjuriesService.ts` — mode selection (`INJURIES_MODE`, defaults `"live"`, wired into `src/config/env.ts` as a 16th domain), implements the exact `DataProvider<Injury>` shape `LiveMLBProvider.injuries` expects. **On a live fetch failure, degrades to an empty list, not mock data** — an empty list honestly means "no known injury data," rather than silently mixing fabricated players into what's supposed to be live output.
 - Wired directly into `LiveMLBProvider.injuries` in `src/services/providers/live-mlb-provider.ts`, replacing the old mock passthrough.
 
-**Same network caveat as Section 8e, but this time verified two ways instead of one**: the transactions-parsing logic itself is unverified over live network (sandbox blocks `statsapi.mlb.com`) — but unlike game-results, I got a *second*, real confirmation of the failure-handling path for free: running `npm run build` actually attempted the live fetch (this page prerenders statically), hit the same blocked-network 403, and the build log shows `InjuriesService` catching it cleanly three times (`[injuries-service] failed to fetch injuries: MLB transactions request failed with 403`) with the build still succeeding and the homepage still returning `200`. So while the *parsing shape* remains unverified like Section 8e, the *degradation path* is now proven against a real failure, not just a synthetic one.
+**Same network caveat as Section 8e, but this time verified two ways instead of one**: the transactions-parsing logic itself is unverified over live network (sandbox blocks `statsapi.mlb.com`) — but unlike game-results, I got a *second*, real confirmation of the failure-handling path for free: running `npm run build` actually attempted the live fetch (this page prerenders statically), hit the same blocked-network 403, and the build log shows `InjuriesService` catching it cleanly three times with the build still succeeding and the homepage still returning `200`. So while the *parsing shape* remains unverified like Section 8e, the *degradation path* is now proven against a real failure, not just a synthetic one. (This was re-confirmed again after the Section 8l logging migration, which re-ran this exact build and got the same three-caught-errors result via the new structured `logger.error` calls instead of raw `console.error`.)
 
 Verified for real: `tests/injuries.test.ts` (7 tests) — Mock provider determinism, transaction parsing (both IL lengths), skipping non-IL/incomplete transactions, `InjuriesService` mapping to the `Injury` model shape, `getById` lookup, and the empty-list-on-failure degradation (both as a direct unit test with a synthetic failing provider, and for real via the build-time 403 above). Also manually confirmed the homepage (`/`, statically prerendered) still returns HTTP 200 after this change. Full suite: 176 pass / 6 skip without `DATABASE_URL`, 182/182 with it.
 
@@ -338,6 +338,20 @@ Includes a `pruneExpired()` method for removing stale rows in bulk — not calle
 Verified for real: `tests/postgres-cache-provider.test.ts` (6 tests) — stores and retrieves a JSON-serializable object, returns `undefined` for a missing key, expires entries past their TTL, overwrites an existing key (upsert via `onConflictDoUpdate`), `delete` removes a key, `pruneExpired` removes only expired rows. All against real local Postgres. Full suite: 185 pass / 23 skip without `DATABASE_URL`, 208/208 with it.
 
 **Not yet done**: adopting it as any service's actual cache, and any bulk-prune scheduling.
+
+---
+
+## 8l. Structured Logging (added 2026-07-07) — partial
+
+`src/lib/logger.ts` — a minimal structured logger (`logger.info`/`.warn`/`.error(domain, message, fields?)`) replacing every raw `console.*` call introduced this session (11 call sites across 9 files: `src/config/env.ts`, `OddsSnapshotRecorder.ts` ×2, `GameResultsService.ts`, `InjuriesService.ts`, `PredictionRecorder.ts`, `ResultReconciler.ts`, and all three `Durable*Provider`s). Every log now carries a `domain` tag identifying which provider/service/recorder it came from — the foundation for the "provider health" half of observability, even without a dashboard reading these yet. Emits single-line JSON in production (for log aggregators), a readable one-liner in dev.
+
+**Why "partial"**: this is a format/consistency change, not a full observability solution. Still missing: an actual log *destination* beyond stdout (Sentry, Datadog, or similar — a real product/cost decision, not mine to make unsupervised), a provider-health dashboard that reads these domain-tagged logs, and error tracking/alerting. This closes the "no structured logging" half of the checklist item, not the "provider health monitoring" half.
+
+One behavior-visible side effect: log line *format* changed for existing call sites (e.g. `src/config/env.ts`'s env-validation output, previously `[env:error] domain: message`, and `InjuriesService`'s error logging, previously `[injuries-service] message: ...`). Content is equivalent, just restructured — re-verified by re-running the exact same `npm run build` that originally produced the injuries 403 log in Section 8f and confirming the new JSON-formatted version shows the same underlying failure.
+
+Verified for real: `tests/logger.test.ts` (6 tests) — writes to the correct `console` method per level, production mode emits parseable JSON with all fields present, `errorFields()` extracts a message from both `Error` instances and non-Error values. Also re-ran the full build (`npm run build`, production mode) and confirmed the injuries live-fetch failure now logs as clean structured JSON (`{"domain":"injuries-service","level":"error","message":"failed to fetch injuries",...,"error":"MLB transactions request failed with 403"}`) — the same real failure as Section 8f, now through the new logger. Full suite: 191 pass / 23 skip without `DATABASE_URL`, 214/214 with it.
+
+**Not yet done**: a real log destination/aggregator, a provider-health dashboard, error tracking/alerting, and migrating any *future* code that doesn't go through this logger (nothing enforces its use yet — it's a convention, not a lint rule).
 
 ---
 

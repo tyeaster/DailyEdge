@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
+import { errorFields, logger } from "../../lib/logger.ts";
 import { PredictionResultsRepository } from "../../persistence/repositories/prediction-results-repository.ts";
 import { PredictionsRepository } from "../../persistence/repositories/predictions-repository.ts";
 import type {
@@ -131,9 +132,10 @@ export class DurableHistoricalSlateProvider implements HistoricalSlateProvider {
         slates: [...slatesByDate.values()],
       };
     } catch (error) {
-      console.error(
-        "[durable-historical-slate-provider] failed to load slates:",
-        error instanceof Error ? error.message : error,
+      logger.error(
+        "durable-historical-slate-provider",
+        "failed to load slates",
+        errorFields(error),
       );
 
       return new StaticHistoricalSlateProvider().getSlates();

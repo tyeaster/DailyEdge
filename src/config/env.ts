@@ -1,3 +1,4 @@
+import { logger } from "../lib/logger.ts";
 import { getBallparkMode } from "../services/BallparkService.ts";
 import { getBacktestMode } from "../services/backtesting/providers.ts";
 import { getBullpenMode } from "../services/BullpenService.ts";
@@ -132,13 +133,10 @@ export function assertValidEnvironment(): void {
   const errors = issues.filter((issue) => issue.level === "error");
 
   for (const issue of issues) {
-    const prefix = `[env:${issue.level}]`;
-    const line = `${prefix} ${issue.domain}: ${issue.message}`;
-
     if (issue.level === "error") {
-      console.error(line);
+      logger.error(`env:${issue.domain}`, issue.message);
     } else {
-      console.warn(line);
+      logger.warn(`env:${issue.domain}`, issue.message);
     }
   }
 

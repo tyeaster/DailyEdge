@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
+import { errorFields, logger } from "../../lib/logger.ts";
 import { PredictionResultsRepository } from "../../persistence/repositories/prediction-results-repository.ts";
 import { PredictionsRepository } from "../../persistence/repositories/predictions-repository.ts";
 import type {
@@ -123,9 +124,10 @@ export class DurableCalibrationProvider implements CalibrationHistoryProvider {
         results,
       };
     } catch (error) {
-      console.error(
-        "[durable-calibration-provider] failed to load history:",
-        error instanceof Error ? error.message : error,
+      logger.error(
+        "durable-calibration-provider",
+        "failed to load history",
+        errorFields(error),
       );
 
       return new StaticCalibrationProvider().getHistory();

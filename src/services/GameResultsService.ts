@@ -1,3 +1,4 @@
+import { errorFields, logger } from "../lib/logger.ts";
 import { GameResultsRepository } from "../persistence/repositories/game-results-repository.ts";
 import {
   MLBGameResultsProvider,
@@ -61,9 +62,10 @@ export async function ingestGameResults(
 
     return { reconciled, recorded: response.results.length };
   } catch (error) {
-    console.error(
-      "[game-results-service] failed to ingest game results:",
-      error instanceof Error ? error.message : error,
+    logger.error(
+      "game-results-service",
+      "failed to ingest game results",
+      errorFields(error),
     );
 
     return { reconciled: 0, recorded: 0 };

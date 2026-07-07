@@ -1,5 +1,6 @@
 import { CACHE_TTL_SECONDS, type CacheProvider } from "../cache/CacheProvider.ts";
 import { memoryCache } from "../cache/MemoryCache.ts";
+import { errorFields, logger } from "../lib/logger.ts";
 import type { Injury } from "../models/mlb.ts";
 import {
   MLBInjuryProvider,
@@ -69,9 +70,10 @@ export class InjuriesService {
 
       return injuries;
     } catch (error) {
-      console.error(
-        "[injuries-service] failed to fetch injuries:",
-        error instanceof Error ? error.message : error,
+      logger.error(
+        "injuries-service",
+        "failed to fetch injuries",
+        errorFields(error),
       );
 
       return [];

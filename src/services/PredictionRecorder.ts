@@ -1,3 +1,4 @@
+import { errorFields, logger } from "../lib/logger.ts";
 import type { PredictionResult } from "../models/mlb.ts";
 import { PredictionsRepository } from "../persistence/repositories/predictions-repository.ts";
 
@@ -53,9 +54,10 @@ export async function recordMoneylinePredictions(
       });
     }
   } catch (error) {
-    console.error(
-      "[prediction-recorder] failed to record predictions:",
-      error instanceof Error ? error.message : error,
+    logger.error(
+      "prediction-recorder",
+      "failed to record predictions",
+      errorFields(error),
     );
   }
 }

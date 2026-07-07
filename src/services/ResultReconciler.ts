@@ -1,3 +1,4 @@
+import { errorFields, logger } from "../lib/logger.ts";
 import { GameResultsRepository } from "../persistence/repositories/game-results-repository.ts";
 import { PredictionResultsRepository } from "../persistence/repositories/prediction-results-repository.ts";
 import { PredictionsRepository } from "../persistence/repositories/predictions-repository.ts";
@@ -51,9 +52,10 @@ export async function reconcileGameResult(
 
     return { reconciled: moneylinePredictions.length };
   } catch (error) {
-    console.error(
-      "[result-reconciler] failed to reconcile game result:",
-      error instanceof Error ? error.message : error,
+    logger.error(
+      "result-reconciler",
+      "failed to reconcile game result",
+      errorFields(error),
     );
 
     return { reconciled: 0 };

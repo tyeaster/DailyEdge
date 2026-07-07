@@ -1,4 +1,5 @@
 import { americanOddsToImpliedProbability } from "../lib/odds.ts";
+import { errorFields, logger } from "../lib/logger.ts";
 import type { Game } from "../models/mlb.ts";
 import { OddsSnapshotsRepository } from "../persistence/repositories/odds-snapshots-repository.ts";
 import type { OddsProviderResponse } from "../providers/odds/OddsProvider.ts";
@@ -26,9 +27,10 @@ export async function recordOddsSnapshot(
       new Date(response.fetchedAt),
     );
   } catch (error) {
-    console.error(
-      "[odds-snapshot-recorder] failed to record odds history:",
-      error instanceof Error ? error.message : error,
+    logger.error(
+      "odds-snapshot-recorder",
+      "failed to record odds history",
+      errorFields(error),
     );
   }
 }
@@ -75,9 +77,10 @@ export async function recordGameOddsSnapshots(
       });
     }
   } catch (error) {
-    console.error(
-      "[odds-snapshot-recorder] failed to record game odds snapshots:",
-      error instanceof Error ? error.message : error,
+    logger.error(
+      "odds-snapshot-recorder",
+      "failed to record game odds snapshots",
+      errorFields(error),
     );
   }
 }
