@@ -2,18 +2,19 @@
 
 Living project roadmap and status document. Update this file after every major feature lands so it always reflects the project's true state — do not let it go stale like `docs/PROJECT_STATE.md` did.
 
-Last updated: 2026-07-07 (runtime env validation added)
+Last updated: 2026-07-07 (admin auth added)
 Baseline: `codex/trueline-rebrand` @ `59b4d79` ("Add AI handoff documentation")
 Working branch: `claude/trueline-development`
 
 Validation at time of writing (all passing):
 ```
 npx tsc --noEmit                    -> clean
-npm run build                       -> 25 routes compiled
-npm test (no DATABASE_URL)          -> 160 pass, 3 skipped (persistence tests)
-npm test (with DATABASE_URL)        -> 163/163 passing, verified against a real local Postgres 16 instance
+npm run build                       -> 26 routes compiled (added /admin/login)
+npm test (no DATABASE_URL)          -> 165 pass, 3 skipped (persistence tests)
+npm test (with DATABASE_URL)        -> 168/168 passing, verified against a real local Postgres 16 instance
 npm run dev (no secrets set)        -> boots fine, logs env issues (dev is lenient)
 npm run build && npm start (no secrets set) -> fails to boot with a clear error (production is strict)
+npm run build && npm start (admin secrets set) -> full auth flow verified with real Playwright/Chromium
 ```
 
 ---
@@ -27,8 +28,8 @@ npm run build && npm start (no secrets set) -> fails to boot with a clear error 
 | Prediction / Ranking / Correlation engines | 80% | High — deterministic V1s complete, not calibrated |
 | Betting market products (8 markets) | 70% | Medium — built and ranked, several rely on incomplete prop odds |
 | Analytics admin (Calibration / Backtesting / Odds Intelligence) | 40% | Medium — scaffolds + tests exist, no durable data behind them |
-| Production infrastructure (auth, persistence, cache, observability) | 20% | High — persistence layer exists (tested against real Postgres) and runtime env validation fails fast in production; still no auth, no production cache, no observability, and no engine writes to persistence yet |
-| **Overall product** | **~58%** | Weighted toward infra being the largest remaining gap |
+| Production infrastructure (auth, persistence, cache, observability) | 35% | High — persistence layer (tested against real Postgres), runtime env validation, and admin route auth (verified end-to-end with real browser automation) all exist now; still no production cache, no observability, and no engine writes to persistence yet |
+| **Overall product** | **~60%** | Weighted toward infra being the largest remaining gap |
 
 ---
 
@@ -78,7 +79,7 @@ Verified via code inspection, `tsc`, build output, and passing tests — not jus
 
 Ranked by what actually blocks a real launch:
 
-1. **Authentication & authorization** — none exists; `/admin/*` routes are open to anyone
+1. [x] **Authentication & authorization** — done 2026-07-07 (shared-password admin gate, not full user accounts — see Section 8c for why and what's still deferred)
 2. [x] **Production persistence layer** — done 2026-07-07. See Section 8 for details.
 3. **Live injuries provider** — mock only, no real feed
 4. **Durable odds-history recorder** — no process records real line movement over time
@@ -118,7 +119,7 @@ Work roughly top-to-bottom; items within a phase can interleave.
 **Phase 1 — Foundation for everything else**
 5. [x] Production persistence layer — done 2026-07-07 (see Section 8)
 6. [x] Runtime env validation + secret-presence checks for live-mode providers — done 2026-07-07 (see Section 8b)
-7. Auth + admin route protection (`/admin/*` is currently the single biggest real risk)
+7. [x] Auth + admin route protection — done 2026-07-07 (see Section 8c)
 
 **Phase 2 — Make the data real**
 8. Durable odds-history recorder (depends on #5)
@@ -177,6 +178,26 @@ Verified for real, not just type-checked:
 - `npm run build` then `npm run start` (production) with no secrets set: logged the same issues, then **failed to boot** with `Error: An error occurred while loading instrumentation hook: Environment validation failed with 1 error(s)` — proving the fail-fast path actually blocks a broken production server rather than just being unreachable code.
 
 **Considered and rejected**: a standalone `npm run env:check` CLI script for CI use, independent of booting Next. Rejected because running it under Node's native `--experimental-strip-types` (the same runner `npm test` uses) requires importing the service files that hold each `getXxxMode()` function, and several of those files (e.g. `OddsService.ts`) use TypeScript parameter-property constructor shorthand — unsupported in strip-only mode (the same gotcha recorded in Section 8). Fixing that would mean refactoring class constructors across ~14 files with no other motivation, which is out of scope here. The `instrumentation.ts` hook already delivers the actual goal (fail fast in production) since it runs inside Next's own bundler, which has no such limitation.
+
+---
+
+## 8c. Auth + Admin Route Protection (added 2026-07-07)
+
+**Scope decision**: shared-password gate for `/admin/*` only, not full user accounts. TrueLine has no subscribers, no public sign-up, and no user model anywhere in the product today — building NextAuth/user-accounts now would be solving a problem that doesn't exist yet. The actual, current risk was narrow: three diagnostic dashboards (`/admin/backtesting`, `/admin/calibration`, `/admin/odds-intelligence`) reachable by anyone on the internet with zero protection. This closes that gap; real user/subscriber accounts are a separate, later product decision (see roadmap item 18, "Subscription/account architecture").
+
+**Framework note**: this Next.js fork renames `middleware.ts` to `proxy.ts` (`export function proxy` + `export const config = { matcher }`), confirmed by reading `node_modules/next/dist/docs/.../proxy.md` before writing this — same file conventions, new name, and it defaults to the Node.js runtime (not Edge) as of this version.
+
+Implementation, two layers of defense-in-depth (the proxy docs explicitly warn not to rely on proxy alone, since a future matcher change could silently remove coverage):
+
+- `proxy.ts` (project root) — matches `/admin/:path*`, checks a signed session cookie, redirects to `/admin/login?from=<path>` if missing/invalid. Runs before any rendering.
+- `app/admin/(protected)/layout.tsx` — a route-group layout wrapping the three admin pages (moved into `(protected)/` — the parens exclude it from the URL, so routes are unchanged) that re-checks the same session server-side and `redirect()`s if invalid. Also renders a "Log out" button. `app/admin/login/page.tsx` deliberately sits *outside* this group so the login form itself isn't gated (would otherwise be an infinite redirect loop).
+- `src/auth/session.ts` — signed session tokens (`expiresAt.HMAC-SHA256signature`, `AUTH_SECRET`-keyed, 12h TTL, `timingSafeEqual` comparison, `node:crypto` — no new dependency). Considered and rejected Next's experimental `unauthorized()`/`forbidden()` primitives (require enabling `experimental.authInterrupts`) in favor of this plus plain, stable `redirect()` — didn't want an experimental flag underpinning a security feature.
+- `src/auth/actions.ts` — `loginAdmin`/`logoutAdmin` Server Actions. Password compared against `ADMIN_PASSWORD`; on match, sets an `httpOnly`, `sameSite: lax` cookie (`secure` in production).
+- `ADMIN_PASSWORD` / `AUTH_SECRET` added to `.env.example` and to `src/config/env.ts` as a warning-level check (not boot-blocking): missing either fails **closed** (admin permanently unreachable — logins can never match, sessions can never validate) rather than open, so it's safe to leave unset, just non-functional.
+
+Verified for real with a real browser (Playwright/Chromium against a genuine `npm run build && npm start`), not just type-checked: unauthenticated request → redirected to login with `from` preserved; wrong password → error shown, no cookie; correct password → `httpOnly` session cookie set, redirected to the originally-requested page; reload with session → page loads, shows Log out; click Log out → cookie cleared, redirected to login; subsequent request → redirected to login again. All three admin routes individually confirmed to redirect when unauthenticated.
+
+**Not yet done, deliberately out of scope**: real user accounts, roles/permissions beyond a single shared admin gate, password rotation/hashing (it's one shared plaintext-in-env password, not per-user credentials — acceptable for a single-operator admin gate, not for multi-user auth).
 
 ---
 

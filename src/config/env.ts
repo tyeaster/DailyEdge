@@ -95,6 +95,15 @@ export function validateEnvironment(): EnvIssue[] {
     }
   }
 
+  if (!process.env.ADMIN_PASSWORD || !process.env.AUTH_SECRET) {
+    issues.push({
+      domain: "admin-auth",
+      level: "warning",
+      message:
+        "ADMIN_PASSWORD and/or AUTH_SECRET is not set. This fails closed, not open: /admin/* stays unreachable rather than unprotected, but the admin dashboards are unusable until both are set.",
+    });
+  }
+
   if (!process.env.DATABASE_URL) {
     issues.push({
       domain: "persistence",
