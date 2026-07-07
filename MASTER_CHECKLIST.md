@@ -2,15 +2,16 @@
 
 Living project roadmap and status document. Update this file after every major feature lands so it always reflects the project's true state — do not let it go stale like `docs/PROJECT_STATE.md` did.
 
-Last updated: 2026-07-07 (Claude, ownership transition)
+Last updated: 2026-07-07 (persistence layer added)
 Baseline: `codex/trueline-rebrand` @ `59b4d79` ("Add AI handoff documentation")
 Working branch: `claude/trueline-development`
 
 Validation at time of writing (all passing):
 ```
-npx tsc --noEmit   -> clean
-npm run build      -> 25 routes compiled
-npm test           -> 160/160 passing
+npx tsc --noEmit                    -> clean
+npm run build                       -> 25 routes compiled
+npm test (no DATABASE_URL)          -> 160 pass, 3 skipped (persistence tests)
+npm test (with DATABASE_URL)        -> 163/163 passing, verified against a real local Postgres 16 instance
 ```
 
 ---
@@ -24,8 +25,8 @@ npm test           -> 160/160 passing
 | Prediction / Ranking / Correlation engines | 80% | High — deterministic V1s complete, not calibrated |
 | Betting market products (8 markets) | 70% | Medium — built and ranked, several rely on incomplete prop odds |
 | Analytics admin (Calibration / Backtesting / Odds Intelligence) | 40% | Medium — scaffolds + tests exist, no durable data behind them |
-| Production infrastructure (auth, persistence, cache, observability) | 5% | High — essentially none of this exists |
-| **Overall product** | **~55%** | Weighted toward infra being the largest remaining gap |
+| Production infrastructure (auth, persistence, cache, observability) | 15% | High — persistence layer now exists and is tested against real Postgres, but nothing else (auth, production cache, observability) and no engine writes to it yet |
+| **Overall product** | **~57%** | Weighted toward infra being the largest remaining gap |
 
 ---
 
@@ -62,9 +63,9 @@ Verified via code inspection, `tsc`, build output, and passing tests — not jus
 | System | What exists | What's missing |
 |---|---|---|
 | Odds (OddsPipe) | Real live HTTP provider, replay, mock, error handling, requires `ODDSPIPE_API_KEY` | Player-prop odds coverage incomplete; no durable rate-limit/backoff strategy documented |
-| Calibration Engine | Service, admin dashboard (`/admin/calibration`), tests, mock/replay records | No production prediction/result database; not authoritative for live recommendations |
-| Backtesting Engine | `BacktestRunner`, `StrategyEvaluator`, `BankrollSimulator`, admin dashboard, tests | Historical slates are mock/replay only; not backed by real ingested history |
-| Odds Intelligence | `ClosingLineCalculator`, `MarketMovementAnalyzer`, `SteamMoveDetector`, admin dashboard, tests | No durable odds-history recorder process; movement attribution (injury/weather-driven) is limited |
+| Calibration Engine | Service, admin dashboard (`/admin/calibration`), tests, mock/replay records | `predictions`/`prediction_results` tables now exist (Section 8) but nothing writes to them yet or reads them into this engine; still not authoritative for live recommendations |
+| Backtesting Engine | `BacktestRunner`, `StrategyEvaluator`, `BankrollSimulator`, admin dashboard, tests | Historical slates are mock/replay only; persistence tables exist but this engine doesn't consume them yet |
+| Odds Intelligence | `ClosingLineCalculator`, `MarketMovementAnalyzer`, `SteamMoveDetector`, admin dashboard, tests | `odds_snapshots` table exists (Section 8) but no recorder process writes to it yet; movement attribution (injury/weather-driven) is limited |
 | Pitch Intelligence (`/matchups/pitch-intelligence`) | Route exists | Materially less complete than Zone Intelligence — treat as unfinished |
 | Entity research (`/research/players`, `/research/teams`, `/research/ballparks`) | Placeholder routes exist | Not yet searchable/functional entity pages |
 | Best Bets filtering/sorting | Static ranked board renders | No interactive filters or sort controls yet |
@@ -76,7 +77,7 @@ Verified via code inspection, `tsc`, build output, and passing tests — not jus
 Ranked by what actually blocks a real launch:
 
 1. **Authentication & authorization** — none exists; `/admin/*` routes are open to anyone
-2. **Production persistence layer** — no database anywhere; everything is request-scoped or in-memory
+2. [x] **Production persistence layer** — done 2026-07-07. See Section 8 for details.
 3. **Live injuries provider** — mock only, no real feed
 4. **Durable odds-history recorder** — no process records real line movement over time
 5. **Historical results ingestion** — nothing populates real outcomes for calibration/backtesting to learn from
@@ -113,7 +114,7 @@ Work roughly top-to-bottom; items within a phase can interleave.
 4. Resolve PR #5 merge-target question (this branch → `main`) — deferred, merge strategy TBD later per owner instruction
 
 **Phase 1 — Foundation for everything else**
-5. Production persistence layer (predictions, odds snapshots, results, calibration records) — almost everything downstream depends on this existing first
+5. [x] Production persistence layer — done 2026-07-07 (see Section 8)
 6. Runtime env validation + secret-presence checks for live-mode providers
 7. Auth + admin route protection (`/admin/*` is currently the single biggest real risk)
 
@@ -142,7 +143,27 @@ Work roughly top-to-bottom; items within a phase can interleave.
 
 ---
 
-## 7. Update Protocol
+## 8. Persistence Layer (added 2026-07-07)
+
+Location: `src/persistence/`. Postgres via Drizzle ORM (`drizzle-orm` + `postgres` driver) — chosen over Prisma to match the project's "deliberately minimal stack" principle from `CLAUDE_HANDOFF.md` (no generated client/engine binary, thin and typed).
+
+- `schema.ts` — three tables, each mirroring an existing domain contract field-for-field so consuming engines won't need to reshape data:
+  - `predictions` — mirrors `RecordedPrediction` (`src/services/calibration/types.ts`)
+  - `prediction_results` — mirrors `PredictionResultRecord` (same file)
+  - `odds_snapshots` — mirrors `NormalizedOddsRecord` (`src/providers/odds/OddsProvider.ts`) plus a `capturedAt` timestamp, so the same odds record can have many rows over time (this is what a durable odds-history recorder — Phase 2 item — will write to)
+- `client.ts` — lazy singleton Postgres connection via `getDb()`, driven entirely by `DATABASE_URL`. Throws clearly if unset, matching the project's "fail clearly" provider convention.
+- `repositories/` — one repository per table (`PredictionsRepository`, `PredictionResultsRepository`, `OddsSnapshotsRepository`) with basic record/find methods. Deliberately **not** wired into the Calibration/Backtesting/Odds Intelligence engines yet — that's Phase 3's job, once each engine's read/write patterns are worked out on top of this foundation.
+- Migrations: `drizzle.config.ts` + `drizzle/` (generated SQL). Run `npm run db:generate` after schema changes, `npm run db:migrate` to apply.
+
+Verified for real, not just type-checked: ran migrations against a local Postgres 16 instance, and `tests/persistence.test.ts` round-trips all three repositories through it (163/163 tests pass with `DATABASE_URL` set; the 3 persistence tests skip cleanly via `node:test`'s `skip` option when it's unset, so default `npm test` still needs no database).
+
+**Known gotcha for future work in this directory**: the test suite runs on Node's native `--experimental-strip-types`, which is syntax-stripping only — it does **not** support TypeScript parameter-property shorthand (`constructor(private readonly x = ...)`), even though several existing service classes elsewhere in the codebase use that pattern (they just happen to never be directly instantiated by a test). Any class in `src/persistence/` that a test constructs directly needs an explicit field + constructor body assignment instead. Also: all relative imports need explicit `.ts` extensions (Node's ESM resolver doesn't infer them) — this matches the convention already used everywhere else in `src/`.
+
+**Not yet done, deliberately out of scope for this item**: connecting this to any engine, migrating against a real hosted Postgres (Neon/Supabase/Vercel Postgres — currently only proven against local Postgres), and runtime env validation for `DATABASE_URL` (Phase 1 item 6).
+
+---
+
+## 9. Update Protocol
 
 After every major feature or milestone:
 1. Move the item from its section (3/4/6) into Section 2 with a `[x]`.
