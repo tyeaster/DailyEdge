@@ -137,7 +137,7 @@ export function getConfiguredLineupProvider(
   return new MLBLineupProvider();
 }
 
-function getLineupMode(): LineupProviderMode {
+export function getLineupMode(): LineupProviderMode {
   const explicitMode = process.env.LINEUP_MODE;
 
   if (

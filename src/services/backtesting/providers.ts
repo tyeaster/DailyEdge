@@ -156,7 +156,7 @@ function prediction(
   };
 }
 
-function getBacktestMode(): BacktestProviderMode {
+export function getBacktestMode(): BacktestProviderMode {
   const mode = process.env.BACKTEST_MODE;
 
   if (mode === "live" || mode === "mock" || mode === "replay") return mode;

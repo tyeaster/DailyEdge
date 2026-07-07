@@ -2,7 +2,7 @@
 
 Living project roadmap and status document. Update this file after every major feature lands so it always reflects the project's true state — do not let it go stale like `docs/PROJECT_STATE.md` did.
 
-Last updated: 2026-07-07 (persistence layer added)
+Last updated: 2026-07-07 (runtime env validation added)
 Baseline: `codex/trueline-rebrand` @ `59b4d79` ("Add AI handoff documentation")
 Working branch: `claude/trueline-development`
 
@@ -12,6 +12,8 @@ npx tsc --noEmit                    -> clean
 npm run build                       -> 25 routes compiled
 npm test (no DATABASE_URL)          -> 160 pass, 3 skipped (persistence tests)
 npm test (with DATABASE_URL)        -> 163/163 passing, verified against a real local Postgres 16 instance
+npm run dev (no secrets set)        -> boots fine, logs env issues (dev is lenient)
+npm run build && npm start (no secrets set) -> fails to boot with a clear error (production is strict)
 ```
 
 ---
@@ -25,8 +27,8 @@ npm test (with DATABASE_URL)        -> 163/163 passing, verified against a real 
 | Prediction / Ranking / Correlation engines | 80% | High — deterministic V1s complete, not calibrated |
 | Betting market products (8 markets) | 70% | Medium — built and ranked, several rely on incomplete prop odds |
 | Analytics admin (Calibration / Backtesting / Odds Intelligence) | 40% | Medium — scaffolds + tests exist, no durable data behind them |
-| Production infrastructure (auth, persistence, cache, observability) | 15% | High — persistence layer now exists and is tested against real Postgres, but nothing else (auth, production cache, observability) and no engine writes to it yet |
-| **Overall product** | **~57%** | Weighted toward infra being the largest remaining gap |
+| Production infrastructure (auth, persistence, cache, observability) | 20% | High — persistence layer exists (tested against real Postgres) and runtime env validation fails fast in production; still no auth, no production cache, no observability, and no engine writes to persistence yet |
+| **Overall product** | **~58%** | Weighted toward infra being the largest remaining gap |
 
 ---
 
@@ -82,7 +84,7 @@ Ranked by what actually blocks a real launch:
 4. **Durable odds-history recorder** — no process records real line movement over time
 5. **Historical results ingestion** — nothing populates real outcomes for calibration/backtesting to learn from
 6. **Production cache adapter** — in-memory cache only, doesn't survive restarts or scale across instances
-7. **Runtime env schema validation** — `.env.example` now documents all 56 vars, but there's still no startup validation or secret-presence checks for live modes
+7. [x] **Runtime env schema validation** — done 2026-07-07. See Section 8b for details.
 8. **Observability** — no structured logging, no provider health monitoring, no error tracking
 9. **E2E / route smoke tests** — 160 unit tests exist, zero browser-level tests
 10. **Global search** — not implemented anywhere
@@ -115,7 +117,7 @@ Work roughly top-to-bottom; items within a phase can interleave.
 
 **Phase 1 — Foundation for everything else**
 5. [x] Production persistence layer — done 2026-07-07 (see Section 8)
-6. Runtime env validation + secret-presence checks for live-mode providers
+6. [x] Runtime env validation + secret-presence checks for live-mode providers — done 2026-07-07 (see Section 8b)
 7. Auth + admin route protection (`/admin/*` is currently the single biggest real risk)
 
 **Phase 2 — Make the data real**
@@ -159,7 +161,22 @@ Verified for real, not just type-checked: ran migrations against a local Postgre
 
 **Known gotcha for future work in this directory**: the test suite runs on Node's native `--experimental-strip-types`, which is syntax-stripping only — it does **not** support TypeScript parameter-property shorthand (`constructor(private readonly x = ...)`), even though several existing service classes elsewhere in the codebase use that pattern (they just happen to never be directly instantiated by a test). Any class in `src/persistence/` that a test constructs directly needs an explicit field + constructor body assignment instead. Also: all relative imports need explicit `.ts` extensions (Node's ESM resolver doesn't infer them) — this matches the convention already used everywhere else in `src/`.
 
-**Not yet done, deliberately out of scope for this item**: connecting this to any engine, migrating against a real hosted Postgres (Neon/Supabase/Vercel Postgres — currently only proven against local Postgres), and runtime env validation for `DATABASE_URL` (Phase 1 item 6).
+**Not yet done, deliberately out of scope for this item**: connecting this to any engine, migrating against a real hosted Postgres (Neon/Supabase/Vercel Postgres — currently only proven against local Postgres).
+
+---
+
+## 8b. Runtime Environment Validation (added 2026-07-07)
+
+Location: `src/config/env.ts` + `instrumentation.ts` (project root).
+
+- `src/config/env.ts` reuses each of the 14 provider domains' own `getXxxMode()` function (exported for this purpose — previously private to their service files, zero behavior change) so mode resolution — including each domain's fallback cascade to sibling domains — is never duplicated. For every domain resolved to `"live"`, it checks for that domain's required secrets. Today that's exactly one: `ODDSPIPE_API_KEY` for odds — confirmed by inspection that it's the only live provider that hard-throws on a missing key (Open-Meteo, MLB Stats API, and Statcast CSV are keyless public endpoints). Also flags `DATABASE_URL` as a warning (not error) since nothing consumes it yet.
+- `instrumentation.ts` calls this once via Next's `register()` hook on server boot. Behavior is deliberately asymmetric by environment: **logs all issues but only throws when `NODE_ENV === "production"`** — local dev keeps working out of the box against mock/live-fallback data with zero config (matching the rest of the app's graceful-degradation philosophy), while a real production boot fails fast instead of silently serving a page that 500s on first request.
+
+Verified for real, not just type-checked:
+- `npm run dev` with no secrets set: booted fine, logged `[env:error] odds: ODDSPIPE_API_KEY is not set...` and `[env:warning] persistence: DATABASE_URL is not set...`, server stayed up.
+- `npm run build` then `npm run start` (production) with no secrets set: logged the same issues, then **failed to boot** with `Error: An error occurred while loading instrumentation hook: Environment validation failed with 1 error(s)` — proving the fail-fast path actually blocks a broken production server rather than just being unreachable code.
+
+**Considered and rejected**: a standalone `npm run env:check` CLI script for CI use, independent of booting Next. Rejected because running it under Node's native `--experimental-strip-types` (the same runner `npm test` uses) requires importing the service files that hold each `getXxxMode()` function, and several of those files (e.g. `OddsService.ts`) use TypeScript parameter-property constructor shorthand — unsupported in strip-only mode (the same gotcha recorded in Section 8). Fixing that would mean refactoring class constructors across ~14 files with no other motivation, which is out of scope here. The `instrumentation.ts` hook already delivers the actual goal (fail fast in production) since it runs inside Next's own bundler, which has no such limitation.
 
 ---
 

@@ -104,7 +104,7 @@ export function getConfiguredBullpenProvider(
   return new MLBBullpenProvider();
 }
 
-function getBullpenMode(): BullpenProviderMode {
+export function getBullpenMode(): BullpenProviderMode {
   const explicitMode = process.env.BULLPEN_MODE;
 
   if (

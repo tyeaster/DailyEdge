@@ -114,7 +114,7 @@ export function getConfiguredRecentFormProvider(
   return new MLBRecentFormProvider();
 }
 
-function getRecentFormMode(): RecentFormProviderMode {
+export function getRecentFormMode(): RecentFormProviderMode {
   const explicitMode = process.env.RECENT_FORM_MODE;
 
   if (

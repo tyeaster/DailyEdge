@@ -102,7 +102,7 @@ export function getConfiguredWeatherProvider(
   return new OpenMeteoWeatherProvider();
 }
 
-function getWeatherMode(): WeatherProviderMode {
+export function getWeatherMode(): WeatherProviderMode {
   const mode = process.env.WEATHER_MODE;
 
   if (mode === "live" || mode === "replay" || mode === "mock") {

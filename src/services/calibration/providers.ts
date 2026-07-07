@@ -97,7 +97,7 @@ export function getConfiguredCalibrationProvider(
   return new StaticCalibrationProvider();
 }
 
-function getCalibrationMode(): CalibrationProviderMode {
+export function getCalibrationMode(): CalibrationProviderMode {
   const mode = process.env.CALIBRATION_MODE;
 
   if (mode === "live" || mode === "mock" || mode === "replay") return mode;

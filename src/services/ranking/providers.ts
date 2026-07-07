@@ -86,7 +86,7 @@ export function getConfiguredRankingCandidateProvider(
   return new StaticRankingCandidateProvider();
 }
 
-function getRankingMode(): RankingProviderMode {
+export function getRankingMode(): RankingProviderMode {
   const mode = process.env.RANKING_MODE;
 
   if (mode === "live" || mode === "mock" || mode === "replay") {

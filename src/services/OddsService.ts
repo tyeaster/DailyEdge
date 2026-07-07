@@ -50,7 +50,7 @@ export function getConfiguredOddsProvider(mode: OddsProviderMode = getOddsMode()
   return new MockOddsProvider();
 }
 
-function getOddsMode(): OddsProviderMode {
+export function getOddsMode(): OddsProviderMode {
   const mode = process.env.ODDS_MODE;
 
   if (mode === "live" || mode === "replay" || mode === "mock") {

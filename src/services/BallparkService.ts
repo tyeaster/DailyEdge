@@ -104,7 +104,7 @@ export function getConfiguredBallparkProvider(
   return new MLBBallparkProvider();
 }
 
-function getBallparkMode(): BallparkProviderMode {
+export function getBallparkMode(): BallparkProviderMode {
   const mode = process.env.BALLPARK_MODE;
 
   if (mode === "live" || mode === "replay" || mode === "mock") {

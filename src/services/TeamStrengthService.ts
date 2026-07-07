@@ -109,7 +109,7 @@ export function getConfiguredTeamStrengthProvider(
   return new MLBTeamStrengthProvider();
 }
 
-function getTeamStrengthMode(): TeamStrengthProviderMode {
+export function getTeamStrengthMode(): TeamStrengthProviderMode {
   const explicitMode = process.env.TEAM_STRENGTH_MODE;
 
   if (

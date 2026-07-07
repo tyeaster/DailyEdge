@@ -386,7 +386,7 @@ function buildOverallReasons(
   return reasons.length > 0 ? reasons : ["Overall matchup profile is neutral"];
 }
 
-function getMatchupMode(): MatchupProviderMode {
+export function getMatchupMode(): MatchupProviderMode {
   const mode = process.env.MATCHUP_MODE;
 
   if (mode === "live" || mode === "replay" || mode === "mock") {

@@ -292,7 +292,7 @@ export function getConfiguredBatterGameLogProvider(
   return new MLBBatterGameLogProvider();
 }
 
-function getPlayerIntelligenceMode(): PlayerIntelligenceMode {
+export function getPlayerIntelligenceMode(): PlayerIntelligenceMode {
   const explicitMode =
     process.env.PLAYER_INTELLIGENCE_MODE ?? process.env.PITCHER_GAME_LOG_MODE;
 

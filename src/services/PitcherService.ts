@@ -109,7 +109,7 @@ export function getConfiguredPitcherStatsProvider(
   return new MLBPitcherStatsProvider();
 }
 
-function getPitcherMode(): PitcherStatsProviderMode {
+export function getPitcherMode(): PitcherStatsProviderMode {
   const explicitMode = process.env.PITCHER_MODE;
 
   if (

@@ -139,7 +139,7 @@ function record(
   };
 }
 
-function getOddsIntelligenceMode(): OddsIntelligenceProviderMode {
+export function getOddsIntelligenceMode(): OddsIntelligenceProviderMode {
   const mode = process.env.ODDS_INTELLIGENCE_MODE;
   if (mode === "live" || mode === "mock" || mode === "replay") return mode;
 
