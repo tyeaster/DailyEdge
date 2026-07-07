@@ -1,6 +1,7 @@
 import {
   doublePrecision,
   integer,
+  jsonb,
   pgTable,
   text,
   timestamp,
@@ -101,4 +102,17 @@ export const gameResults = pgTable("game_results", {
   homeTeamId: text("home_team_id").notNull(),
   recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull().defaultNow(),
   winningTeamId: text("winning_team_id").notNull(),
+});
+
+/**
+ * Backing store for PostgresCacheProvider (src/cache/PostgresCacheProvider.ts)
+ * - a CacheProvider implementation that survives restarts and is shared
+ * across instances, unlike MemoryCache. Opt-in: MemoryCache remains the
+ * default everywhere (see MASTER_CHECKLIST.md for why this isn't wired in
+ * as the default cache automatically).
+ */
+export const cacheEntries = pgTable("cache_entries", {
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  key: text("key").primaryKey(),
+  value: jsonb("value").notNull(),
 });

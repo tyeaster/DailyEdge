@@ -2,7 +2,7 @@
 
 Living project roadmap and status document. Update this file after every major feature lands so it always reflects the project's true state — do not let it go stale like `docs/PROJECT_STATE.md` did.
 
-Last updated: 2026-07-07 (Odds Intelligence reading real movement — Phase 3 complete)
+Last updated: 2026-07-07 (production cache adapter added — Phase 4 started)
 Baseline: `codex/trueline-rebrand` @ `59b4d79` ("Add AI handoff documentation")
 Working branch: `claude/trueline-development`
 
@@ -10,8 +10,8 @@ Validation at time of writing (all passing):
 ```
 npx tsc --noEmit                    -> clean
 npm run build                       -> 26 routes compiled; homepage confirmed HTTP 200 after rebuild
-npm test (no DATABASE_URL)          -> 185 pass, 17 skipped (persistence + odds-recorder + game-results + prediction-recorder + reconciler + calibration + backtesting + game-odds-snapshot + odds-intelligence DB tests)
-npm test (with DATABASE_URL)        -> 202/202 passing, verified against a real local Postgres 16 instance
+npm test (no DATABASE_URL)          -> 185 pass, 23 skipped (all recorder/provider/cache DB tests)
+npm test (with DATABASE_URL)        -> 208/208 passing, verified against a real local Postgres 16 instance
 npm run dev (no secrets set)        -> boots fine, logs env issues (dev is lenient)
 npm run build && npm start (no secrets set) -> fails to boot with a clear error (production is strict)
 npm run build && npm start (admin secrets set) -> full auth flow verified with real Playwright/Chromium
@@ -35,8 +35,8 @@ npm run build && npm start (ODDS_INTELLIGENCE_MODE=live + real DB) -> /admin/odd
 | Prediction / Ranking / Correlation engines | 80% | High — deterministic V1s complete, not calibrated |
 | Betting market products (8 markets) | 70% | Medium — built and ranked, several rely on incomplete prop odds |
 | Analytics admin (Calibration / Backtesting / Odds Intelligence) | 60% | Medium — all three now read real moneyline data end-to-end (Sections 8h/8i/8j), each verified live through its actual admin page; CLV specifically still not computed (needs game completion tracking), and all three are moneyline-only pending the market-vocabulary reconciliation |
-| Production infrastructure (auth, persistence, cache, observability) | 44% | High — persistence layer, runtime env validation, admin route auth, live odds-history writer, game-results ingestion + reconciliation, and live injuries all exist and verified; still no production cache, no observability |
-| **Overall product** | **~64%** | Weighted toward infra being the largest remaining gap |
+| Production infrastructure (auth, persistence, cache, observability) | 50% | High — persistence layer, runtime env validation, admin route auth, live odds-history writer, game-results ingestion + reconciliation, live injuries, and a Postgres-backed production cache adapter all exist and verified; adapter isn't adopted as any service's default yet, and there's still no observability |
+| **Overall product** | **~65%** | Weighted toward infra being the largest remaining gap |
 
 ---
 
@@ -91,7 +91,7 @@ Ranked by what actually blocks a real launch:
 3. [x] **Live injuries provider** — done 2026-07-07. See Section 8f (limited scope: IL statuses only, network-unverified, same as game-results).
 4. [x] **Durable odds-history recorder** — done 2026-07-07. See Section 8d.
 5. [x] **Historical results ingestion** — partially done 2026-07-07, see Section 8e for exact scope and an important unverified-network caveat
-6. **Production cache adapter** — in-memory cache only, doesn't survive restarts or scale across instances
+6. [x] **Production cache adapter** — done 2026-07-07, Postgres-backed, opt-in (see Section 8k)
 7. [x] **Runtime env schema validation** — done 2026-07-07. See Section 8b for details.
 8. **Observability** — no structured logging, no provider health monitoring, no error tracking
 9. **E2E / route smoke tests** — 160 unit tests exist, zero browser-level tests
@@ -139,7 +139,7 @@ Work roughly top-to-bottom; items within a phase can interleave.
 13. [x] Odds Intelligence CLV/movement backed by durable history — done 2026-07-07, opening-to-current movement only, moneyline only (see Section 8j). Phase 3 complete.
 
 **Phase 4 — Production readiness**
-14. Production cache adapter (Redis/Vercel KV/Cloudflare KV) replacing `MemoryCache`
+14. [x] Production cache adapter — done 2026-07-07 (see Section 8k)
 15. Structured logging + provider health observability
 16. E2E/route smoke test suite
 17. API licensing review (Statcast, Open-Meteo)
@@ -324,6 +324,20 @@ This one needed more than Sections 8h/8i did, and the extra work is worth unders
 Verified for real: `tests/game-odds-snapshot.test.ts` (3 tests — records with `gameId` populated, mock data source is skipped, never throws without a database) and `tests/durable-odds-intelligence-provider.test.ts` (4 tests — builds a correct two-point time series from real snapshots + a real prediction with exact opening/current values asserted, excludes games with snapshots but no matching prediction, mode selection, graceful degradation). One test bug caught and fixed along the way: the first version of the game-odds-snapshot test fixture didn't set `game.id`, so the recorder read `game-undefined-moneyline` — caught immediately because the DB-backed assertion failed (`0 !== 1`), not silently passed. Also drove the actual `/admin/odds-intelligence` page with real browser automation (`ODDS_INTELLIGENCE_MODE=live` + real `DATABASE_URL`): logged in, landed on the dashboard, confirmed error-free page content, zero server-side errors, clean on the first attempt. Full suite: 185 pass / 17 skip without `DATABASE_URL`, 202/202 with it.
 
 **Not yet done**: CLV/closing-line tracking (needs `game_results.completedAt` wired in), the other 7 markets, steam-move detection accuracy (untested against real multi-book divergence — only one sportsbook's data flows through the game-scoped path today), real production sample size. With this, all three Phase 3 items (Calibration, Backtesting, Odds Intelligence) are wired to real data for the moneyline market — Phase 3 is complete.
+
+---
+
+## 8k. Production Cache Adapter (added 2026-07-07) — Phase 4 started
+
+`PostgresCacheProvider` (`src/cache/PostgresCacheProvider.ts`) implements the existing `CacheProvider` interface (`get`/`set`/`delete`) backed by a new `cache_entries` table (migration `drizzle/0003_lyrical_mystique.sql`), instead of requiring a new Redis/Vercel KV/Cloudflare KV account — it reuses the same Postgres database everything else already writes to. Solves the two concrete problems `MemoryCache` has: it doesn't survive a restart/redeploy, and it isn't shared across server instances if this ever runs on more than one.
+
+**Deliberately not wired in as any service's default.** ~10 existing services (`BallparkService`, `BulletpenService`, `WeatherService`, `OddsService`, etc.) all default their `cache` constructor parameter to the shared `memoryCache` singleton, with TTLs tuned assuming an in-memory lookup (as low as 60 seconds for odds). Swapping every default to a Postgres round-trip changes the latency/behavior of every live data fetch on every page load — that's a real, deliberate decision with tradeoffs (a DB round-trip per cache hit vs. surviving restarts), not something to flip silently while unsupervised. `PostgresCacheProvider` is fully built, tested, and ready — adopt it per-service by passing `new PostgresCacheProvider()` as the `cache` constructor argument wherever durability matters more than raw speed for that domain.
+
+Includes a `pruneExpired()` method for removing stale rows in bulk — not called automatically (no scheduled-job infrastructure exists in this app, same gap noted for `ingestGameResults` in Section 8e); expired rows are otherwise skipped and lazily deleted on next read, same behavior as `MemoryCache`.
+
+Verified for real: `tests/postgres-cache-provider.test.ts` (6 tests) — stores and retrieves a JSON-serializable object, returns `undefined` for a missing key, expires entries past their TTL, overwrites an existing key (upsert via `onConflictDoUpdate`), `delete` removes a key, `pruneExpired` removes only expired rows. All against real local Postgres. Full suite: 185 pass / 23 skip without `DATABASE_URL`, 208/208 with it.
+
+**Not yet done**: adopting it as any service's actual cache, and any bulk-prune scheduling.
 
 ---
 
