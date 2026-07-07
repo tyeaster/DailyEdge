@@ -2,7 +2,7 @@
 
 Living project roadmap and status document. Update this file after every major feature lands so it always reflects the project's true state — do not let it go stale like `docs/PROJECT_STATE.md` did.
 
-Last updated: 2026-07-07 (structured logging added)
+Last updated: 2026-07-07 (E2E/route smoke test suite added)
 Baseline: `codex/trueline-rebrand` @ `59b4d79` ("Add AI handoff documentation")
 Working branch: `claude/trueline-development`
 
@@ -12,6 +12,7 @@ npx tsc --noEmit                    -> clean
 npm run build                       -> 26 routes compiled; homepage confirmed HTTP 200 after rebuild; injuries 403 now logs as clean structured JSON
 npm test (no DATABASE_URL)          -> 191 pass, 23 skipped (all recorder/provider/cache DB tests)
 npm test (with DATABASE_URL)        -> 214/214 passing, verified against a real local Postgres 16 instance
+npm run test:e2e (against a real npm start server) -> 10/10 passing (homepage, full admin auth flow, 6-route smoke sample)
 npm run dev (no secrets set)        -> boots fine, logs env issues (dev is lenient)
 npm run build && npm start (no secrets set) -> fails to boot with a clear error (production is strict)
 npm run build && npm start (admin secrets set) -> full auth flow verified with real Playwright/Chromium
@@ -35,8 +36,8 @@ npm run build && npm start (ODDS_INTELLIGENCE_MODE=live + real DB) -> /admin/odd
 | Prediction / Ranking / Correlation engines | 80% | High — deterministic V1s complete, not calibrated |
 | Betting market products (8 markets) | 70% | Medium — built and ranked, several rely on incomplete prop odds |
 | Analytics admin (Calibration / Backtesting / Odds Intelligence) | 60% | Medium — all three now read real moneyline data end-to-end (Sections 8h/8i/8j), each verified live through its actual admin page; CLV specifically still not computed (needs game completion tracking), and all three are moneyline-only pending the market-vocabulary reconciliation |
-| Production infrastructure (auth, persistence, cache, observability) | 54% | High — persistence layer, runtime env validation, admin route auth, live odds-history writer, game-results ingestion + reconciliation, live injuries, a Postgres-backed cache adapter, and structured logging all exist and verified; still no log aggregator/destination, no provider-health dashboard, no error tracking |
-| **Overall product** | **~65%** | Weighted toward infra being the largest remaining gap |
+| Production infrastructure (auth, persistence, cache, observability) | 56% | High — persistence layer, runtime env validation, admin route auth, live odds-history writer, game-results ingestion + reconciliation, live injuries, a Postgres-backed cache adapter, structured logging, and a real E2E smoke suite all exist and verified; still no log aggregator/destination, no provider-health dashboard, no error tracking, no CI |
+| **Overall product** | **~66%** | Weighted toward infra being the largest remaining gap |
 
 ---
 
@@ -94,7 +95,7 @@ Ranked by what actually blocks a real launch:
 6. [x] **Production cache adapter** — done 2026-07-07, Postgres-backed, opt-in (see Section 8k)
 7. [x] **Runtime env schema validation** — done 2026-07-07. See Section 8b for details.
 8. [x] **Observability** — structured logging done 2026-07-07 (see Section 8l); provider health monitoring / error tracking still not done — a real logging *destination* (Sentry, Datadog, etc.) is a separate decision from the structured-format work here
-9. **E2E / route smoke tests** — 160 unit tests exist, zero browser-level tests
+9. [x] **E2E / route smoke tests** — done 2026-07-07 (see Section 8m)
 10. **Global search** — not implemented anywhere
 11. **API licensing review** — Baseball Savant / Statcast CSV and Open-Meteo usage haven't been reviewed for production terms
 
@@ -141,7 +142,7 @@ Work roughly top-to-bottom; items within a phase can interleave.
 **Phase 4 — Production readiness**
 14. [x] Production cache adapter — done 2026-07-07 (see Section 8k)
 15. [x] Structured logging — done 2026-07-07, partial (see Section 8l); provider health dashboard / error-tracking destination still open
-16. E2E/route smoke test suite
+16. [x] E2E/route smoke test suite — done 2026-07-07 (see Section 8m)
 17. API licensing review (Statcast, Open-Meteo)
 
 **Phase 5 — Product completion**
@@ -352,6 +353,27 @@ One behavior-visible side effect: log line *format* changed for existing call si
 Verified for real: `tests/logger.test.ts` (6 tests) — writes to the correct `console` method per level, production mode emits parseable JSON with all fields present, `errorFields()` extracts a message from both `Error` instances and non-Error values. Also re-ran the full build (`npm run build`, production mode) and confirmed the injuries live-fetch failure now logs as clean structured JSON (`{"domain":"injuries-service","level":"error","message":"failed to fetch injuries",...,"error":"MLB transactions request failed with 403"}`) — the same real failure as Section 8f, now through the new logger. Full suite: 191 pass / 23 skip without `DATABASE_URL`, 214/214 with it.
 
 **Not yet done**: a real log destination/aggregator, a provider-health dashboard, error tracking/alerting, and migrating any *future* code that doesn't go through this logger (nothing enforces its use yet — it's a convention, not a lint rule).
+
+---
+
+## 8m. E2E / Route Smoke Test Suite (added 2026-07-07)
+
+`tests/e2e/` — a genuine Playwright-driven browser test suite, checked into the repo as a real project (not throwaway `/tmp` scripts). Uses plain `playwright` (added as a devDependency) run through the same `node --test` runner as the rest of the suite, rather than introducing `@playwright/test` as a second parallel test framework with its own config/CLI — matching the project's "deliberately minimal stack" principle.
+
+**Design choice — assumes a server is already running**, rather than managing `next dev`/`next start` lifecycle itself. `tests/e2e/helpers.ts`'s `isServerReachable()` checks `E2E_BASE_URL` (default `http://localhost:3000`) before each file's tests run, skipping gracefully (not failing) if nothing's listening there — same "skip when precondition missing" pattern used for `DATABASE_URL` throughout this session. This mirrors how most real CI pipelines separate "start the app" from "run E2E against it" into distinct steps, and avoids a self-managed dev-server process becoming a second source of flakiness layered on top of browser automation itself (which, per Section 8h, already showed some flakiness in this sandbox even for a manual one-off script).
+
+New `npm run test:e2e` script (separate from `npm run test`, which stays fast and has no external dependencies — `tests/*.test.ts`'s glob doesn't match the `tests/e2e/` subfolder, confirmed by running the default suite after adding these files and seeing the same 214-test count as before).
+
+Coverage:
+- `homepage.test.ts` — loads with `200`, contains expected content, no compile/application-error text.
+- `admin-auth.test.ts` — the exact flow manually verified with throwaway scripts across Sections 8c/8h/8i/8j, now permanent: unauthenticated redirect, wrong password (error shown, no cookie), correct password (`httpOnly` session cookie set, lands on originally-requested page), logout (cookie cleared, redirect), post-logout re-redirect, and all three admin routes individually confirmed to redirect. Skips if `ADMIN_PASSWORD` isn't set to a value matching the running server.
+- `routes.test.ts` — a representative sample of 6 routes across different app sections (betting, hitting, pitching, matchups, analysis), not all 25+ — enough to catch a broken build across route groups without being slow.
+
+`PLAYWRIGHT_CHROMIUM_PATH` env var (only needed in this specific sandbox, where Playwright's default browser download location doesn't match what's actually installed) lets the browser launch be overridden without hardcoding a sandbox-specific path into the committed test code — a normal environment just runs `npx playwright install` and leaves it unset.
+
+Verified for real, not just written: ran `npm run build && npm start` for a genuine production server, then `npm run test:e2e` against it — **10/10 passing** on the first attempt (no flakiness this time, unlike some manual Playwright runs earlier in the session). Confirmed the default `npm test` still shows exactly 214 tests (unchanged), proving the e2e subfolder is correctly isolated. Server logs during the run showed only the already-understood, already-documented injuries network-block errors (Section 8f) — no new or unexpected errors.
+
+**Not yet done**: CI wiring (no GitHub Actions workflow exists to actually run `test:e2e` automatically against a deployed/built app), broader route coverage (6 of 25+ routes), and no visual regression testing.
 
 ---
 
