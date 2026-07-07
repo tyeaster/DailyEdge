@@ -95,7 +95,7 @@ Found during independent review — not mentioned in `CLAUDE_HANDOFF.md` or `PRO
 
 - [x] **Delete `src/components/layout/`** (Navbar/Footer/Sidebar/Container) — removed 2026-07-07. Confirmed zero imports before deletion; `tsc`, lint, build (25 routes), and all 160 tests still pass clean.
 - [x] **Delete `src/design-system/`** (colors/spacing/typography/shadows/theme tokens) — removed 2026-07-07 alongside `layout/`. Same verification as above.
-- [ ] Legacy `/team/*` routes (`/team/moneyline`, `/team/team-total`, `/team/game-total`) — superseded by `/betting/*` equivalents, should be removed or redirected.
+- [x] Legacy `/team/*` routes — `/team/moneyline` already redirected to `/betting/moneyline`; `/team/team-total` and `/team/game-total` now redirect to `/betting/team-totals` and `/betting/game-totals` respectively (were rendering a stale "Coming Soon" placeholder even though those markets were fully built). Fixed 2026-07-07. Also removed the now-fully-unused `game-total`, `home-runs`, `moneyline`, `team-total`, and `zone-intelligence` entries from `src/features/coming-soon/service.ts` — those markets/pages are real now, so the placeholder copy was dead data.
 - [ ] `docs/PROJECT_STATE.md` is self-acknowledged stale — either refresh it or deprecate it in favor of this file.
 - [ ] Duplicate market-card/candidate-normalization patterns across market feature folders — real but low urgency; don't refactor broadly without a specific trigger.
 - [ ] PR #5 targets `test-codex-auth`, not `main` — needs a decision on final merge path before this branch's work lands anywhere permanent.
@@ -109,7 +109,7 @@ Work roughly top-to-bottom; items within a phase can interleave.
 **Phase 0 — Hygiene (do first, no dependencies, near-zero risk)**
 1. [x] Delete dead `layout/` and `design-system/` code — done 2026-07-07
 2. Add `.env.example` documenting every provider mode/key currently read from `process.env`
-3. Remove or redirect legacy `/team/*` routes
+3. [x] Remove or redirect legacy `/team/*` routes — done 2026-07-07
 4. Resolve PR #5 merge-target question (this branch → `main`) — deferred, merge strategy TBD later per owner instruction
 
 **Phase 1 — Foundation for everything else**
