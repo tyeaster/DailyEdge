@@ -2,7 +2,7 @@
 
 Living project roadmap and status document. Update this file after every major feature lands so it always reflects the project's true state — do not let it go stale like `docs/PROJECT_STATE.md` did.
 
-Last updated: 2026-07-08 (Live player-prop odds coverage expansion completed — item 22)
+Last updated: 2026-07-08 (Home page Lock Zone remodel + nav consolidation — item 23. Phase 5 complete; all 23 checklist items resolved except #17, which needs an owner/legal decision)
 Baseline: `codex/trueline-rebrand` @ `59b4d79` ("Add AI handoff documentation")
 Working branch: `claude/trueline-development`
 
@@ -10,8 +10,8 @@ Validation at time of writing (all passing):
 ```
 npx tsc --noEmit                    -> clean
 npm run build                       -> 26 routes compiled; homepage confirmed HTTP 200 after rebuild; injuries 403 now logs as clean structured JSON
-npm test (no DATABASE_URL)          -> 213 pass, 23 skipped (all recorder/provider/cache DB tests)
-npm test (with DATABASE_URL)        -> 236/236 passing, verified against a real local Postgres 16 instance
+npm test (no DATABASE_URL)          -> 215 pass, 23 skipped (all recorder/provider/cache DB tests)
+npm test (with DATABASE_URL)        -> 238/238 passing, verified against a real local Postgres 16 instance
 npm run test:e2e (against a real npm start server) -> 11/11 passing, 3 skipped (homepage, full admin auth flow, 9-route smoke sample incl. Pitch Intelligence + all 3 entity research pages)
 npm run dev (no secrets set)        -> boots fine, logs env issues (dev is lenient)
 npm run build && npm start (no secrets set) -> fails to boot with a clear error (production is strict)
@@ -64,7 +64,7 @@ Verified via code inspection, `tsc`, build output, and passing tests — not jus
 - [x] Betting markets (built + ranked + tested, odds coverage varies): Moneyline, Run Line, Team Totals, Game Totals, Home Runs, Total Bases, Hits, Strikeouts
 - [x] Best Bets — aggregates all 8 markets via RankingEngine, with interactive search/filter/sort (Section 8q)
 - [x] Research pages — Pitcher Research / Strikeout Lab, Hitter Research / Hits Lab, Zone Intelligence, Pitch Intelligence (Section 8o), Player/Team/Ballpark Research directories (Section 8p)
-- [x] 236 unit tests across services/providers/engines, all passing
+- [x] 238 unit tests across services/providers/engines, all passing
 - [x] `docs/` — 40+ documents covering architecture, each engine, each market, providers, standards
 
 ---
@@ -148,7 +148,7 @@ Work roughly top-to-bottom; items within a phase can interleave.
 20. [x] Best Bets interactive filtering/sorting — done 2026-07-08 (see Section 8q)
 21. [x] Global search — done 2026-07-08 (see Section 8r)
 22. [x] Live player-prop odds coverage expansion — done 2026-07-08 (see Section 8s)
-23. **Restructure the home page / Daily Slate navigation** — owner feedback (2026-07-07): the current nav feels "all over the place with too many tabs." Not yet scoped — needs an IA pass over `app-shell`'s nav groups (Slate, Pitching, Hitting, Matchups, Analysis, Team Betting, Research — 19 routes total) before implementation starts.
+23. [x] **Restructure the home page / Daily Slate navigation** — done 2026-07-08 per owner direction ("clean look with everything having a place it belongs; keep the main bet page 3-5 of our main bets... this is like our lock zone and why it is a good bet; act as a customer"). See Section 8t.
 
 ---
 
@@ -502,6 +502,34 @@ Traced why Section 3's "Odds (OddsPipe)" row said "player-prop odds coverage inc
 - Real browser regression check (Playwright, screenshot taken): confirmed the homepage, Best Bets, and Player Research all still render at 200 with the same "Live data fallback: MLB schedule request failed with 403" banner and mock-sourced data as every prior session — the outer `getDailySlate()` try/catch still falls all the way back to `mockDataProvider` (bypassing `LivePropsProvider` entirely) whenever the live MLB schedule fetch fails, which it always does in this sandbox (Section 8n). No new console errors beyond the pre-existing injuries-403 structured log line.
 
 **Not verified (same sandbox network-policy blocker as every other live provider — Section 8n)**: the actual live OddsPipe player-prop request/response round trip. The matching logic itself is fully unit-tested against realistic OddsPipe-shaped fixtures; what's unverified is only whether OddsPipe's real API uses the exact market-key strings and player-identity field names assumed here. If real OddsPipe traffic uses different key names, `normalizeMarket`'s `playerPropMarketKeys` map is the one place to update — it degrades safely either way (unmatched keys are dropped, not mis-attributed).
+
+---
+
+## 8t. Home Page "Lock Zone" Remodel + Navigation Consolidation (added 2026-07-08)
+
+Owner direction: "give it a clean look with everything having a place it belongs. keep the main bet page 3-5 of our main bets for that day. this is like our 'lock zone' and why it is a good bet. act as if you are a customer viewing the page."
+
+**Customer-walkthrough findings on the old home page** (screenshots taken before changing anything):
+- No focal point: 14 identical bet cards in a uniform grid — the #1 play had zero visual priority over #14.
+- Ranks #7–14 were all grade-F "Pass" bets shown at equal weight to the recommended plays. A customer wants what to bet, not a wall of bets the model says to avoid.
+- "Top 25 ranked opportunities" heading sat above 14 cards.
+- Below the board, five per-market sections repeated the same bets a second time (Wheeler, Freeman, Judge each appeared twice on one page).
+- Alert panels were ~20 cards of filler: eight identical "Fresh Bullpen 50/100" and nine "Projected Lineup … No missing stars flagged" entries drowning the three real weather flags.
+- Sidebar had 7 groups (two with a single item); the top bar mostly repeated the sidebar's category labels — the "too many tabs" feeling the owner flagged.
+
+**What changed** (`src/features/daily-slate-intelligence/`, `src/components/app-shell/app-shell.tsx`):
+- **Lock Zone**: new `lockZone` view-model field — the top bets whose `recommendationTier !== "Pass"`, capped at 5, rank order preserved; if fewer than 3 qualify it shows only what's genuinely recommended rather than padding with Passes (and shows an honest "no recommended plays today" card if none qualify). The page leads with it: #1 play as a large emerald-accented headliner, remaining locks in a two-column grid, every card showing sportsbook odds prominently, a 4-metric strip (score/edge/model prob/confidence), and — per the owner's "why it is a good bet" — the ranking engine's explanations rendered inline as visible bullets, not behind a `<details>` expander.
+- **Full board**: the 14-giant-cards grid became one compact ranked table (rank/bet/market/score/odds/edge/call) with Pass rows visually dimmed, headed by the true count ("All 14 ranked bets") and a link to the Best Bets board.
+- **De-duplication**: the five per-market repeat sections became one "Market labs" row of compact shortcut cards (top play, graded count, link into the lab). Every bet now appears exactly once on the page.
+- **Alerts that matter**: new `actionableAlerts` field filters to medium/high severity only; routine bullpen/lineup states ("fresh bullpen", projected/confirmed lineup with no missing stars) were downgraded to low severity in the alert builders so they stay off the home page. When nothing is flagged the section is a single quiet line instead of three panels of filler.
+- **Navigation**: sidebar consolidated 7 groups → 5 balanced ones — Today (Lock Zone, Best Bets), Player Markets (Strikeouts/Hits/Total Bases/Home Runs), Team Markets (Moneyline/Run Line/Team Totals/Game Totals), Matchups (Zone Intelligence/Pitch Intelligence/Correlation), Research (Players/Teams/Ballparks). The single-item "Pitching" and "Analysis" groups are gone; player markets live together regardless of URL prefix. Top bar reduced 8 → 6 links, driven by a shared `getSectionKey()` path-to-section mapping so exactly one link highlights per page (the old logic guessed from the first path segment and could mismatch).
+
+**Verified for real**:
+- `npx tsc --noEmit` clean, `npx eslint .` clean.
+- `npm test`: 238 tests, 215 pass / 23 skip / 0 fail — including 2 new unit tests (lock zone ≤5 / never contains a Pass / preserves rank order; actionable alerts exclude low severity) and all 5 pre-existing daily-slate-intelligence tests unchanged and passing.
+- `npm test` with a real `DATABASE_URL`: 238/238 passing. `npm run build` clean.
+- `npm run test:e2e` against a real `next start` production server: 11/11 passing.
+- Real browser checks (Playwright, screenshots taken): desktop full-page render shows the Lock Zone headliner, 3 real flagged alerts (wind out / wind in / extreme cold — zero filler), the dimmed-Pass board, and market shortcut cards, with zero console errors; navigated `/hitting/home-runs`, `/betting/run-line`, `/analysis/correlation`, `/research/ballparks`, `/best-bets` and confirmed the header section title and exactly one active top-bar link are correct on each; mobile (390px) viewport renders the Lock Zone and scrollable section chips cleanly.
 
 ---
 
