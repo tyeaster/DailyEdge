@@ -2,9 +2,9 @@
 
 Living project roadmap and status document. Update this file after every major feature lands so it always reflects the project's true state — do not let it go stale like `docs/PROJECT_STATE.md` did.
 
-Last updated: 2026-07-08 (Fixed live mode silently collapsing to mock — Section 8u)
-Baseline: `codex/trueline-rebrand` @ `59b4d79` ("Add AI handoff documentation")
-Working branch: `claude/trueline-development`
+Last updated: 2026-07-08 (Post-foundation OddsPipe production integration — Section 8v)
+Baseline: `main` @ `bedd62e` ("Merge pull request #6 from tyeaster/claude/trueline-development")
+Working branch: `feature/live-oddspipe`
 
 Validation at time of writing (all passing):
 ```
@@ -24,6 +24,8 @@ npm run build && npm start (ODDS_INTELLIGENCE_MODE=live + real DB) -> /admin/odd
 **Open caveats carried forward**: the live MLB game-results parser (Section 8e) and the live MLB injuries/transactions parser (Section 8f) have not been verified against real network calls — this sandbox blocks outbound access to `statsapi.mlb.com`. Both have their failure/degradation paths genuinely verified (Section 8f even got a real, non-synthetic 403 during the build to prove it), but the parser's assumed response shape has not. Run one live smoke test against each before trusting them in production.
 
 **Real ODDSPIPE_API_KEY provided by owner (2026-07-07)**: stored in `.env.local` (gitignored, never committed, never printed to logs). **Not verifiable from this sandbox** — the same network policy that blocks `statsapi.mlb.com` also blocks `api.oddspipe.com` (confirmed via `curl -v`: the sandbox's own proxy rejects the `CONNECT` tunnel with a 403 before any request reaches OddsPipe's servers — this is unrelated to whether the key itself is valid). First real test of this key has to happen once the app is deployed somewhere with actual internet access.
+
+**Post-foundation update (feature/live-oddspipe)**: OddsPipe now supports the preferred `ODDSPIPE_BASE_URL` env var, keeps `ODDSPIPE_API_URL` as a full-endpoint override, exposes rate-limit metadata when available, includes retry-after/body context in provider errors, has a live verification command (`npm run verify:oddspipe`), and documents replay capture in `docs/LIVE_ODDSPIPE.md`.
 
 ---
 

@@ -11,16 +11,20 @@ import type {
   Team,
   TeamRecentForm,
   Weather,
-} from "@/src/models/mlb";
+} from "../src/models/mlb.ts";
 import {
   buildTeamRecentForm,
   calculateRecentFormWindow,
-} from "@/src/providers/recent-form";
+} from "../src/providers/recent-form/index.ts";
 import {
   buildLineupProfile,
   type LineupPlayerInput,
-} from "@/src/providers/lineups";
-import type { DashboardNavItem, KpiMetric, SlateMeta } from "@/src/types/mlb-dashboard";
+} from "../src/providers/lineups/index.ts";
+import type {
+  DashboardNavItem,
+  KpiMetric,
+  SlateMeta,
+} from "../src/types/mlb-dashboard.ts";
 
 export const slateMeta: SlateMeta = {
   averageConfidence: "74%",

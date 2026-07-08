@@ -6,11 +6,13 @@ import type {
   OddsProvider,
   OddsProviderRequest,
   OddsProviderResponse,
+  OddsRateLimitInfo,
 } from "./OddsProvider";
 
 type ReplayFile = {
   fetchedAt: string;
   provider: string;
+  rateLimit?: OddsRateLimitInfo;
   raw: unknown;
   records: NormalizedOddsRecord[];
   request: OddsProviderRequest;
@@ -20,8 +22,11 @@ const DEFAULT_REPLAY_DIR = "replay/odds";
 
 export class ReplayOddsProvider implements OddsProvider {
   readonly id = "replay";
+  private readonly replayDir: string;
 
-  constructor(private readonly replayDir = getReplayDirectory()) {}
+  constructor(replayDir = getReplayDirectory()) {
+    this.replayDir = replayDir;
+  }
 
   async getOdds(request: OddsProviderRequest): Promise<OddsProviderResponse> {
     const replay = await this.readReplay(request);
@@ -30,17 +35,20 @@ export class ReplayOddsProvider implements OddsProvider {
       fetchedAt: replay.fetchedAt,
       mode: "replay",
       provider: replay.provider,
+      rateLimit: replay.rateLimit,
       records: replay.records,
     };
   }
 
   async writeReplay({
     provider,
+    rateLimit,
     raw,
     records,
     request,
   }: {
     provider: string;
+    rateLimit?: OddsRateLimitInfo;
     raw: unknown;
     records: NormalizedOddsRecord[];
     request: OddsProviderRequest;
@@ -52,6 +60,7 @@ export class ReplayOddsProvider implements OddsProvider {
     const replay: ReplayFile = {
       fetchedAt,
       provider,
+      rateLimit,
       raw,
       records,
       request,

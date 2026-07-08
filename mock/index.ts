@@ -1,1 +1,1 @@
-export * from "./mlb-data";
+export * from "./mlb-data.ts";
