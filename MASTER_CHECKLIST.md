@@ -2,7 +2,7 @@
 
 Living project roadmap and status document. Update this file after every major feature lands so it always reflects the project's true state — do not let it go stale like `docs/PROJECT_STATE.md` did.
 
-Last updated: 2026-07-08 (Best Bets interactive filtering/sorting completed — item 20)
+Last updated: 2026-07-08 (Global search completed — item 21)
 Baseline: `codex/trueline-rebrand` @ `59b4d79` ("Add AI handoff documentation")
 Working branch: `claude/trueline-development`
 
@@ -10,8 +10,8 @@ Validation at time of writing (all passing):
 ```
 npx tsc --noEmit                    -> clean
 npm run build                       -> 26 routes compiled; homepage confirmed HTTP 200 after rebuild; injuries 403 now logs as clean structured JSON
-npm test (no DATABASE_URL)          -> 200 pass, 23 skipped (all recorder/provider/cache DB tests)
-npm test (with DATABASE_URL)        -> 223/223 passing, verified against a real local Postgres 16 instance
+npm test (no DATABASE_URL)          -> 204 pass, 23 skipped (all recorder/provider/cache DB tests)
+npm test (with DATABASE_URL)        -> 227/227 passing, verified against a real local Postgres 16 instance
 npm run test:e2e (against a real npm start server) -> 11/11 passing, 3 skipped (homepage, full admin auth flow, 9-route smoke sample incl. Pitch Intelligence + all 3 entity research pages)
 npm run dev (no secrets set)        -> boots fine, logs env issues (dev is lenient)
 npm run build && npm start (no secrets set) -> fails to boot with a clear error (production is strict)
@@ -64,7 +64,7 @@ Verified via code inspection, `tsc`, build output, and passing tests — not jus
 - [x] Betting markets (built + ranked + tested, odds coverage varies): Moneyline, Run Line, Team Totals, Game Totals, Home Runs, Total Bases, Hits, Strikeouts
 - [x] Best Bets — aggregates all 8 markets via RankingEngine, with interactive search/filter/sort (Section 8q)
 - [x] Research pages — Pitcher Research / Strikeout Lab, Hitter Research / Hits Lab, Zone Intelligence, Pitch Intelligence (Section 8o), Player/Team/Ballpark Research directories (Section 8p)
-- [x] 223 unit tests across services/providers/engines, all passing
+- [x] 227 unit tests across services/providers/engines, all passing
 - [x] `docs/` — 40+ documents covering architecture, each engine, each market, providers, standards
 
 ---
@@ -93,7 +93,7 @@ Ranked by what actually blocks a real launch:
 7. [x] **Runtime env schema validation** — done 2026-07-07. See Section 8b for details.
 8. [x] **Observability** — structured logging done 2026-07-07 (see Section 8l); provider health monitoring / error tracking still not done — a real logging *destination* (Sentry, Datadog, etc.) is a separate decision from the structured-format work here
 9. [x] **E2E / route smoke tests** — done 2026-07-07 (see Section 8m)
-10. **Global search** — not implemented anywhere
+10. [x] **Global search** — done 2026-07-08, see Section 8r
 11. [ ] **API licensing review** — attempted 2026-07-08, could not complete; this is a real legal/business decision, not something to check off. See Section 8n.
 
 ---
@@ -146,7 +146,7 @@ Work roughly top-to-bottom; items within a phase can interleave.
 18. [x] Complete Pitch Intelligence to match Zone Intelligence depth — done 2026-07-08 (see Section 8o)
 19. [x] Entity research pages (players/teams/ballparks) made real and searchable — done 2026-07-08 (see Section 8p)
 20. [x] Best Bets interactive filtering/sorting — done 2026-07-08 (see Section 8q)
-21. Global search
+21. [x] Global search — done 2026-07-08 (see Section 8r)
 22. Live player-prop odds coverage expansion
 23. **Restructure the home page / Daily Slate navigation** — owner feedback (2026-07-07): the current nav feels "all over the place with too many tabs." Not yet scoped — needs an IA pass over `app-shell`'s nav groups (Slate, Pitching, Hitting, Matchups, Analysis, Team Betting, Research — 19 routes total) before implementation starts.
 
@@ -458,6 +458,27 @@ Zone Intelligence and Pitch Intelligence both read the same `MatchupIntelligence
 - `npm test` with a real `DATABASE_URL`: 223/223 passing.
 - `npm run build`: compiles cleanly.
 - Real browser check (Playwright) with `MATCHUP_MODE=mock` etc.: confirmed zero console errors on initial load; selected Market=Moneyline and Sort=Edge and confirmed the board correctly dropped from 44 to 6 bets and re-ordered them by descending edge (+7.4% before +2.8%); re-checked console after the duplicate-key fix and confirmed the error count went from 60+ to 0.
+
+---
+
+## 8r. Global Search (added 2026-07-08)
+
+No way to jump directly to a player, team, or page existed outside each section's own local navigation — you had to know which of the 20+ routes held what you wanted.
+
+**What changed**:
+
+- New `app/api/search/route.ts` (this codebase's first `app/api/` route handler) backing a `GET /api/search?q=` endpoint. Delegates to `src/features/global-search/service.ts`'s `search()`, which matches three real sources: a small static list of page routes (label match), the 30-team catalog from Section 8p (city/name/abbreviation match), and today's actual Daily Slate players via `buildPlayerDirectory()` (reused directly from Section 8p's Player Research work, not duplicated) — name match. Results cap at 12, routes first, then teams, then players.
+- Each result links to where it's actually useful: a matched pitcher goes to `/pitching/strikeouts?pitcher=<id>`, a matched batter to `/hitting/hits?batter=<id>`, a matched team to `/research/teams`, matching the same `?batter=`/`?pitcher=` deep-link convention every other cross-feature link in the app already uses.
+- New `src/components/global-search/global-search.tsx` client component wired into `AppShell`'s header: a "Search /" button opens a modal overlay; `Cmd/Ctrl+K` or `/` (when no input is focused) also opens it; `Escape` or a backdrop click closes it; results are debounced (150ms) type-ahead calls to `/api/search`; arrow keys move the active selection and Enter navigates, same as clicking a result.
+- The pure matching logic (`buildSearchResults(normalized, slate)`) is separated from the async `search()` wrapper that fetches the slate, following the same testable-pure-function split used throughout this session (Zone/Pitch Intelligence, Player Research).
+
+**Verified for real**:
+- `npx tsc --noEmit` clean, `npx eslint .` clean — including satisfying the `react-hooks/set-state-in-effect` rule, which initially flagged three synchronous `setState` calls inside `useEffect` bodies in the new component; fixed by moving cleanup state resets into explicit `openSearch()`/`closeSearch()` handlers instead of an effect watching `open`, and moving the loading-state `setLoading(true)` inside the debounce `setTimeout` callback instead of the effect's synchronous body.
+- `npm test` (no `DATABASE_URL`): 227/227 passing (204 pass + 23 skip), including 4 new tests for `buildSearchResults` (route match, team match by city, player match with correct pitcher/batter href, empty-query returns `[]`).
+- `npm test` with a real `DATABASE_URL`: 227/227 passing.
+- `npm run build`: compiles cleanly; `/api/search` appears in the route table as a dynamic (`ƒ`) route.
+- `npm run test:e2e` against a real `next start` server: 11/11 passing (unchanged route sample, confirming the new header component didn't break any existing page).
+- Real browser check (Playwright): `curl`'d `/api/search?q=judge` directly and got back the real Aaron Judge record with the correct `/hitting/hits?batter=player-judge` href; opened the modal via the header button, typed "dodgers", confirmed "Los Angeles Dodgers · Team" rendered with zero console errors, then confirmed pressing Enter actually navigated to `/research/teams` (not just that the link renders); separately confirmed the `/` keyboard shortcut opens the modal and `Escape` closes it.
 
 ---
 
