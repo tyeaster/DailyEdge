@@ -5,6 +5,7 @@ import type {
   MlbLeague,
   Pitcher,
   Player,
+  PlayerProp,
   Prediction,
   Team,
   Weather,
@@ -14,6 +15,7 @@ import { ballparkService } from "@/src/services/BallparkService";
 import { bullpenService } from "@/src/services/BullpenService";
 import { injuriesService } from "@/src/services/InjuriesService";
 import { lineupService } from "@/src/services/LineupService";
+import { oddsService } from "@/src/services/OddsService";
 import { pitcherService } from "@/src/services/PitcherService";
 import { predictionEngine } from "@/src/services/predictions";
 import { recentFormService } from "@/src/services/RecentFormService";
@@ -21,6 +23,7 @@ import { teamStrengthService } from "@/src/services/TeamStrengthService";
 import { weatherService } from "@/src/services/WeatherService";
 import type { SlateMeta } from "@/src/types/mlb-dashboard";
 
+import { buildLineupBatters, matchLivePropsToSchedule } from "./live-props-matching";
 import { mockDataProvider } from "./mock-data-provider";
 import type {
   BetsProvider,
@@ -122,7 +125,10 @@ class LivePlayersProvider
     loadSchedule: () => Promise<LiveSchedule>,
     private readonly fallbackPlayers: PlayersProvider,
   ) {
-    super(loadSchedule, (schedule) => [...schedule.pitchers]);
+    super(loadSchedule, (schedule) => [
+      ...schedule.pitchers,
+      ...buildLineupBatters(schedule.teams),
+    ]);
   }
 
   async getById(id: string) {
@@ -218,6 +224,59 @@ class LivePredictionsProvider
   }
 }
 
+/**
+ * Requests real player-prop odds from OddsPipe and matches each record to a
+ * real player from today's schedule (probable pitchers for Strikeouts,
+ * confirmed/projected lineup batters for the other categories) by name.
+ * Live confidence/edge are intentionally left as a neutral placeholder -
+ * scoring a genuine model edge for these markets needs a player-performance
+ * projection (e.g. season/rolling rate vs the market line) that doesn't
+ * exist yet; see MASTER_CHECKLIST.md Section 8s for the follow-up.
+ * Categories with no live match keep their mock entries rather than
+ * disappearing, matching this app's everywhere-else degrade-gracefully
+ * pattern instead of an all-or-nothing fallback.
+ */
+class LivePropsProvider implements PropsProvider {
+  constructor(
+    private readonly loadSchedule: () => Promise<LiveSchedule>,
+    private readonly fallbackProps: PropsProvider,
+  ) {}
+
+  async getById(id: string) {
+    const props = await this.list();
+
+    return props.find((prop) => prop.id === id) ?? this.fallbackProps.getById(id);
+  }
+
+  async list() {
+    const [schedule, fallbackProps] = await Promise.all([
+      this.loadSchedule(),
+      this.fallbackProps.list(),
+    ]);
+    const liveProps = await this.fetchLiveProps(schedule).catch(() => []);
+
+    if (liveProps.length === 0) {
+      return fallbackProps;
+    }
+
+    const liveCategories = new Set(liveProps.map((prop) => prop.category));
+
+    return [
+      ...liveProps,
+      ...fallbackProps.filter((prop) => !liveCategories.has(prop.category)),
+    ];
+  }
+
+  private async fetchLiveProps(schedule: LiveSchedule): Promise<PlayerProp[]> {
+    const response = await oddsService.getOdds({
+      markets: ["player-prop"],
+      sport: "mlb",
+    });
+
+    return matchLivePropsToSchedule(response.records, schedule);
+  }
+}
+
 export class LiveMLBProvider implements TrueLineDataProvider {
   readonly bets: BetsProvider = mockDataProvider.bets;
 
@@ -237,7 +296,10 @@ export class LiveMLBProvider implements TrueLineDataProvider {
     () => this.loadSchedule(),
   );
 
-  readonly props: PropsProvider = mockDataProvider.props;
+  readonly props: PropsProvider = new LivePropsProvider(
+    () => this.loadSchedule(),
+    mockDataProvider.props,
+  );
 
   readonly teams: TeamsProvider = new LiveTeamsProvider(
     () => this.loadSchedule(),

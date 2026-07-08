@@ -1,4 +1,4 @@
-import type { OddsMarket } from "@/src/models/mlb";
+import type { OddsMarket, PlayerPropCategory } from "@/src/models/mlb";
 
 export type OddsProviderMode = "live" | "mock" | "replay";
 
@@ -18,6 +18,8 @@ export type NormalizedOddsRecord = {
   impliedProbability: number;
   line?: number;
   market: OddsMarket;
+  playerName?: string;
+  propCategory?: PlayerPropCategory;
   selection: string;
   side?: "away" | "home" | "over" | "under";
   sportsbook: string;
