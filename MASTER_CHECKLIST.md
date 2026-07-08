@@ -2,9 +2,9 @@
 
 Living project roadmap and status document. Update this file after every major feature lands so it always reflects the project's true state — do not let it go stale like `docs/PROJECT_STATE.md` did.
 
-Last updated: 2026-07-08 (Post-foundation OddsPipe production integration — Section 8v)
-Baseline: `main` @ `bedd62e` ("Merge pull request #6 from tyeaster/claude/trueline-development")
-Working branch: `feature/live-oddspipe`
+Last updated: 2026-07-08 (`v1.1.0-live-odds` release — production OddsPipe integration complete)
+Baseline: `main` after PR #7 ("Complete production OddsPipe integration")
+Working branch: `main`
 
 Validation at time of writing (all passing):
 ```
@@ -25,7 +25,7 @@ npm run build && npm start (ODDS_INTELLIGENCE_MODE=live + real DB) -> /admin/odd
 
 **Real ODDSPIPE_API_KEY provided by owner (2026-07-07)**: stored in `.env.local` (gitignored, never committed, never printed to logs). **Not verifiable from this sandbox** — the same network policy that blocks `statsapi.mlb.com` also blocks `api.oddspipe.com` (confirmed via `curl -v`: the sandbox's own proxy rejects the `CONNECT` tunnel with a 403 before any request reaches OddsPipe's servers — this is unrelated to whether the key itself is valid). First real test of this key has to happen once the app is deployed somewhere with actual internet access.
 
-**Post-foundation update (feature/live-oddspipe)**: OddsPipe now supports the preferred `ODDSPIPE_BASE_URL` env var, keeps `ODDSPIPE_API_URL` as a full-endpoint override, exposes rate-limit metadata when available, includes retry-after/body context in provider errors, has a live verification command (`npm run verify:oddspipe`), and documents replay capture in `docs/LIVE_ODDSPIPE.md`.
+**Release update (`v1.1.0-live-odds`)**: Production OddsPipe integration is complete and merged to `main`. OddsPipe now supports the preferred `ODDSPIPE_BASE_URL` env var, keeps `ODDSPIPE_API_URL` as a full-endpoint override, exposes rate-limit metadata when available, includes retry-after/body context in provider errors, has a live verification command (`npm run verify:oddspipe`), and documents replay capture in `docs/LIVE_ODDSPIPE.md`.
 
 ---
 
@@ -75,7 +75,7 @@ Verified via code inspection, `tsc`, build output, and passing tests — not jus
 
 | System | What exists | What's missing |
 |---|---|---|
-| Odds (OddsPipe) | Real live HTTP provider, replay, mock, error handling, requires `ODDSPIPE_API_KEY`; player-prop market mapping + player-identity matching for Strikeouts/Hits/Home Runs/Total Bases now real (Section 8s) | Live confidence/edge for player props is an honest placeholder, not a real model score yet (Section 8s); no durable rate-limit/backoff strategy documented |
+| Odds (OddsPipe) | Production live HTTP provider, replay, mock, error handling, `ODDSPIPE_BASE_URL` support, verification command, rate-limit metadata, and player-prop market mapping + player-identity matching for Strikeouts/Hits/Home Runs/Total Bases now real (Sections 8s/8v) | Live confidence/edge for player props is an honest placeholder, not a real model score yet (Section 8s); team-total records normalize but still need a dedicated `Game.odds.teamTotal` field |
 | Calibration Engine | Service, admin dashboard (`/admin/calibration`), tests, mock/replay records, and now `DurableCalibrationProvider` reading real moneyline predictions/results from Postgres when `CALIBRATION_MODE=live` (Section 8h) | Moneyline only — 7 other markets still need the `OddsMarket`/`BetMarketType` vocabulary reconciliation before they can be recorded/calibrated; sample size will be small until this runs for a while in production |
 | Backtesting Engine | `BacktestRunner`, `StrategyEvaluator`, `BankrollSimulator`, admin dashboard, tests, and now `DurableHistoricalSlateProvider` grouping real moneyline predictions/results into daily slates when `BACKTEST_MODE=live` (Section 8i) | Moneyline only, same vocabulary-reconciliation debt as Calibration/Odds Intelligence; real sample size will take time to accumulate |
 | Odds Intelligence | `ClosingLineCalculator`, `MarketMovementAnalyzer`, `SteamMoveDetector`, admin dashboard, tests, live recorder writing to `odds_snapshots` (Section 8d), and now `DurableOddsIntelligenceProvider` reading real opening-to-current movement when `ODDS_INTELLIGENCE_MODE=live` (Section 8j) | CLV specifically isn't computed yet (closings intentionally left empty — needs game start/finish tracking); moneyline only; movement attribution (injury/weather-driven) is limited |
