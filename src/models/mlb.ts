@@ -366,6 +366,10 @@ export interface Injury {
   id: string;
   impactRating: number;
   playerId: string;
+  /** Display name straight from the injuries feed - injured players are
+   * usually absent from today's lineups, so this is often the only way
+   * to show who the injury is about. */
+  playerName?: string;
   status: "Probable" | "Questionable" | "Day-to-day" | "10-day IL" | "15-day IL";
   teamId: string;
 }

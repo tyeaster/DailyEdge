@@ -82,6 +82,7 @@ test("InjuriesService.list() maps provider data to the Injury model shape", asyn
     "id",
     "impactRating",
     "playerId",
+    "playerName",
     "status",
     "teamId",
   ]);

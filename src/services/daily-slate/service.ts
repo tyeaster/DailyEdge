@@ -2,8 +2,6 @@ import type {
   BetRecommendation,
   Game,
   Pitcher,
-  Player,
-  PlayerProp,
   PlayerPropCategory,
   Team,
   Weather,
@@ -22,11 +20,9 @@ import { recordGameOddsSnapshots } from "@/src/services/OddsSnapshotRecorder";
 import { recordMoneylinePredictions } from "@/src/services/PredictionRecorder";
 import type { DashboardNavItem, KpiMetric } from "@/src/types/mlb-dashboard";
 
+import { resolveBets, resolveInjuries, resolveProps } from "./resolve";
 import type {
-  DailySlateBet,
   DailySlateGame,
-  DailySlateInjury,
-  DailySlatePropCategory,
   DailySlateViewModel,
   DailySlateWeather,
 } from "./types";
@@ -131,21 +127,13 @@ async function buildDailySlate(
   const averageConfidence = getAverageConfidence(valuedGames);
 
   return {
-    bets: buildBets(valuedBets, playerById, teamById),
+    bets: resolveBets(valuedBets, playerById, teamById),
     dashboardNavItems: buildDashboardNavItems(valuedGames.length, valuedBets.length),
     dataSource,
     games: buildGames(valuedGames, teamById, pitcherById, weatherById),
-    injuries: injuries.map((injury): DailySlateInjury => {
-      const player = getRequired(playerById, injury.playerId, "player");
-
-      return {
-        injury,
-        player,
-        team: getRequired(teamById, injury.teamId, "team"),
-      };
-    }),
+    injuries: resolveInjuries(injuries, playerById, teamById),
     kpiMetrics: buildKpis(averageConfidence, valuedGames, valuedBets),
-    propCategories: buildPropCategories(props, playerById, teamById),
+    propCategories: resolveProps(propCategoryOrder, props, playerById, teamById),
     slateMeta: {
       ...slateMeta,
       averageConfidence,
@@ -232,45 +220,6 @@ function buildGames(
       homePitcher: getRequired(pitcherById, game.homePitcherId, "pitcher"),
       homeTeam: getRequired(teamById, game.homeTeamId, "team"),
       weather: getRequired(weatherById, game.weatherId, "weather"),
-    };
-  });
-}
-
-function buildBets(
-  bets: BetRecommendation[],
-  playerById: Record<string, Player | Pitcher>,
-  teamById: Record<string, Team>,
-) {
-  return [...bets]
-    .sort((left, right) => left.rank - right.rank)
-    .map((bet): DailySlateBet => {
-      return {
-        bet,
-        player: bet.playerId ? getRequired(playerById, bet.playerId, "player") : undefined,
-        team: bet.teamId ? getRequired(teamById, bet.teamId, "team") : undefined,
-      };
-    });
-}
-
-function buildPropCategories(
-  props: PlayerProp[],
-  playerById: Record<string, Player | Pitcher>,
-  teamById: Record<string, Team>,
-) {
-  return propCategoryOrder.map((label): DailySlatePropCategory => {
-    return {
-      label,
-      props: props
-        .filter((prop) => prop.category === label)
-        .map((prop) => {
-          const player = getRequired(playerById, prop.playerId, "player");
-
-          return {
-            player,
-            prop,
-            team: getRequired(teamById, player.teamId, "team"),
-          };
-        }),
     };
   });
 }

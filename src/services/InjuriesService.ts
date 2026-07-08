@@ -93,6 +93,7 @@ function toInjury(normalized: NormalizedInjury): Injury {
     id: normalized.id,
     impactRating: normalized.impactRating,
     playerId: normalized.playerId,
+    playerName: normalized.playerName,
     status: normalized.status,
     teamId: normalized.teamId,
   };
