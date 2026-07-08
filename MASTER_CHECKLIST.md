@@ -2,7 +2,7 @@
 
 Living project roadmap and status document. Update this file after every major feature lands so it always reflects the project's true state — do not let it go stale like `docs/PROJECT_STATE.md` did.
 
-Last updated: 2026-07-07 (E2E/route smoke test suite added)
+Last updated: 2026-07-08 (Pitch Intelligence completed — item 18)
 Baseline: `codex/trueline-rebrand` @ `59b4d79` ("Add AI handoff documentation")
 Working branch: `claude/trueline-development`
 
@@ -10,8 +10,8 @@ Validation at time of writing (all passing):
 ```
 npx tsc --noEmit                    -> clean
 npm run build                       -> 26 routes compiled; homepage confirmed HTTP 200 after rebuild; injuries 403 now logs as clean structured JSON
-npm test (no DATABASE_URL)          -> 191 pass, 23 skipped (all recorder/provider/cache DB tests)
-npm test (with DATABASE_URL)        -> 214/214 passing, verified against a real local Postgres 16 instance
+npm test (no DATABASE_URL)          -> 192 pass, 23 skipped (all recorder/provider/cache DB tests)
+npm test (with DATABASE_URL)        -> 215/215 passing, verified against a real local Postgres 16 instance
 npm run test:e2e (against a real npm start server) -> 10/10 passing (homepage, full admin auth flow, 6-route smoke sample)
 npm run dev (no secrets set)        -> boots fine, logs env issues (dev is lenient)
 npm run build && npm start (no secrets set) -> fails to boot with a clear error (production is strict)
@@ -63,8 +63,8 @@ Verified via code inspection, `tsc`, build output, and passing tests — not jus
 - [x] CorrelationEngine V1 — exposure detection, portfolio generation, conflict warnings
 - [x] Betting markets (built + ranked + tested, odds coverage varies): Moneyline, Run Line, Team Totals, Game Totals, Home Runs, Total Bases, Hits, Strikeouts
 - [x] Best Bets — aggregates all 8 markets via RankingEngine
-- [x] Research pages — Pitcher Research / Strikeout Lab, Hitter Research / Hits Lab, Zone Intelligence (strong); Pitch Intelligence (weaker, see below)
-- [x] 160 unit tests across services/providers/engines, all passing
+- [x] Research pages — Pitcher Research / Strikeout Lab, Hitter Research / Hits Lab, Zone Intelligence, Pitch Intelligence (Section 8o)
+- [x] 215 unit tests across services/providers/engines, all passing
 - [x] `docs/` — 40+ documents covering architecture, each engine, each market, providers, standards
 
 ---
@@ -77,7 +77,6 @@ Verified via code inspection, `tsc`, build output, and passing tests — not jus
 | Calibration Engine | Service, admin dashboard (`/admin/calibration`), tests, mock/replay records, and now `DurableCalibrationProvider` reading real moneyline predictions/results from Postgres when `CALIBRATION_MODE=live` (Section 8h) | Moneyline only — 7 other markets still need the `OddsMarket`/`BetMarketType` vocabulary reconciliation before they can be recorded/calibrated; sample size will be small until this runs for a while in production |
 | Backtesting Engine | `BacktestRunner`, `StrategyEvaluator`, `BankrollSimulator`, admin dashboard, tests, and now `DurableHistoricalSlateProvider` grouping real moneyline predictions/results into daily slates when `BACKTEST_MODE=live` (Section 8i) | Moneyline only, same vocabulary-reconciliation debt as Calibration/Odds Intelligence; real sample size will take time to accumulate |
 | Odds Intelligence | `ClosingLineCalculator`, `MarketMovementAnalyzer`, `SteamMoveDetector`, admin dashboard, tests, live recorder writing to `odds_snapshots` (Section 8d), and now `DurableOddsIntelligenceProvider` reading real opening-to-current movement when `ODDS_INTELLIGENCE_MODE=live` (Section 8j) | CLV specifically isn't computed yet (closings intentionally left empty — needs game start/finish tracking); moneyline only; movement attribution (injury/weather-driven) is limited |
-| Pitch Intelligence (`/matchups/pitch-intelligence`) | Route exists | Materially less complete than Zone Intelligence — treat as unfinished |
 | Entity research (`/research/players`, `/research/teams`, `/research/ballparks`) | Placeholder routes exist | Not yet searchable/functional entity pages |
 | Best Bets filtering/sorting | Static ranked board renders | No interactive filters or sort controls yet |
 
@@ -146,7 +145,7 @@ Work roughly top-to-bottom; items within a phase can interleave.
 17. [ ] API licensing review — attempted, could not complete, needs owner/legal decision (see Section 8n). Skipped past for now; not blocking items 18-23.
 
 **Phase 5 — Product completion**
-18. Complete Pitch Intelligence to match Zone Intelligence depth
+18. [x] Complete Pitch Intelligence to match Zone Intelligence depth — done 2026-07-08 (see Section 8o)
 19. Entity research pages (players/teams/ballparks) made real and searchable
 20. Best Bets interactive filtering/sorting
 21. Global search
@@ -391,6 +390,31 @@ What I actually did: tried to pull current terms via both `curl` and `WebFetch` 
 **Recommendation**: before this goes anywhere near a real user base, get an actual answer — either a licensing conversation with MLB Advanced Media / Baseball Savant, or a lawyer's read on the Stats API terms, or (lowest-risk path) swap the underlying schedule/stats/Statcast data source for a properly licensed sports-data vendor before launch. Don't treat continued use of these sources in production as implicitly approved just because the code works.
 
 **Status**: left open, not blocking further app-completion work (items 18-23) since those are UI/product work that doesn't change the underlying data-licensing question either way.
+
+---
+
+## 8o. Pitch Intelligence Completed (added 2026-07-08)
+
+Zone Intelligence and Pitch Intelligence both read the same `MatchupIntelligenceResult` produced by `matchupService.getMatchupIntelligence()` — the underlying Statcast-derived pitch arsenal, batter pitch profiles, and pitch-type match scoring was already real for both features; what was missing was a real Pitch Intelligence page (it previously rendered `ComingSoonPage`).
+
+**What changed**:
+
+- Extracted the "pick a pitcher-vs-batter matchup from today's slate and load every intelligence source for it" pipeline (previously private, duplicated inline in `zone-intelligence/service.ts`) into a new shared module, `src/services/matchup-selection.ts` (`loadMatchupIntelligence()`). Zone Intelligence's `getZoneIntelligence()` now calls the shared loader too — `buildZoneIntelligenceViewModel()`, the tested/exported function, is byte-for-byte unchanged.
+- Built `src/features/pitch-intelligence/service.ts` (`getPitchIntelligence()` / `buildPitchIntelligenceViewModel()`) on top of the shared loader. Deliberately data-differentiated from Zone Intelligence rather than a re-skin — surfaces matchup-engine fields Zone Intelligence doesn't: batter plate-discipline splits per pitch type (swing%/contact%/chase%/take%/whiff%/strikeout%, from `BatterPitchProfile`), `topAdvantages`/`topWeaknesses` (both overall and per-pitch-type, from `PitchTypeMatch`), and `contextScores` (`MatchupContextScore[]` — situational factor scoring not shown elsewhere in the app).
+- Built `src/features/pitch-intelligence/pitch-intelligence-page.tsx`, matching Zone Intelligence's visual conventions (`ResearchCard`/`ResearchMetric`/`ResearchSectionHeader`/`Pill` from `@/src/components/research`, same dark theme, same header-plus-grid-sections layout) but omitting the zone-overlay heat maps, which stay Zone Intelligence's distinct centerpiece.
+- Wired `app/matchups/pitch-intelligence/page.tsx` to render the real page (same `batter`/`pitcher` search-param pattern as Zone Intelligence's route) and removed the now-stale `"pitch-intelligence"` entry from `src/features/coming-soon/service.ts`'s config object.
+- Added `tests/pitch-intelligence.test.ts`, mirroring `tests/zone-intelligence.test.ts`'s pattern (`MockMatchupProvider` + `MatchupService` + `buildPitchIntelligenceViewModel()`).
+
+**Verified for real**:
+- `npx tsc --noEmit` clean, `npx eslint .` clean.
+- `npm test` (no `DATABASE_URL`): 215 tests, 192 pass / 23 skip / 0 fail, now including the new Pitch Intelligence unit test (`ok — builds Pitch Intelligence view model from normalized matchup data`); Zone Intelligence's test still passes unchanged.
+- `npm test` with a real `DATABASE_URL` against the local `trueline` Postgres database: all 215 tests pass, including the Postgres-backed calibration/backtesting/odds-intelligence/persistence suites (uncovered and fixed an unrelated environment issue in the process — see note below).
+- `npm run build`: compiles cleanly, `/matchups/pitch-intelligence` appears in the route table as a dynamic (`ƒ`) route.
+- Real browser check (Playwright, screenshots taken): with live-mode providers (this sandbox's network policy blocks outbound Statcast/MLB API access, same restriction documented in Section 8n), the page renders with zero console/page errors and degrades gracefully to a neutral 50/100 empty-data state — identical behavior to Zone Intelligence under the same conditions, not a regression. With `MATCHUP_MODE=mock` (and other domains mocked), the page renders fully populated: arsenal-mix bars, pitch arsenal table (3 pitch types), plate-discipline table, an expandable per-pitch scouting report showing scores/top-advantages/top-weaknesses/reasons, and situational context — confirming the view-model builder and page component both work correctly end-to-end, not just structurally.
+
+**Environment note (not a code issue)**: while verifying with a real `DATABASE_URL`, the local Postgres `postgres` role's password didn't match what `.env.local`/tests expect, causing `drizzle-orm`'s wrapped "Failed query" error to mask an underlying `28P01 password authentication failed` — traced with the raw `postgres` driver, then fixed with `ALTER ROLE postgres WITH PASSWORD 'postgres'` against the existing `trueline` database (schema and data were already intact). Documenting this since it's the second session in a row where Postgres state needed a manual fix-up after an environment reset — worth keeping in mind for future sessions.
+
+**Not yet done**: nothing outstanding for this item. Like Zone Intelligence, Pitch Intelligence's real-data depth is bounded by the same live-provider network access documented in Section 8n, not by anything in this feature's own code.
 
 ---
 
