@@ -2,7 +2,7 @@
 
 Living project roadmap and status document. Update this file after every major feature lands so it always reflects the project's true state — do not let it go stale like `docs/PROJECT_STATE.md` did.
 
-Last updated: 2026-07-08 (Home page Lock Zone remodel + nav consolidation — item 23. Phase 5 complete; all 23 checklist items resolved except #17, which needs an owner/legal decision)
+Last updated: 2026-07-08 (Fixed live mode silently collapsing to mock — Section 8u)
 Baseline: `codex/trueline-rebrand` @ `59b4d79` ("Add AI handoff documentation")
 Working branch: `claude/trueline-development`
 
@@ -10,8 +10,8 @@ Validation at time of writing (all passing):
 ```
 npx tsc --noEmit                    -> clean
 npm run build                       -> 26 routes compiled; homepage confirmed HTTP 200 after rebuild; injuries 403 now logs as clean structured JSON
-npm test (no DATABASE_URL)          -> 215 pass, 23 skipped (all recorder/provider/cache DB tests)
-npm test (with DATABASE_URL)        -> 238/238 passing, verified against a real local Postgres 16 instance
+npm test (no DATABASE_URL)          -> 220 pass, 23 skipped (all recorder/provider/cache DB tests)
+npm test (with DATABASE_URL)        -> 243/243 passing, verified against a real local Postgres 16 instance
 npm run test:e2e (against a real npm start server) -> 11/11 passing, 3 skipped (homepage, full admin auth flow, 9-route smoke sample incl. Pitch Intelligence + all 3 entity research pages)
 npm run dev (no secrets set)        -> boots fine, logs env issues (dev is lenient)
 npm run build && npm start (no secrets set) -> fails to boot with a clear error (production is strict)
@@ -64,7 +64,7 @@ Verified via code inspection, `tsc`, build output, and passing tests — not jus
 - [x] Betting markets (built + ranked + tested, odds coverage varies): Moneyline, Run Line, Team Totals, Game Totals, Home Runs, Total Bases, Hits, Strikeouts
 - [x] Best Bets — aggregates all 8 markets via RankingEngine, with interactive search/filter/sort (Section 8q)
 - [x] Research pages — Pitcher Research / Strikeout Lab, Hitter Research / Hits Lab, Zone Intelligence, Pitch Intelligence (Section 8o), Player/Team/Ballpark Research directories (Section 8p)
-- [x] 238 unit tests across services/providers/engines, all passing
+- [x] 243 unit tests across services/providers/engines, all passing
 - [x] `docs/` — 40+ documents covering architecture, each engine, each market, providers, standards
 
 ---
@@ -530,6 +530,18 @@ Owner direction: "give it a clean look with everything having a place it belongs
 - `npm test` with a real `DATABASE_URL`: 238/238 passing. `npm run build` clean.
 - `npm run test:e2e` against a real `next start` production server: 11/11 passing.
 - Real browser checks (Playwright, screenshots taken): desktop full-page render shows the Lock Zone headliner, 3 real flagged alerts (wind out / wind in / extreme cold — zero filler), the dimmed-Pass board, and market shortcut cards, with zero console errors; navigated `/hitting/home-runs`, `/betting/run-line`, `/analysis/correlation`, `/research/ballparks`, `/best-bets` and confirmed the header section title and exactly one active top-bar link are correct on each; mobile (390px) viewport renders the Lock Zone and scrollable section chips cleanly.
+
+---
+
+## 8u. Fixed: Live Mode Silently Collapsing to Mock Data (added 2026-07-08)
+
+Owner report: "every time I look at the website it only shows mock data." Investigated as a bug, found two real causes (plus the known sandbox one):
+
+1. **The injuries join crashed every healthy live build.** `buildDailySlate` joined the injuries feed to today's roster with a strict `getRequired()` that threw on the first unresolvable player id. Live injuries are league-wide IL transactions, and injured players are — by definition — almost never in today's lineups, so on any machine with working network the first real injury killed the live build and `getDailySlate`'s outer catch silently fell the **entire slate** back to mock. Perversely, the sandbox never reproduced it: the injuries fetch 403s here and degrades to an empty list before the join runs, so every prior "live-mode fallback verified" check exercised the schedule-fetch failure path, never the injuries-join failure path. Fix: cross-provider joins (injuries × roster, props × roster, bets × roster) now degrade per-record in `src/services/daily-slate/resolve.ts` — injuries for teams not on today's slate are skipped, injuries for slate teams keep a display-only placeholder built from the feed's player name (`Injury.playerName` now carried through from `NormalizedInjury`), unmatched props drop individually, bets keep optional joins undefined. Same-source joins (schedule → its own games/teams/pitchers/weather) stay strict since a failure there is a genuine bug. 5 new unit tests in `tests/daily-slate-resolve.test.ts`, the first of which reproduces the exact production scenario.
+2. **`.env.example` forced mock mode on anyone who followed its instructions.** The file's header says "copy this file to `.env.local`" — and then pinned every `*_MODE=mock`. All live-capable domains now ship blank (blank falls through to each domain's default, which is live); the admin analytics domains (calibration/backtest/odds-intelligence) intentionally stay `mock` since their live modes read from a populated Postgres history.
+3. **In this sandbox specifically** (unchanged, environmental): the network policy blocks `statsapi.mlb.com`, so live data can never load here regardless of code — the "Live data fallback: MLB schedule request failed with 403" banner is the sandbox telling the truth. First verification of true live mode has to happen on a machine/deployment with real internet.
+
+**Verified for real**: `tsc`/`eslint` clean; 243 tests, 220 pass / 23 skip (0 fail) without `DATABASE_URL`, 243/243 with it (one pre-existing injuries test updated for the new `playerName` key); `npm run build` clean; homepage + Best Bets confirmed 200 on a production `next start`. The genuine end-to-end live-mode render (schedule + injuries + odds all live) remains verifiable only outside this sandbox — but the crash path is now covered by unit tests that fail on the old code.
 
 ---
 
