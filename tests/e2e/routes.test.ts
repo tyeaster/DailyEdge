@@ -16,7 +16,11 @@ const routesToCheck = [
   "/pitching/strikeouts",
   "/hitting/home-runs",
   "/matchups/zone-intelligence",
+  "/matchups/pitch-intelligence",
   "/analysis/correlation",
+  "/research/teams",
+  "/research/ballparks",
+  "/research/players",
 ];
 
 for (const route of routesToCheck) {

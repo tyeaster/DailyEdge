@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 
-import { ComingSoonPage } from "@/src/features/coming-soon/coming-soon-page";
+import { BallparkResearchPage } from "@/src/features/ballpark-research/ballpark-research-page";
 
 export const metadata: Metadata = {
-  description: "Ballpark Research is coming soon to TrueLine.",
+  description:
+    "Search all 30 MLB ballparks with park factors and hitter/pitcher/power ratings in TrueLine.",
   title: "Ballpark Research | TrueLine",
 };
 
 export default function Page() {
-  return <ComingSoonPage pageKey="ballparks" />;
+  return <BallparkResearchPage />;
 }
