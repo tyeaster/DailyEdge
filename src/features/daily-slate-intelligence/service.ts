@@ -56,11 +56,17 @@ export interface DailySlateMarketSummary {
 }
 
 export interface DailySlateIntelligenceViewModel {
+  /** Only alerts worth a customer's attention (medium/high severity) - the
+   * "fresh bullpen" / "no missing stars" fillers are excluded. */
+  actionableAlerts: DailySlateAlert[];
   alerts: DailySlateAlert[];
   bullpenAlerts: DailySlateAlert[];
   dataSource: DailySlateViewModel["dataSource"];
   error?: string;
   lineups: DailySlateAlert[];
+  /** Top 3-5 bets the model actually recommends (no "Pass" tiers) - the
+   * headline section of the home page. */
+  lockZone: DailySlateRankedBet[];
   marketSummary: DailySlateMarketSummary;
   moneyline: DailySlateIntelligenceSection;
   homeRuns: DailySlateIntelligenceSection;
@@ -200,18 +206,21 @@ export function buildDailySlateIntelligenceViewModel({
   const weatherAlerts = buildWeatherAlerts(slate);
   const bullpenAlerts = buildBullpenAlerts(slate);
   const lineupAlerts = buildLineupAlerts(slate);
+  const allAlerts = [...weatherAlerts, ...bullpenAlerts, ...lineupAlerts].sort(
+    (left, right) => severityRank(right.severity) - severityRank(left.severity),
+  );
   const sections = [strikeouts, hits, totalBasesSection, homeRunSection, moneylineSection];
 
   return {
-    alerts: [...weatherAlerts, ...bullpenAlerts, ...lineupAlerts].sort(
-      (left, right) => severityRank(right.severity) - severityRank(left.severity),
-    ),
+    actionableAlerts: allAlerts.filter((alert) => alert.severity !== "low"),
+    alerts: allAlerts,
     bullpenAlerts,
     dataSource: slate.dataSource,
     error: slate.error,
     homeRuns: homeRunSection,
     hits,
     lineups: lineupAlerts,
+    lockZone: buildLockZone(rankedBets),
     marketSummary: buildMarketSummary(rankedBets),
     moneyline: moneylineSection,
     slateMeta: {
@@ -224,6 +233,18 @@ export function buildDailySlateIntelligenceViewModel({
     topBets: rankedBets.slice(0, 25),
     weatherAlerts,
   };
+}
+
+/**
+ * The home page's headline: 3-5 bets the model actually recommends,
+ * strongest tier first. "Pass" bets never qualify - if fewer than 3 bets
+ * clear that bar, the zone shows only what's genuinely recommended rather
+ * than padding with bets the model says to avoid.
+ */
+function buildLockZone(bets: DailySlateRankedBet[]): DailySlateRankedBet[] {
+  return bets
+    .filter((bet) => bet.ranked.recommendationTier !== "Pass")
+    .slice(0, 5);
 }
 
 function buildPropCandidates(
@@ -557,12 +578,9 @@ function buildLineupAlerts(slate: DailySlateViewModel): DailySlateAlert[] {
       return {
         id: `lineup-${team.id}`,
         meta: team.name,
-        severity:
-          lineup?.status === "confirmed" && missingStars === 0
-            ? "low"
-            : missingStars > 0
-              ? "high"
-              : "medium",
+        // A routine projected/confirmed lineup with nothing missing is
+        // informational, not actionable - only a missing star escalates.
+        severity: missingStars > 0 ? "high" : "low",
         summary: `${lineup?.status ?? "unavailable"} lineup, strength ${lineup?.overallStrength ?? 50}/100. ${missingStarText}`,
         title:
           lineup?.status === "confirmed"

@@ -41,6 +41,41 @@ test("builds Daily Slate Intelligence sections from existing service outputs", (
   assert.equal(viewModel.slateMeta.sectionsPopulated, 5);
 });
 
+test("lock zone holds at most 5 bets and never includes a Pass", () => {
+  const slate = buildSlate();
+  const viewModel = buildDailySlateIntelligenceViewModel({
+    homeRuns: buildHomeRuns(slate),
+    moneyline: buildMoneyline(slate),
+    slate,
+    totalBases: buildTotalBases(slate),
+  });
+
+  assert.ok(viewModel.lockZone.length <= 5);
+  assert.ok(
+    viewModel.lockZone.every((bet) => bet.ranked.recommendationTier !== "Pass"),
+  );
+
+  if (viewModel.lockZone.length > 1) {
+    assert.ok(
+      viewModel.lockZone[0].ranked.rank < viewModel.lockZone[1].ranked.rank,
+      "lock zone preserves rank order",
+    );
+  }
+});
+
+test("actionable alerts exclude low-severity filler", () => {
+  const slate = buildSlate();
+  const viewModel = buildDailySlateIntelligenceViewModel({
+    homeRuns: buildHomeRuns(slate),
+    moneyline: buildMoneyline(slate),
+    slate,
+    totalBases: buildTotalBases(slate),
+  });
+
+  assert.ok(viewModel.actionableAlerts.every((alert) => alert.severity !== "low"));
+  assert.ok(viewModel.actionableAlerts.length <= viewModel.alerts.length);
+});
+
 test("uses RankingEngineService output for ranks grades and explanations", () => {
   const slate = buildSlate();
   const viewModel = buildDailySlateIntelligenceViewModel({

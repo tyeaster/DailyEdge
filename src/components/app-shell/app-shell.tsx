@@ -10,43 +10,36 @@ import { cn } from "@/src/lib/cn";
 const navigationGroups = [
   {
     items: [
-      { href: "/", label: "Daily Slate" },
+      { href: "/", label: "Lock Zone" },
       { href: "/best-bets", label: "Best Bets" },
     ],
-    label: "Slate",
-  },
-  {
-    items: [{ href: "/pitching/strikeouts", label: "Strikeouts" }],
-    label: "Pitching",
+    label: "Today",
   },
   {
     items: [
+      { href: "/pitching/strikeouts", label: "Strikeouts" },
       { href: "/hitting/hits", label: "Hits" },
       { href: "/hitting/total-bases", label: "Total Bases" },
       { href: "/hitting/home-runs", label: "Home Runs" },
     ],
-    label: "Hitting",
-  },
-  {
-    items: [
-      { href: "/matchups/zone-intelligence", label: "Zone Intelligence" },
-      { href: "/matchups/pitch-intelligence", label: "Pitch Intelligence" },
-    ],
-    label: "Matchups",
-  },
-  {
-    items: [{ href: "/analysis/correlation", label: "Correlation" }],
-    label: "Analysis",
+    label: "Player Markets",
   },
   {
     items: [
       { href: "/betting/moneyline", label: "Moneyline" },
       { href: "/betting/run-line", label: "Run Line" },
-      { href: "/betting/total-bases", label: "Total Bases" },
       { href: "/betting/team-totals", label: "Team Totals" },
       { href: "/betting/game-totals", label: "Game Totals" },
     ],
-    label: "Team Betting",
+    label: "Team Markets",
+  },
+  {
+    items: [
+      { href: "/matchups/zone-intelligence", label: "Zone Intelligence" },
+      { href: "/matchups/pitch-intelligence", label: "Pitch Intelligence" },
+      { href: "/analysis/correlation", label: "Correlation" },
+    ],
+    label: "Matchups",
   },
   {
     items: [
@@ -59,15 +52,29 @@ const navigationGroups = [
 ];
 
 const primaryLinks = [
-  { href: "/", label: "Daily Slate" },
-  { href: "/best-bets", label: "Best Bets" },
-  { href: "/analysis/correlation", label: "Analysis" },
-  { href: "/pitching/strikeouts", label: "Pitching" },
-  { href: "/hitting/hits", label: "Hitting" },
-  { href: "/matchups/zone-intelligence", label: "Matchups" },
-  { href: "/betting/moneyline", label: "Team Betting" },
-  { href: "/research/players", label: "Research" },
+  { href: "/", label: "Lock Zone", section: "today" },
+  { href: "/best-bets", label: "Best Bets", section: "today" },
+  { href: "/pitching/strikeouts", label: "Player Markets", section: "player-markets" },
+  { href: "/betting/moneyline", label: "Team Markets", section: "team-markets" },
+  { href: "/matchups/zone-intelligence", label: "Matchups", section: "matchups" },
+  { href: "/research/players", label: "Research", section: "research" },
 ];
+
+function getSectionKey(pathname: string) {
+  if (pathname === "/") return "today";
+  if (pathname.startsWith("/best-bets")) return "today";
+  if (pathname.startsWith("/pitching") || pathname.startsWith("/hitting")) {
+    return "player-markets";
+  }
+  if (pathname.startsWith("/betting") || pathname.startsWith("/team")) {
+    return "team-markets";
+  }
+  if (pathname.startsWith("/matchups") || pathname.startsWith("/analysis")) {
+    return "matchups";
+  }
+  if (pathname.startsWith("/research")) return "research";
+  return "today";
+}
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -145,7 +152,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             >
               <div className="flex max-w-4xl gap-1 rounded-2xl border border-slate-800 bg-white/[0.025] p-1">
                 {primaryLinks.map((link) => {
-                  const active = isPrimaryActive(pathname, link.href);
+                  const active = isPrimaryActive(pathname, link);
 
                   return (
                     <Link
@@ -175,7 +182,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="border-t border-slate-800 px-4 py-3 md:hidden">
             <div className="flex gap-2 overflow-x-auto">
               {primaryLinks.map((link) => {
-                const active = isPrimaryActive(pathname, link.href);
+                const active = isPrimaryActive(pathname, link);
 
                 return (
                   <Link
@@ -202,19 +209,28 @@ export function AppShell({ children }: { children: ReactNode }) {
 
 function getCurrentSection(pathname: string) {
   if (pathname.startsWith("/best-bets")) return "Best Bets";
-  if (pathname.startsWith("/analysis")) return "Analysis";
-  if (pathname.startsWith("/pitching")) return "Pitching";
-  if (pathname.startsWith("/hitting")) return "Hitting";
-  if (pathname.startsWith("/matchups")) return "Matchups";
-  if (pathname.startsWith("/betting") || pathname.startsWith("/team")) return "Team Betting";
+  if (pathname.startsWith("/pitching") || pathname.startsWith("/hitting")) {
+    return "Player Markets";
+  }
+  if (pathname.startsWith("/betting") || pathname.startsWith("/team")) {
+    return "Team Markets";
+  }
+  if (pathname.startsWith("/matchups") || pathname.startsWith("/analysis")) {
+    return "Matchups";
+  }
   if (pathname.startsWith("/research")) return "Research";
-  return "Daily Slate";
+  return "Lock Zone";
 }
 
-function isPrimaryActive(pathname: string, href: string) {
-  if (href === "/") return pathname === "/";
+function isPrimaryActive(
+  pathname: string,
+  link: (typeof primaryLinks)[number],
+) {
+  if (link.section === "today") {
+    return link.href === "/" ? pathname === "/" : pathname.startsWith(link.href);
+  }
 
-  return pathname.startsWith(`/${href.split("/")[1]}`);
+  return getSectionKey(pathname) === link.section;
 }
 
 function isActive(pathname: string, href: string) {
