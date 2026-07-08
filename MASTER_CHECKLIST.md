@@ -2,7 +2,7 @@
 
 Living project roadmap and status document. Update this file after every major feature lands so it always reflects the project's true state — do not let it go stale like `docs/PROJECT_STATE.md` did.
 
-Last updated: 2026-07-08 (Pitch Intelligence completed — item 18)
+Last updated: 2026-07-08 (Entity research pages completed — item 19)
 Baseline: `codex/trueline-rebrand` @ `59b4d79` ("Add AI handoff documentation")
 Working branch: `claude/trueline-development`
 
@@ -10,9 +10,9 @@ Validation at time of writing (all passing):
 ```
 npx tsc --noEmit                    -> clean
 npm run build                       -> 26 routes compiled; homepage confirmed HTTP 200 after rebuild; injuries 403 now logs as clean structured JSON
-npm test (no DATABASE_URL)          -> 192 pass, 23 skipped (all recorder/provider/cache DB tests)
-npm test (with DATABASE_URL)        -> 215/215 passing, verified against a real local Postgres 16 instance
-npm run test:e2e (against a real npm start server) -> 10/10 passing (homepage, full admin auth flow, 6-route smoke sample)
+npm test (no DATABASE_URL)          -> 200 pass, 23 skipped (all recorder/provider/cache DB tests)
+npm test (with DATABASE_URL)        -> 223/223 passing, verified against a real local Postgres 16 instance
+npm run test:e2e (against a real npm start server) -> 11/11 passing, 3 skipped (homepage, full admin auth flow, 9-route smoke sample incl. Pitch Intelligence + all 3 entity research pages)
 npm run dev (no secrets set)        -> boots fine, logs env issues (dev is lenient)
 npm run build && npm start (no secrets set) -> fails to boot with a clear error (production is strict)
 npm run build && npm start (admin secrets set) -> full auth flow verified with real Playwright/Chromium
@@ -63,8 +63,8 @@ Verified via code inspection, `tsc`, build output, and passing tests — not jus
 - [x] CorrelationEngine V1 — exposure detection, portfolio generation, conflict warnings
 - [x] Betting markets (built + ranked + tested, odds coverage varies): Moneyline, Run Line, Team Totals, Game Totals, Home Runs, Total Bases, Hits, Strikeouts
 - [x] Best Bets — aggregates all 8 markets via RankingEngine
-- [x] Research pages — Pitcher Research / Strikeout Lab, Hitter Research / Hits Lab, Zone Intelligence, Pitch Intelligence (Section 8o)
-- [x] 215 unit tests across services/providers/engines, all passing
+- [x] Research pages — Pitcher Research / Strikeout Lab, Hitter Research / Hits Lab, Zone Intelligence, Pitch Intelligence (Section 8o), Player/Team/Ballpark Research directories (Section 8p)
+- [x] 223 unit tests across services/providers/engines, all passing
 - [x] `docs/` — 40+ documents covering architecture, each engine, each market, providers, standards
 
 ---
@@ -77,7 +77,6 @@ Verified via code inspection, `tsc`, build output, and passing tests — not jus
 | Calibration Engine | Service, admin dashboard (`/admin/calibration`), tests, mock/replay records, and now `DurableCalibrationProvider` reading real moneyline predictions/results from Postgres when `CALIBRATION_MODE=live` (Section 8h) | Moneyline only — 7 other markets still need the `OddsMarket`/`BetMarketType` vocabulary reconciliation before they can be recorded/calibrated; sample size will be small until this runs for a while in production |
 | Backtesting Engine | `BacktestRunner`, `StrategyEvaluator`, `BankrollSimulator`, admin dashboard, tests, and now `DurableHistoricalSlateProvider` grouping real moneyline predictions/results into daily slates when `BACKTEST_MODE=live` (Section 8i) | Moneyline only, same vocabulary-reconciliation debt as Calibration/Odds Intelligence; real sample size will take time to accumulate |
 | Odds Intelligence | `ClosingLineCalculator`, `MarketMovementAnalyzer`, `SteamMoveDetector`, admin dashboard, tests, live recorder writing to `odds_snapshots` (Section 8d), and now `DurableOddsIntelligenceProvider` reading real opening-to-current movement when `ODDS_INTELLIGENCE_MODE=live` (Section 8j) | CLV specifically isn't computed yet (closings intentionally left empty — needs game start/finish tracking); moneyline only; movement attribution (injury/weather-driven) is limited |
-| Entity research (`/research/players`, `/research/teams`, `/research/ballparks`) | Placeholder routes exist | Not yet searchable/functional entity pages |
 | Best Bets filtering/sorting | Static ranked board renders | No interactive filters or sort controls yet |
 
 ---
@@ -146,7 +145,7 @@ Work roughly top-to-bottom; items within a phase can interleave.
 
 **Phase 5 — Product completion**
 18. [x] Complete Pitch Intelligence to match Zone Intelligence depth — done 2026-07-08 (see Section 8o)
-19. Entity research pages (players/teams/ballparks) made real and searchable
+19. [x] Entity research pages (players/teams/ballparks) made real and searchable — done 2026-07-08 (see Section 8p)
 20. Best Bets interactive filtering/sorting
 21. Global search
 22. Live player-prop odds coverage expansion
@@ -415,6 +414,31 @@ Zone Intelligence and Pitch Intelligence both read the same `MatchupIntelligence
 **Environment note (not a code issue)**: while verifying with a real `DATABASE_URL`, the local Postgres `postgres` role's password didn't match what `.env.local`/tests expect, causing `drizzle-orm`'s wrapped "Failed query" error to mask an underlying `28P01 password authentication failed` — traced with the raw `postgres` driver, then fixed with `ALTER ROLE postgres WITH PASSWORD 'postgres'` against the existing `trueline` database (schema and data were already intact). Documenting this since it's the second session in a row where Postgres state needed a manual fix-up after an environment reset — worth keeping in mind for future sessions.
 
 **Not yet done**: nothing outstanding for this item. Like Zone Intelligence, Pitch Intelligence's real-data depth is bounded by the same live-provider network access documented in Section 8n, not by anything in this feature's own code.
+
+---
+
+## 8p. Entity Research Pages Made Real (added 2026-07-08)
+
+`/research/players`, `/research/teams`, and `/research/ballparks` were all still `ComingSoonPage` placeholders. None of the three had a matching "list everything" data provider in the codebase — every existing provider (`TeamStrengthProvider`, `BallparkProvider`, pitcher/lineup providers) only enriches a single already-known entity by ID; nothing enumerates "all 30 teams" or "every MLB player." Building real pages required deciding, per entity type, what "real and searchable" honestly means given that gap.
+
+**What changed**:
+
+- **`src/data/mlb-teams.ts`** — a new static identity catalog for all 30 MLB franchises (id, abbreviation, division, league, home venue id/name). This is stable reference data (team ids/divisions/venues don't change mid-season), the same category of hardcoded lookup the codebase already carries in `teamMetadata` inside `live-mlb-provider.ts` — not fabricated stats.
+- **Team Research** (`src/features/team-research/`): all 30 catalog teams enriched with real offense/pitching/bullpen/overall ratings via the existing `TeamStrengthService`/`TeamStrengthProvider` trio (`enrichTeams()` doesn't require a "today's game" context, just a `Team` with an MLB id). Client-side search (name/city/abbreviation) + league/division filters; each card expands to show the rating breakdown.
+- **Ballpark Research** (`src/features/ballpark-research/`): all 30 catalog venues enriched with real park factors and hitter/pitcher/power ratings by calling the existing `BallparkProvider.getBallpark()` directly per venue (not through `BallparkService.enrichGame`, which is game-shaped). Client-side search across park/team/city.
+- **Player Research** (`src/features/player-research/`): every pitcher and batter on today's actual Daily Slate (probable pitchers, confirmed/projected lineups, and prop-market players), deduplicated by id — this is the real, honestly-scoped player universe available without adding a new full-roster integration (MLB's roster endpoint isn't used anywhere in this codebase yet). Searchable table with a role filter, and each row deep-links into Strikeout Lab / Hits Lab / Pitch Intelligence / Zone Intelligence with the player pre-selected via the same `?batter=`/`?pitcher=` query-param convention those pages already use.
+- Deleted `src/features/coming-soon/` entirely — after these three pages and Pitch Intelligence (Section 8o) went real, nothing called `ComingSoonPage` anymore, so it was fully orphaned rather than a legitimate placeholder for future work.
+- Extended `tests/e2e/routes.test.ts`'s smoke sample with the three new routes plus `/matchups/pitch-intelligence` (which had been missing from that list since Section 8o landed).
+
+**Verified for real**:
+- `npx tsc --noEmit` clean, `npx eslint .` clean.
+- `npm test` (no `DATABASE_URL`): 223 tests, 200 pass / 23 skip / 0 fail. Caught and fixed one real bug during this work: `player-research/service.ts` originally imported `getDailySlate` at module top level, which eagerly loads `daily-slate/service.ts`'s full `@/src/...` value-import chain — that chain only resolves inside Next.js's module resolver, not under `node --experimental-strip-types`, so the test file crashed with `ERR_MODULE_NOT_FOUND` before running. Fixed by making the import dynamic inside `getPlayerDirectory()` (`await import(...)`), the same lazy-import pattern already used by `matchup-selection.ts`'s `loadMatchupIntelligence()` for the identical reason.
+- `npm test` with a real `DATABASE_URL`: 223/223 passing.
+- `npm run build`: compiles cleanly; all three routes appear in the route table, statically prerendered (`○`).
+- `npm run test:e2e` against a real `next start` production server (`PLAYWRIGHT_CHROMIUM_PATH` set to this sandbox's bundled Chromium): 11/11 passing, including the three new routes and Pitch Intelligence.
+- Real browser check (Playwright, screenshots taken) with `MATCHUP_MODE=mock`/`TEAM_STRENGTH_MODE=mock`/`BALLPARK_MODE=mock` etc.: Team Research renders all 30 real teams/divisions/leagues, search and league/division filters work; Ballpark Research renders all 30 real parks with correct home teams; Player Research renders today's real slate (confirmed starters like Gerrit Cole, Mookie Betts, Aaron Judge alongside "Projected Hitter"-style placeholders for teams without a confirmed lineup, matching the existing mock-lineup convention elsewhere in the app) — clicked a "Zone Intel" link from the Player Research table and confirmed it navigated to `/matchups/zone-intelligence?batter=player-judge` and rendered "Brayan Bello vs Aaron Judge" with real matchup data, proving the cross-feature deep-link actually carries the selected player through, not just that the link renders.
+
+**Known limitation (not a regression)**: `MockTeamStrengthProvider` and `MockBallparkProvider` both only echo back a `fallback*` value if one was already supplied by the caller — they don't synthesize fixture data on their own. Since a cold "list all 30 teams/parks" call has no pre-existing fallback to pass in, Team Research and Ballpark Research show `-`/"unavailable" ratings under `*_MODE=mock`, even though the directory, search, and card rendering all work correctly. This traces back to the same `mock/mlb-data.ts` fixture set not carrying `team.strength` on its handful of teams either (confirmed by inspection — the existing Zone/Pitch Intelligence context cards show the same "Bullpen -" under mock mode), so it's pre-existing app-wide behavior, not something introduced here. Real ratings require `TEAM_STRENGTH_MODE=live`/`BALLPARK_MODE=live`, which needs the outbound MLB Stats API / Baseball Savant access this sandbox's network policy blocks (Section 8n).
 
 ---
 
