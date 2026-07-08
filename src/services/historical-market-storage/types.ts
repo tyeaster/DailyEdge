@@ -16,18 +16,25 @@ export interface HistoricalMarketSnapshot {
   expectedValuePercent?: number;
   fairOdds?: number;
   gameId: string;
+  calibrationVersion?: string;
+  dataQuality?: number;
+  modelConfidence?: number;
+  modelVersion?: string;
   line?: number;
   market: BetMarketType;
   openingOdds: number;
   playerId?: string;
   predictionId?: string;
+  predictionVersion?: string;
   provider: string;
+  recommendation?: string;
   selection?: string;
   snapshotId: string;
   sportsbook: string;
   teamId?: string;
   trueLineProbability?: number;
   updatedAt: string;
+  variance?: number;
 }
 
 export interface HistoricalMarketResult {
@@ -56,18 +63,25 @@ export interface HistoricalMarketSnapshotInput {
   expectedValuePercent?: number;
   fairOdds?: number;
   gameId: string;
+  calibrationVersion?: string;
+  dataQuality?: number;
+  modelConfidence?: number;
+  modelVersion?: string;
   line?: number;
   market: BetMarketType;
   openingOdds?: number;
   playerId?: string;
   predictionId?: string;
+  predictionVersion?: string;
   provider?: string;
+  recommendation?: string;
   selection?: string;
   snapshotId?: string;
   sportsbook: string;
   teamId?: string;
   trueLineProbability?: number;
   updatedAt?: string;
+  variance?: number;
 }
 
 export interface HistoricalMarketSettlementInput {

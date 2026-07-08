@@ -8,6 +8,7 @@ import {
   type GameResultsRequest,
 } from "../providers/game-results/index.ts";
 import { reconcileGameResults } from "./ResultReconciler.ts";
+import { historicalMarketStorageService } from "./historical-market-storage/HistoricalMarketStorageService.ts";
 
 export function getGameResultsMode(): GameResultsProviderMode {
   const mode = process.env.GAME_RESULTS_MODE;
@@ -59,8 +60,15 @@ export async function ingestGameResults(
     const { reconciled } = await reconcileGameResults(
       response.results.map((result) => result.gameId),
     );
+    let settledMarkets = 0;
 
-    return { reconciled, recorded: response.results.length };
+    for (const result of response.results) {
+      const { settled } = await historicalMarketStorageService.settleGameMarkets(result);
+
+      settledMarkets += settled;
+    }
+
+    return { reconciled: reconciled + settledMarkets, recorded: response.results.length };
   } catch (error) {
     logger.error(
       "game-results-service",

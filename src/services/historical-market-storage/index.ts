@@ -1,4 +1,9 @@
-export { HistoricalMarketStorageService, historicalMarketStorageService } from "./HistoricalMarketStorageService.ts";
+export {
+  buildGameMarketSettlement,
+  HistoricalMarketStorageService,
+  historicalMarketStorageService,
+} from "./HistoricalMarketStorageService.ts";
+export type { HistoricalDailySlate } from "./HistoricalMarketStorageService.ts";
 export {
   DurableHistoricalMarketProvider,
   getConfiguredHistoricalMarketProvider,

@@ -22,7 +22,7 @@ The storage layer enables:
 
 Migration:
 
-`drizzle/0004_adorable_baron_strucker.sql`
+`drizzle/0004_historical_market_storage.sql`
 
 Tables:
 
@@ -42,9 +42,16 @@ Fields include:
 - `current_odds`
 - `closing_odds`
 - `true_line_probability`
+- `model_confidence`
+- `data_quality`
+- `prediction_version`
+- `model_version`
+- `calibration_version`
 - `fair_odds`
 - `edge_percent`
 - `expected_value_percent`
+- `recommendation`
+- `variance`
 - `line`
 - `selection`
 - `provider`
@@ -109,30 +116,82 @@ The repository provides:
 - `recordSnapshot()`
 - `settleMarket()`
 - `findSnapshot()`
+- `listSnapshotsByGameId()`
 - `listSnapshots()`
 - `listResults()`
 
 Writes are idempotent by primary key. Recorder failures are logged and do not
 break Daily Slate generation.
 
-## Daily Slate Integration
+## Snapshot Lifecycle
 
-Live Daily Slate now records resolved game-level markets:
+Historical Market Storage receives snapshots from two places:
+
+1. Daily Slate records slate-level markets as soon as live slate data is built.
+2. Best Bets records every normalized supported market after market services
+   produce candidates.
+
+Daily Slate records:
 
 - Moneyline
 - Run Line
 - Game Total
+- Strikeouts
+- Hits
+- Home Runs
+- Total Bases
 
-Moneyline snapshots include PredictionEngine values:
+Best Bets records:
+
+- Moneyline
+- Run Line
+- Game Total
+- Team Total
+- Strikeouts
+- Hits
+- Home Runs
+- Total Bases
+
+Snapshots include model metadata whenever available:
 
 - TrueLine probability
+- Model confidence
+- Data quality
+- Prediction version
+- Model version
+- Calibration version
 - Fair odds
 - Edge
 - Expected value
-- Selected team
+- Recommendation
+- Variance
 
-Run Line and Game Total are stored odds-first until their market-specific model
-values are wired into the central ledger.
+Daily Slate moneyline records use PredictionEngine metadata. Best Bets records
+use each market service's normalized ranking candidate data.
+
+## Settlement Lifecycle
+
+Official game results ingestion now calls Historical Market Storage settlement
+after game results are recorded.
+
+Automatically settled from final game scores:
+
+- Moneyline
+- Run Line
+- Game Total
+- Team Total
+
+Settlement writes `historical_market_results` rows with:
+
+- final result
+- win/loss/push
+- actual stat where relevant
+- settlement timestamp
+
+Player prop settlement remains explicit in V1. The storage layer supports
+settling Strikeouts, Hits, Home Runs, and Total Bases through `settleMarket()`
+when an actual stat is available, but automatic player-prop settlement requires
+a stable official player box-score result keyed to the same game/player IDs.
 
 ## Calibration Integration
 
@@ -150,6 +209,21 @@ settlements into daily slates.
 This allows stored market snapshots to replay through the existing
 `BacktestRunner` and `StrategyEvaluator` without changing bankroll or strategy
 logic.
+
+## Daily Slate Reconstruction
+
+`HistoricalMarketStorageService.getDailySlateHistory()` groups snapshots by
+date and game. This produces a historical slate-like structure using only
+stored snapshots:
+
+- date
+- slate ID
+- game IDs
+- stored market snapshots per game
+
+This is intended for historical review, replay, and future daily slate
+reconstruction. It does not rebuild the full live UI view model because the UI
+also depends on current team, player, weather, ballpark, and lineup objects.
 
 ## Odds Intelligence Integration
 
@@ -182,20 +256,19 @@ This verifies both full model-backed records and odds-only records.
 
 ## Current Limitations
 
-- Settlement automation is not fully wired to live final stats yet.
-- Player prop and team-total products must call `recordSnapshot()` from their
-  dedicated market services to populate complete market history.
-- Run Line and Game Total snapshots are currently odds-only from Daily Slate.
-- Historical records reconstructed into RankingEngine use conservative default
-  confidence/data-quality values unless captured from a market service.
+- Automatic player-prop settlement needs a stable official player box-score
+  provider keyed by game/player. Existing player game logs are useful for
+  research, but they do not expose a stable game ID that can safely settle an
+  individual market.
+- Run Line and Game Total snapshots recorded directly by Daily Slate are
+  odds-first; Best Bets records carry richer market-service metadata.
 - There is no foreign-key enforcement yet; IDs remain application-level joins.
-- No retention policy, archival job, or warehouse export exists yet.
+- No retention policy, archival job, indexing strategy, or warehouse export
+  exists yet.
 
 ## V2 Roadmap
 
-1. Add automatic settlement jobs for props and team markets.
-2. Record all Best Bets candidates into the historical ledger.
-3. Store confidence, data quality, and variance directly on snapshots.
-4. Add indexes for market/date/sportsbook/team/player queries.
-5. Add closing-line capture tied to game start time.
-6. Add historical market exports for model training and calibration notebooks.
+1. Add official player box-score settlement for props.
+2. Add indexes for market/date/sportsbook/team/player queries.
+3. Add dedicated closing-line capture tied to game start time.
+4. Add historical market exports for model training and calibration notebooks.

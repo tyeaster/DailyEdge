@@ -30,18 +30,21 @@ export function toRecordedPrediction(
   }
 
   return {
-    confidence: DEFAULT_CONFIDENCE,
+    confidence: snapshot.modelConfidence ?? DEFAULT_CONFIDENCE,
     edgePercent: snapshot.edgePercent,
     expectedValuePercent: snapshot.expectedValuePercent,
     fairOdds: snapshot.fairOdds,
     gameId: snapshot.gameId,
     market: snapshot.market,
-    modelId: "historical-market-storage-v1",
+    modelId:
+      snapshot.modelVersion ??
+      snapshot.predictionVersion ??
+      "historical-market-storage-v1",
     modelProbability: snapshot.trueLineProbability,
     odds: snapshot.currentOdds,
     playerId: snapshot.playerId,
     predictionId: snapshot.predictionId,
-    recommendation: recommendationFromEdge(snapshot.edgePercent),
+    recommendation: snapshot.recommendation ?? recommendationFromEdge(snapshot.edgePercent),
     sportsbook: snapshot.sportsbook,
     teamId: snapshot.teamId,
     timestamp: snapshot.capturedAt,
@@ -129,8 +132,8 @@ export function toBetCandidate(
 
   return {
     betId: snapshot.predictionId ?? snapshot.snapshotId,
-    confidence: DEFAULT_CONFIDENCE,
-    dataQuality: DEFAULT_DATA_QUALITY,
+    confidence: snapshot.modelConfidence ?? DEFAULT_CONFIDENCE,
+    dataQuality: snapshot.dataQuality ?? DEFAULT_DATA_QUALITY,
     edgePercent: snapshot.edgePercent,
     expectedValuePercent: snapshot.expectedValuePercent,
     fairOdds: snapshot.fairOdds,
@@ -139,13 +142,13 @@ export function toBetCandidate(
     player: snapshot.playerId
       ? { id: snapshot.playerId, name: snapshot.playerId }
       : undefined,
-    recommendation: recommendationFromEdge(snapshot.edgePercent),
+    recommendation: snapshot.recommendation ?? recommendationFromEdge(snapshot.edgePercent),
     sportsbook: snapshot.sportsbook,
     sportsbookOdds: snapshot.currentOdds,
     supportingFactors: buildSupportingFactors(snapshot),
     team: snapshot.teamId ? { id: snapshot.teamId, name: snapshot.teamId } : undefined,
     timestamp: snapshot.capturedAt,
-    variance: varianceForMarket(snapshot.market),
+    variance: snapshot.variance ?? varianceForMarket(snapshot.market),
   };
 }
 

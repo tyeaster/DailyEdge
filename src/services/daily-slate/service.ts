@@ -19,6 +19,7 @@ import type { TrueLineDataProvider } from "@/src/services/providers";
 import {
   recordGameOddsSnapshots,
   recordHistoricalGameMarkets,
+  recordHistoricalPropMarkets,
 } from "@/src/services/OddsSnapshotRecorder";
 import { recordMoneylinePredictions } from "@/src/services/PredictionRecorder";
 import type { DashboardNavItem, KpiMetric } from "@/src/types/mlb-dashboard";
@@ -118,6 +119,12 @@ async function buildDailySlate(
       dataSource,
       games: oddsBackedGames,
       predictions: gamePredictions,
+    });
+    await recordHistoricalPropMarkets({
+      dataSource,
+      games: oddsBackedGames,
+      playerById,
+      props,
     });
   }
 

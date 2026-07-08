@@ -4,6 +4,7 @@ import test from "node:test";
 import { closeDb } from "../src/persistence/client.ts";
 import { HistoricalMarketRepository } from "../src/persistence/repositories/historical-market-repository.ts";
 import {
+  buildGameMarketSettlement,
   HistoricalMarketStorageService,
   MockHistoricalMarketProvider,
   ReplayHistoricalMarketProvider,
@@ -34,6 +35,8 @@ test("maps historical snapshots into calibration predictions and results", () =>
   assert.equal(prediction.market, "strikeouts");
   assert.equal(prediction.odds, -110);
   assert.equal(prediction.fairOdds, -132);
+  assert.equal(prediction.confidence, 82);
+  assert.equal(prediction.modelId, "strikeouts-model-v1");
   assert.equal(predictionResult?.outcome, "win");
   assert.equal(predictionResult?.actualStrikeouts, 7);
 });
@@ -49,6 +52,8 @@ test("maps historical snapshots into odds history closings and ranking candidate
   assert.equal(closing?.closingOdds, -118);
   assert.equal(candidate?.marketType, "strikeouts");
   assert.equal(candidate?.sportsbookOdds, -110);
+  assert.equal(candidate?.confidence, 82);
+  assert.equal(candidate?.dataQuality, 91);
 });
 
 test("replay provider loads stored historical snapshots without network access", async () => {
@@ -59,6 +64,7 @@ test("replay provider loads stored historical snapshots without network access",
   const odds = await service.getOddsHistory();
   const ranking = await service.getRankingHistory();
   const slates = await service.getHistoricalSlates();
+  const dailySlates = await service.getDailySlateHistory();
 
   assert.equal(calibration.predictions.length, 1);
   assert.equal(calibration.results.length, 1);
@@ -66,6 +72,56 @@ test("replay provider loads stored historical snapshots without network access",
   assert.equal(odds.closings.length, 1);
   assert.equal(ranking.candidates.length, 1);
   assert.equal(slates.length, 1);
+  assert.equal(dailySlates.length, 1);
+  assert.equal(dailySlates[0].games[0].markets.length, 2);
+});
+
+test("settles game and team markets from official final scores", () => {
+  const result = {
+    awayScore: 3,
+    awayTeamId: "team-away",
+    completedAt: "2026-07-08T23:30:00.000Z",
+    gameId: "game-1",
+    homeScore: 5,
+    homeTeamId: "team-home",
+    winningTeamId: "team-home",
+  };
+
+  assert.equal(
+    buildGameMarketSettlement(
+      { ...buildSnapshot(), market: "moneyline", teamId: "team-home" },
+      result,
+    )?.outcome,
+    "win",
+  );
+  assert.equal(
+    buildGameMarketSettlement(
+      { ...buildSnapshot(), line: -1.5, market: "run-line", teamId: "team-home" },
+      result,
+    )?.outcome,
+    "win",
+  );
+  assert.equal(
+    buildGameMarketSettlement(
+      { ...buildSnapshot(), line: 9.5, market: "game-total", selection: "Under" },
+      result,
+    )?.outcome,
+    "win",
+  );
+  assert.equal(
+    buildGameMarketSettlement(
+      { ...buildSnapshot(), line: 4.5, market: "team-total", teamId: "team-home" },
+      result,
+    )?.outcome,
+    "win",
+  );
+  assert.equal(
+    buildGameMarketSettlement(
+      { ...buildSnapshot(), market: "strikeouts" },
+      result,
+    ),
+    undefined,
+  );
 });
 
 test("mock provider mirrors the live historical market contract", async () => {
@@ -142,18 +198,25 @@ function buildSnapshot(): HistoricalMarketSnapshot {
     expectedValuePercent: 4.8,
     fairOdds: -132,
     gameId: "game-1",
+    calibrationVersion: "calibration-v1",
+    dataQuality: 91,
     line: 6.5,
     market: "strikeouts",
+    modelConfidence: 82,
+    modelVersion: "strikeouts-model-v1",
     openingOdds: 104,
     playerId: "player-wheeler",
     predictionId: "prediction-1",
+    predictionVersion: "strikeouts-prediction-v1",
     provider: "oddspipe",
+    recommendation: "Play",
     selection: "Over",
     snapshotId: "snapshot-1",
     sportsbook: "DraftKings",
     teamId: "team-phi",
     trueLineProbability: 0.57,
     updatedAt: "2026-07-08T22:30:00.000Z",
+    variance: 45,
   };
 }
 

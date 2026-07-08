@@ -35,18 +35,25 @@ export class HistoricalMarketRepository {
         expectedValuePercent: snapshot.expectedValuePercent,
         fairOdds: snapshot.fairOdds,
         gameId: snapshot.gameId,
+        calibrationVersion: snapshot.calibrationVersion,
+        dataQuality: snapshot.dataQuality,
+        modelConfidence: snapshot.modelConfidence,
+        modelVersion: snapshot.modelVersion,
         line: snapshot.line,
         market: snapshot.market,
         openingOdds: snapshot.openingOdds,
         playerId: snapshot.playerId,
         predictionId: snapshot.predictionId,
+        predictionVersion: snapshot.predictionVersion,
         provider: snapshot.provider,
+        recommendation: snapshot.recommendation,
         selection: snapshot.selection,
         snapshotId: snapshot.snapshotId,
         sportsbook: snapshot.sportsbook,
         teamId: snapshot.teamId,
         trueLineProbability: snapshot.trueLineProbability,
         updatedAt: new Date(snapshot.updatedAt),
+        variance: snapshot.variance,
       })
       .onConflictDoNothing({ target: historicalMarketSnapshots.snapshotId });
 
@@ -91,6 +98,15 @@ export class HistoricalMarketRepository {
     return rows[0] ? toSnapshot(rows[0]) : undefined;
   }
 
+  async listSnapshotsByGameId(gameId: string): Promise<HistoricalMarketSnapshot[]> {
+    const rows = await this.db
+      .select()
+      .from(historicalMarketSnapshots)
+      .where(eq(historicalMarketSnapshots.gameId, gameId));
+
+    return rows.map(toSnapshot);
+  }
+
   async listSnapshots(): Promise<HistoricalMarketSnapshot[]> {
     const rows = await this.db.select().from(historicalMarketSnapshots);
 
@@ -118,18 +134,25 @@ function normalizeSnapshotInput(
     expectedValuePercent: input.expectedValuePercent,
     fairOdds: input.fairOdds,
     gameId: input.gameId,
+    calibrationVersion: input.calibrationVersion,
+    dataQuality: input.dataQuality,
+    modelConfidence: input.modelConfidence,
+    modelVersion: input.modelVersion,
     line: input.line,
     market: input.market,
     openingOdds: input.openingOdds ?? input.currentOdds,
     playerId: input.playerId,
     predictionId: input.predictionId,
+    predictionVersion: input.predictionVersion,
     provider: input.provider ?? "trueline",
+    recommendation: input.recommendation,
     selection: input.selection,
     snapshotId: input.snapshotId ?? buildSnapshotId(input, capturedAt),
     sportsbook: input.sportsbook,
     teamId: input.teamId,
     trueLineProbability: input.trueLineProbability,
     updatedAt,
+    variance: input.variance,
   };
 }
 
@@ -173,18 +196,25 @@ function toSnapshot(
     expectedValuePercent: row.expectedValuePercent ?? undefined,
     fairOdds: row.fairOdds ?? undefined,
     gameId: row.gameId,
+    calibrationVersion: row.calibrationVersion ?? undefined,
+    dataQuality: row.dataQuality ?? undefined,
+    modelConfidence: row.modelConfidence ?? undefined,
+    modelVersion: row.modelVersion ?? undefined,
     line: row.line ?? undefined,
     market: row.market as HistoricalMarketSnapshot["market"],
     openingOdds: row.openingOdds,
     playerId: row.playerId ?? undefined,
     predictionId: row.predictionId ?? undefined,
+    predictionVersion: row.predictionVersion ?? undefined,
     provider: row.provider,
+    recommendation: row.recommendation ?? undefined,
     selection: row.selection ?? undefined,
     snapshotId: row.snapshotId,
     sportsbook: row.sportsbook,
     teamId: row.teamId ?? undefined,
     trueLineProbability: row.trueLineProbability ?? undefined,
     updatedAt: row.updatedAt.toISOString(),
+    variance: row.variance ?? undefined,
   };
 }
 
