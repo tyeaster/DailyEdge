@@ -1,0 +1,1 @@
+ALTER TABLE "odds_snapshots" ADD COLUMN "game_id" text;

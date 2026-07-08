@@ -1,0 +1,31 @@
+export const GAME_TOTALS_CONFIG = {
+  confidence: {
+    edgeWeight: 0.34,
+    gradeWeight: 0.24,
+    inputQualityWeight: 0.24,
+    rankingWeight: 0.18,
+  },
+  defaultGameTotalOdds: -110,
+  scoreWeights: {
+    awayOffense: 0.1,
+    awayStarter: 0.08,
+    ballpark: 0.09,
+    bullpen: 0.1,
+    homeAway: 0.03,
+    homeOffense: 0.1,
+    homeStarter: 0.08,
+    lineup: 0.09,
+    matchup: 0.12,
+    recentForm: 0.09,
+    restTravel: 0.03,
+    weather: 0.09,
+  },
+  thresholds: {
+    eliteGrade: 76,
+    leanEdge: 1.2,
+    playEdge: 2.5,
+    playGrade: 60,
+    strongEdge: 4,
+    strongGrade: 68,
+  },
+} as const;

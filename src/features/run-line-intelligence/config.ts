@@ -1,0 +1,31 @@
+export const RUN_LINE_CONFIG = {
+  confidence: {
+    edgeWeight: 0.34,
+    gradeWeight: 0.26,
+    inputQualityWeight: 0.22,
+    marginWeight: 0.18,
+  },
+  defaultRunLineOdds: -110,
+  scoreWeights: {
+    ballpark: 0.05,
+    blowoutPotential: 0.08,
+    bullpenDifference: 0.11,
+    homeField: 0.05,
+    lateInningAdvantage: 0.08,
+    lineupStrength: 0.09,
+    matchup: 0.12,
+    offenseDifference: 0.12,
+    projectedMargin: 0.14,
+    recentForm: 0.08,
+    startingPitching: 0.12,
+    weather: 0.06,
+  },
+  thresholds: {
+    eliteGrade: 76,
+    leanEdge: 1.2,
+    playEdge: 2.5,
+    playGrade: 60,
+    strongEdge: 4,
+    strongGrade: 68,
+  },
+} as const;

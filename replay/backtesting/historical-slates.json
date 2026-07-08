@@ -1,0 +1,125 @@
+{
+  "fetchedAt": "2026-06-25T16:00:00.000Z",
+  "slates": [
+    {
+      "date": "2026-06-20",
+      "slateId": "slate-2026-06-20",
+      "calibrationRecords": {
+        "predictions": [
+          {
+            "predictionId": "replay-bt-k-1",
+            "playerId": "pitcher-wheeler",
+            "market": "strikeouts",
+            "sportsbook": "DraftKings",
+            "odds": 104,
+            "modelProbability": 0.62,
+            "fairOdds": -132,
+            "edgePercent": 7.2,
+            "expectedValuePercent": 5.9,
+            "confidence": 74,
+            "recommendation": "Play",
+            "timestamp": "2026-06-20T16:00:00.000Z",
+            "gameId": "game-replay-bt-k-1",
+            "modelId": "trueline-v1"
+          },
+          {
+            "predictionId": "replay-bt-hit-1",
+            "playerId": "player-harper",
+            "market": "hits",
+            "sportsbook": "DraftKings",
+            "odds": -155,
+            "modelProbability": 0.58,
+            "fairOdds": -138,
+            "edgePercent": 4.4,
+            "expectedValuePercent": 3.1,
+            "confidence": 68,
+            "recommendation": "Lean",
+            "timestamp": "2026-06-20T16:05:00.000Z",
+            "gameId": "game-replay-bt-hit-1",
+            "modelId": "trueline-v1"
+          }
+        ],
+        "results": [
+          {
+            "predictionId": "replay-bt-k-1",
+            "gameId": "game-replay-bt-k-1",
+            "market": "strikeouts",
+            "outcome": "win",
+            "actualStrikeouts": 8,
+            "closingEdgePercent": 5.8,
+            "recordedAt": "2026-06-20T23:30:00.000Z"
+          },
+          {
+            "predictionId": "replay-bt-hit-1",
+            "gameId": "game-replay-bt-hit-1",
+            "market": "hits",
+            "outcome": "win",
+            "actualHits": 2,
+            "closingEdgePercent": 2.7,
+            "recordedAt": "2026-06-20T23:35:00.000Z"
+          }
+        ]
+      }
+    },
+    {
+      "date": "2026-06-21",
+      "slateId": "slate-2026-06-21",
+      "calibrationRecords": {
+        "predictions": [
+          {
+            "predictionId": "replay-bt-hr-1",
+            "playerId": "player-judge",
+            "market": "home-runs",
+            "sportsbook": "DraftKings",
+            "odds": 285,
+            "modelProbability": 0.28,
+            "fairOdds": 245,
+            "edgePercent": 5.8,
+            "expectedValuePercent": 4.5,
+            "confidence": 72,
+            "recommendation": "Play",
+            "timestamp": "2026-06-21T15:30:00.000Z",
+            "gameId": "game-replay-bt-hr-1",
+            "modelId": "trueline-v1"
+          },
+          {
+            "predictionId": "replay-bt-ml-1",
+            "teamId": "team-phi",
+            "market": "moneyline",
+            "sportsbook": "DraftKings",
+            "odds": 112,
+            "modelProbability": 0.57,
+            "fairOdds": -132,
+            "edgePercent": 6.4,
+            "expectedValuePercent": 5.5,
+            "confidence": 79,
+            "recommendation": "Play",
+            "timestamp": "2026-06-21T15:40:00.000Z",
+            "gameId": "game-replay-bt-ml-1",
+            "modelId": "trueline-v1"
+          }
+        ],
+        "results": [
+          {
+            "predictionId": "replay-bt-hr-1",
+            "gameId": "game-replay-bt-hr-1",
+            "market": "home-runs",
+            "outcome": "loss",
+            "actualHomeRuns": 0,
+            "closingEdgePercent": 3.1,
+            "recordedAt": "2026-06-21T23:10:00.000Z"
+          },
+          {
+            "predictionId": "replay-bt-ml-1",
+            "gameId": "game-replay-bt-ml-1",
+            "market": "moneyline",
+            "outcome": "win",
+            "moneylineWinnerTeamId": "team-phi",
+            "closingEdgePercent": 4.8,
+            "recordedAt": "2026-06-21T23:20:00.000Z"
+          }
+        ]
+      }
+    }
+  ]
+}

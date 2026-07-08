@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import "@/src/styles/globals.css";
 
+import { AppShell } from "@/src/components/app-shell";
+
 export const metadata: Metadata = {
-  title: "DailyEdge | MLB Analytics Dashboard",
+  title: "TrueLine | MLB Analytics Dashboard",
   description:
-    "DailyEdge is a premium MLB analytics dashboard for slate research, player props, pitching models, market movement, and betting decision support.",
+    "TrueLine is a premium MLB analytics dashboard for slate research, player props, pitching models, market movement, and betting decision support.",
 };
 
 export default function RootLayout({
@@ -14,7 +16,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="h-full antialiased">
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <AppShell>{children}</AppShell>
+      </body>
     </html>
   );
 }

@@ -1,5 +1,29 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## TrueLine Docs
+
+- [Project Principles](PROJECT_PRINCIPLES.md) - primary engineering philosophy for TrueLine.
+- [Product Blueprint](docs/PRODUCT_BLUEPRINT.md) - long-term product vision and master specification.
+- [Roadmap](docs/ROADMAP.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [API Providers](docs/API_PROVIDERS.md)
+- [Phase 2 Data Plan](docs/PHASE_2_DATA_PLAN.md)
+- [Environmental Data Sources](docs/ENVIRONMENTAL_DATA_SOURCES.md)
+- [Environmental Intelligence](docs/ENVIRONMENTAL_INTELLIGENCE.md)
+- [Matchup Intelligence](docs/MATCHUP_INTELLIGENCE.md)
+- [Model Spec](docs/MODEL_SPEC.md)
+- [MLB Prediction Model V1](docs/MODEL_SPEC_V1.md)
+- [Prediction Engine V1](docs/PREDICTION_ENGINE_V1.md)
+- [Team Strength Model](docs/TEAM_STRENGTH_MODEL.md)
+- [Confirmed Lineup Model](docs/LINEUP_MODEL.md)
+- [Recent Form Model](docs/RECENT_FORM_MODEL.md)
+- [Model Intelligence](docs/MODEL_INTELLIGENCE.md)
+- [Player Intelligence](docs/PLAYER_INTELLIGENCE.md)
+- [Total Bases Intelligence](docs/TOTAL_BASES.md)
+- [Project State](docs/PROJECT_STATE.md)
+- [Scoring](docs/SCORING.md)
+- [Style Guide](docs/STYLE_GUIDE.md)
+
 ## Getting Started
 
 First, run the development server:

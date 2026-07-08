@@ -8,10 +8,10 @@ export function Sidebar({ items }: { items: DashboardNavItem[] }) {
       <div className="flex w-full flex-col">
         <a href="#dashboard" className="flex items-center gap-3 rounded-2xl px-2 py-2">
           <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-blue-300/20 bg-blue-400/10 text-sm font-black text-blue-100">
-            DE
+            TL
           </span>
           <span className="hidden text-lg font-semibold tracking-tight text-white xl:inline">
-            DailyEdge
+            TrueLine
           </span>
         </a>
 

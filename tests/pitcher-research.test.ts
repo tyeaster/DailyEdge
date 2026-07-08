@@ -1,0 +1,339 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+
+import { buildPitcherResearchViewModel } from "../src/features/pitcher-research/service.ts";
+import type { DailySlateViewModel } from "../src/services/daily-slate/types.ts";
+
+test("builds pitcher research from existing Daily Slate-shaped data", () => {
+  const research = buildPitcherResearchViewModel(buildSlate(), "pitcher-wheeler");
+
+  assert.equal(research.pitcher.fullName, "Zack Wheeler");
+  assert.equal(research.opponent.abbreviation, "NYM");
+  assert.equal(research.overview.sportsbookLine, "Over 6.5");
+  assert.equal(research.overview.projection, "7.4 Ks");
+  assert.equal(research.recentStarts.length, 5);
+  assert.equal(research.factors.length, 7);
+  assert.equal(research.strikeoutMatchup.breakdowns.pitchMatch.score, 50);
+  assert.equal(research.pitcherIntelligence.rolling.length, 4);
+  assert.ok(research.modelExplanation.includes("TrueLine projects"));
+  assert.ok(research.dataConfidence > 0);
+});
+
+function buildSlate(): DailySlateViewModel {
+  const awayTeam = {
+    abbreviation: "PHI",
+    city: "Philadelphia",
+    division: "East",
+    id: "team-phi",
+    league: "NL",
+    lineup: lineup("confirmed", 0.21, 0.74, 68, 52),
+    name: "Phillies",
+    strength: {
+      bullpen: {
+        available: true,
+        value: 67,
+        workloadRating: 78,
+      },
+      fetchedAt: "2026-06-26T12:00:00.000Z",
+      offense: {
+        available: true,
+        battingAverage: 0.255,
+        ops: 0.76,
+        runsPerGame: 4.8,
+        strikeoutRate: 21,
+        value: 62,
+        walkRate: 8,
+      },
+      overall: { available: true, runDifferential: 42, value: 64 },
+      pitching: {
+        available: true,
+        era: 3.5,
+        runsAllowedPerGame: 4,
+        value: 66,
+        whip: 1.18,
+      },
+      source: "mock",
+    },
+  } as const;
+  const homeTeam = {
+    abbreviation: "NYM",
+    city: "New York",
+    division: "East",
+    id: "team-nym",
+    league: "NL",
+    lineup: lineup("projected", 0.25, 0.7, 54, 44),
+    name: "Mets",
+  } as const;
+  const pitcher = {
+    arsenal: ["Four-seam", "Sweeper", "Sinker"],
+    bats: "R",
+    era: 2.72,
+    fullName: "Zack Wheeler",
+    gamesStarted: 14,
+    handedness: "R",
+    homeRunsPer9: 0.8,
+    id: "pitcher-wheeler",
+    inningsPitched: 91.1,
+    losses: 3,
+    position: "SP",
+    strikeoutsPer9: 10.6,
+    strikeoutRate: 30.1,
+    teamId: "team-phi",
+    throws: "R",
+    walksPer9: 2.1,
+    whip: 0.98,
+    wins: 8,
+  } as const;
+  const homePitcher = {
+    ...pitcher,
+    fullName: "Kodai Senga",
+    id: "pitcher-senga",
+    teamId: "team-nym",
+  } as const;
+  const weather = {
+    airDensityKgM3: 1.18,
+    airPressureHpa: 1010,
+    cancellationProbability: 0,
+    cloudCoverPercent: 30,
+    crosswindMph: 0,
+    delayProbability: 0,
+    dewPointF: 54,
+    fetchedAt: "2026-06-26T12:00:00.000Z",
+    flyBallEnvironment: 45,
+    gameId: "game-phi-nym",
+    groundBallEnvironment: 55,
+    gustMph: 12,
+    headwindMph: 8,
+    hitterFriendlyRating: 45,
+    homeRunEnvironment: 42,
+    humidityPercent: 52,
+    id: "weather-citi",
+    indoor: false,
+    offenseEnvironment: 45,
+    pitcherFriendlyRating: 55,
+    pitchingEnvironment: 55,
+    rainChancePercent: 5,
+    rainIntensityInchesPerHour: 0,
+    relativeWindDirection: "Headwind",
+    roofStatus: "open",
+    runEnvironment: 45,
+    source: "mock",
+    stadium: "Citi Field",
+    stormRisk: 0,
+    strikeoutEnvironment: 55,
+    summary: "70F, 8 MPH Headwind",
+    tailwindMph: 0,
+    temperatureF: 70,
+    visibilityMiles: 10,
+    weatherApplicable: true,
+    weatherConfidence: 85,
+    weatherSeverity: 0,
+    windDirection: "Headwind",
+    windDirectionDegrees: 180,
+    windMph: 8,
+  } as const;
+  const game = {
+    awayPitcherId: pitcher.id,
+    awayTeamId: awayTeam.id,
+    ballpark: {
+      altitudeFeet: 10,
+      azimuthDegrees: 45,
+      babipFactor: 98,
+      dimensions: {
+        center: 408,
+        leftCenter: 385,
+        leftLine: 335,
+        rightCenter: 375,
+        rightLine: 330,
+      },
+      doublesFactor: 97,
+      fetchedAt: "2026-06-26T12:00:00.000Z",
+      flyBallFactor: null,
+      foulTerritoryFactor: null,
+      groundBallFactor: null,
+      historicalConfidence: 90,
+      hitterFriendlyRating: 45,
+      homeRunFactor: 94,
+      league: "NL",
+      leftHandedHomeRunFactor: 92,
+      latitude: 40.7,
+      longitude: -73.8,
+      name: "Citi Field",
+      outfieldSpeed: null,
+      overallParkRating: 45,
+      pitcherFriendlyRating: 55,
+      powerFriendlyRating: 44,
+      rightHandedHomeRunFactor: 96,
+      roofType: "Open",
+      runFactor: 96,
+      singlesFactor: 99,
+      source: "mock",
+      speedFriendlyRating: 48,
+      strikeoutFactor: 101,
+      surface: "Grass",
+      triplesFactor: 100,
+      venueId: 1,
+      walkFactor: 100,
+    },
+    confidence: { label: "High", value: 76 },
+    detail: "",
+    homePitcherId: homePitcher.id,
+    homeTeamId: homeTeam.id,
+    id: "game-phi-nym",
+    modelProbability: 0.52,
+    odds: {
+      moneyline: {
+        displayLine: "PHI +102 / NYM -120",
+        id: "ml",
+        line: 102,
+        market: "moneyline",
+        movement: "Flat",
+        price: 102,
+        sportsbook: "Consensus",
+      },
+      spread: {
+        displayLine: "PHI +1.5",
+        id: "spread",
+        line: 1.5,
+        market: "spread",
+        movement: "Flat",
+        price: -110,
+        sportsbook: "Consensus",
+      },
+      total: {
+        displayLine: "7.5",
+        id: "total",
+        line: 7.5,
+        market: "total",
+        movement: "Flat",
+        price: -110,
+        sportsbook: "Consensus",
+      },
+    },
+    prediction: {
+      awayFairMoneyline: 105,
+      awayProjectedRuns: 3.8,
+      awayWinProbability: 0.49,
+      confidenceScore: 76,
+      dataQuality: {
+        inputs: {},
+        missingInputs: [],
+        score: 82,
+      },
+      edgePercent: 3.2,
+      expectedValuePercent: 2.1,
+      explanations: [],
+      gameId: "game-phi-nym",
+      homeFairMoneyline: -105,
+      homeProjectedRuns: 3.9,
+      homeWinProbability: 0.51,
+      impliedSportsbookProbability: 0.49,
+      modelBreakdown: {
+        factors: {},
+        totalContributionPercent: 1,
+      },
+      predictedWinnerTeamId: homeTeam.id,
+      predictionVersion: "test",
+      projectedTotalRuns: 7.7,
+      recommendation: "Lean",
+      selectedFairMoneyline: 105,
+      selectedTeamId: awayTeam.id,
+      selectedWinProbability: 0.52,
+      sportsbook: "Consensus",
+      sportsbookLine: "PHI +102 / NYM -120",
+      sportsbookMoneyline: 102,
+    },
+    scheduledAt: "2026-06-26T23:00:00.000Z",
+    status: "confirmed",
+    venue: "Citi Field",
+    weather,
+    weatherId: weather.id,
+  } as unknown as DailySlateViewModel["games"][number]["game"];
+
+  return {
+    bets: [],
+    dashboardNavItems: [],
+    dataSource: "mock",
+    games: [
+      {
+        awayPitcher: pitcher,
+        awayTeam,
+        game,
+        homePitcher,
+        homeTeam,
+        weather,
+      },
+    ],
+    injuries: [],
+    kpiMetrics: [],
+    propCategories: [
+      {
+        label: "Strikeouts",
+        props: [
+          {
+            player: pitcher,
+            prop: {
+              category: "Strikeouts",
+              confidence: { label: "Elite", value: 84 },
+              edge: { percentage: 7.1, rating: "S" },
+              gameId: game.id,
+              id: "prop-wheeler-k",
+              odds: {
+                displayLine: "Over 6.5",
+                id: "odds-wheeler-k",
+                line: 6.5,
+                market: "player-prop",
+                movement: "+6 cents",
+                price: 104,
+                sportsbook: "DraftKings",
+              },
+              playerId: pitcher.id,
+              projection: "7.4 Ks",
+              reasoning: "Elite swing-and-miss gap.",
+            },
+            team: awayTeam,
+          },
+        ],
+      },
+    ],
+    slateMeta: {
+      averageConfidence: "76%",
+      currentDate: "Friday, June 26",
+      firstPitchCountdown: "2h",
+      gamesToday: 1,
+      lastUpdated: "12:00 PM ET",
+    },
+    weatherReports: [],
+  } as unknown as DailySlateViewModel;
+}
+
+function lineup(
+  status: "confirmed" | "projected",
+  strikeoutRate: number,
+  ops: number,
+  contactRating: number,
+  overallStrength: number,
+) {
+  return {
+    averageOps: ops,
+    averageStrikeoutRate: strikeoutRate,
+    averageWrcPlus: null,
+    contactRating,
+    fetchedAt: "2026-06-26T12:00:00.000Z",
+    handedness: {
+      balanceRating: 72,
+      left: 3,
+      right: 5,
+      switch: 1,
+    },
+    lineupConfidence: status === "confirmed" ? 100 : 65,
+    missingStarPlayerIds: [],
+    missingStarterIds: [],
+    overallStrength,
+    players: [],
+    powerRating: 50,
+    replacementQuality: 60,
+    source: "mock",
+    status,
+  };
+}

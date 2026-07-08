@@ -7,6 +7,7 @@ export const routes = {
   odds: "#odds",
   pitcherProps: "#pitcher-props",
   playerProps: "#player-props",
+  pitcherResearch: "/pitcher-research",
   settings: "#settings",
   slate: "#slate",
   teamTrends: "#team-trends",

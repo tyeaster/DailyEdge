@@ -1,0 +1,141 @@
+{
+  "provider": "baseball-savant-statcast",
+  "raw": {
+    "note": "Minimal normalized replay fixture for Matchup Intelligence provider tests."
+  },
+  "request": {
+    "asOfDate": "2026-06-26",
+    "batterIds": [
+      "batter-1"
+    ],
+    "batterMlbIds": [
+      1001
+    ],
+    "batterNames": [
+      "Test Hitter"
+    ],
+    "pitcherId": "pitcher-1",
+    "pitcherMlbId": 2002,
+    "pitcherName": "Test Pitcher",
+    "season": 2026
+  },
+  "response": {
+    "arsenal": {
+      "dataQuality": 78,
+      "fetchedAt": "2026-06-26T12:00:00.000Z",
+      "handedness": "R",
+      "overallQuality": 67,
+      "pitcherId": "pitcher-1",
+      "pitcherMlbId": 2002,
+      "pitcherName": "Test Pitcher",
+      "primaryPitchType": "FF",
+      "profiles": [
+        {
+          "averageReleasePoint": {
+            "extensionFeet": 6.2,
+            "xFeet": -1.8,
+            "zFeet": 5.7
+          },
+          "averageVelocityMph": 96.3,
+          "groundBallPercent": 33.3,
+          "hardHitPercent": 33.3,
+          "heatMap": {
+            "cells": [
+              {
+                "damageRating": 52,
+                "frequencyPercent": 75,
+                "whiffPercent": 33.3,
+                "xBucket": 0,
+                "zBucket": 2.5,
+                "zone": 2
+              }
+            ],
+            "sampleSize": 4
+          },
+          "horizontalBreakInches": -3.9,
+          "locations": [
+            {
+              "frequencyPercent": 75,
+              "plateX": 0.1,
+              "plateZ": 2.67,
+              "zone": 2
+            },
+            {
+              "frequencyPercent": 25,
+              "plateX": 1.2,
+              "plateZ": 3.3,
+              "zone": 11
+            }
+          ],
+          "movement": {
+            "horizontalBreakInches": -3.9,
+            "verticalBreakInches": 15.1
+          },
+          "pitchName": "4-Seam Fastball",
+          "pitchType": "FF",
+          "putAwayPercent": null,
+          "sampleSize": 4,
+          "spinRateRpm": 2354,
+          "strikePercent": 100,
+          "usagePercent": 66.7,
+          "verticalBreakInches": 15.1,
+          "whiffPercent": 33.3,
+          "zonePercent": 75
+        }
+      ],
+      "season": 2026,
+      "source": "live"
+    },
+    "batterProfiles": [
+      {
+        "batterId": "batter-1",
+        "batterMlbId": 1001,
+        "batterName": "Test Hitter",
+        "bats": "L",
+        "dataQuality": 55,
+        "fetchedAt": "2026-06-26T12:00:00.000Z",
+        "pitchProfiles": [
+          {
+            "average": 0.333,
+            "barrelPercent": 0,
+            "chasePercent": 0,
+            "contactPercent": 66.7,
+            "expectedBattingAverage": 0.264,
+            "expectedDamageRating": 56,
+            "expectedSlugging": 0.761,
+            "hardHitPercent": 33.3,
+            "pitchName": "4-Seam Fastball",
+            "pitchType": "FF",
+            "runValue": null,
+            "sampleSize": 4,
+            "slugging": 0.333,
+            "swingPercent": 50,
+            "takePercent": 50,
+            "whiffPercent": 33.3
+          }
+        ],
+        "season": 2026,
+        "source": "live"
+      }
+    ],
+    "fetchedAt": "2026-06-26T12:00:00.000Z",
+    "mode": "live",
+    "provider": "baseball-savant-statcast",
+    "request": {
+      "asOfDate": "2026-06-26",
+      "batterIds": [
+        "batter-1"
+      ],
+      "batterMlbIds": [
+        1001
+      ],
+      "batterNames": [
+        "Test Hitter"
+      ],
+      "pitcherId": "pitcher-1",
+      "pitcherMlbId": 2002,
+      "pitcherName": "Test Pitcher",
+      "season": 2026
+    }
+  }
+}

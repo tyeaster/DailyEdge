@@ -5,33 +5,25 @@ import {
   InjuryCard,
   PropCard,
   SectionHeader,
-  Sidebar,
   StatCard,
-  TopNav,
   WeatherCard,
 } from "@/src/components/dashboard";
 
 import {
-  dashboardNavItems,
-  games,
-  injuries,
-  kpiMetrics,
-  propCategories,
-  slateMeta,
-  topBets,
-  weatherReports,
-} from "./mlb-dashboard-data";
+  getDailySlate,
+  type DailySlateViewModel,
+} from "@/src/services";
 
-export function HomePage() {
+export async function HomePage() {
+  const slate = await getDailySlate();
+
+  return <DailySlatePage slate={slate} />;
+}
+
+function DailySlatePage({ slate }: { slate: DailySlateViewModel }) {
   return (
     <main className="min-h-screen bg-[#030812] text-white">
-      <Sidebar items={dashboardNavItems} />
-
-      <div className="min-h-screen md:pl-20 xl:pl-72">
-        <TopNav currentDate={slateMeta.currentDate} />
-        <MobileNavigation />
-
-        <div className="mx-auto max-w-[1680px] px-4 py-6 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-[1680px] px-4 py-6 sm:px-6 lg:px-8">
           <section id="daily-slate" className="edge-panel">
             <DashboardCard className="overflow-hidden p-0">
               <div className="relative">
@@ -41,6 +33,11 @@ export function HomePage() {
                     <p className="text-xs font-semibold uppercase tracking-[0.24em] text-blue-200/80">
                       Daily Slate Dashboard
                     </p>
+                    {slate.dataSource === "mock" ? (
+                      <div className="mt-4 inline-flex rounded-full border border-amber-300/20 bg-amber-400/10 px-3 py-1 text-xs font-semibold text-amber-100">
+                        {slate.slateMeta.dataSourceMessage ?? "Using Mock Data"}
+                      </div>
+                    ) : null}
                     <h1 className="mt-4 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
                       Today&apos;s MLB Slate
                     </h1>
@@ -49,13 +46,22 @@ export function HomePage() {
                       weather shifts, player props, and injury impact.
                     </p>
                     <div className="mt-6 flex flex-wrap gap-3">
-                      <HeroPill label="Current date" value={slateMeta.currentDate} />
-                      <HeroPill label="Games today" value={String(slateMeta.gamesToday)} />
+                      <HeroPill
+                        label="Current date"
+                        value={slate.slateMeta.currentDate}
+                      />
+                      <HeroPill
+                        label="Games today"
+                        value={String(slate.slateMeta.gamesToday)}
+                      />
                       <HeroPill
                         label="First pitch"
-                        value={slateMeta.firstPitchCountdown}
+                        value={slate.slateMeta.firstPitchCountdown}
                       />
-                      <HeroPill label="Last updated" value={slateMeta.lastUpdated} />
+                      <HeroPill
+                        label="Last updated"
+                        value={slate.slateMeta.lastUpdated}
+                      />
                     </div>
                   </div>
 
@@ -64,7 +70,7 @@ export function HomePage() {
                       <div>
                         <p className="text-sm text-slate-400">Slate confidence</p>
                         <p className="mt-2 text-4xl font-semibold tracking-tight text-white">
-                          {slateMeta.averageConfidence}
+                          {slate.slateMeta.averageConfidence}
                         </p>
                       </div>
                       <button
@@ -78,7 +84,9 @@ export function HomePage() {
                       <div className="h-2 w-[74%] rounded-full bg-blue-300" />
                     </div>
                     <p className="mt-4 text-sm leading-6 text-slate-400">
-                      Mock slate data only. Refresh is wired as a visual control for now.
+                      {slate.error
+                        ? `Live MLB schedule unavailable: ${slate.error}`
+                        : "Live schedule refreshes automatically every 5 minutes."}
                     </p>
                   </div>
                 </div>
@@ -87,7 +95,7 @@ export function HomePage() {
           </section>
 
           <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
-            {kpiMetrics.map((metric) => (
+            {slate.kpiMetrics.map((metric) => (
               <StatCard key={metric.label} metric={metric} />
             ))}
           </section>
@@ -95,11 +103,19 @@ export function HomePage() {
           <section id="games" className="mt-8 space-y-4">
             <SectionHeader
               eyebrow="Today's Games"
-              title={`${slateMeta.gamesToday} games on the board`}
+              title={`${slate.slateMeta.gamesToday} games on the board`}
             />
             <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
-              {games.map((game) => (
-                <GameCard game={game} key={`${game.awayTeam}-${game.homeTeam}`} />
+              {slate.games.map((game) => (
+                <GameCard
+                  awayPitcher={game.awayPitcher}
+                  awayTeam={game.awayTeam}
+                  game={game.game}
+                  homePitcher={game.homePitcher}
+                  homeTeam={game.homeTeam}
+                  key={game.game.id}
+                  weather={game.weather}
+                />
               ))}
             </div>
           </section>
@@ -107,8 +123,13 @@ export function HomePage() {
           <section id="best-bets" className="mt-8 space-y-4">
             <SectionHeader eyebrow="Best Bets" title="Top 10 model edges" />
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
-              {topBets.map((bet) => (
-                <BetCard bet={bet} key={`${bet.player}-${bet.bet}`} />
+              {slate.bets.map((bet) => (
+                <BetCard
+                  bet={bet.bet}
+                  key={bet.bet.id}
+                  player={bet.player}
+                  team={bet.team}
+                />
               ))}
             </div>
           </section>
@@ -116,7 +137,7 @@ export function HomePage() {
           <section id="player-props" className="mt-8 space-y-4">
             <SectionHeader eyebrow="Player Props" title="Highest-edge prop board" />
             <div className="grid gap-5 xl:grid-cols-2 2xl:grid-cols-3">
-              {propCategories.map((category) => (
+              {slate.propCategories.map((category) => (
                 <div key={category.label} className="space-y-3">
                   <div className="flex items-center justify-between gap-4">
                     <h3 className="text-lg font-semibold text-white">{category.label}</h3>
@@ -126,7 +147,12 @@ export function HomePage() {
                   </div>
                   <div className="grid gap-3">
                     {category.props.map((prop) => (
-                      <PropCard key={`${prop.category}-${prop.player}`} prop={prop} />
+                      <PropCard
+                        key={prop.prop.id}
+                        player={prop.player}
+                        prop={prop.prop}
+                        team={prop.team}
+                      />
                     ))}
                   </div>
                 </div>
@@ -138,8 +164,14 @@ export function HomePage() {
             <section id="weather" className="space-y-4">
               <SectionHeader eyebrow="Weather Center" title="Conditions that matter" />
               <div className="grid gap-4 lg:grid-cols-2">
-                {weatherReports.map((report) => (
-                  <WeatherCard key={report.stadium} report={report} />
+                {slate.weatherReports.map((weather) => (
+                  <WeatherCard
+                    awayTeam={weather.awayTeam}
+                    game={weather.game}
+                    homeTeam={weather.homeTeam}
+                    key={weather.report.id}
+                    report={weather.report}
+                  />
                 ))}
               </div>
             </section>
@@ -147,13 +179,17 @@ export function HomePage() {
             <DashboardCard id="injuries" className="p-5">
               <SectionHeader eyebrow="Injury Tracker" title="Lineup impact watch" />
               <div className="mt-5 max-h-[640px] space-y-3 overflow-y-auto pr-1">
-                {injuries.map((injury) => (
-                  <InjuryCard key={`${injury.team}-${injury.player}`} injury={injury} />
+                {slate.injuries.map((injury) => (
+                  <InjuryCard
+                    injury={injury.injury}
+                    key={injury.injury.id}
+                    player={injury.player}
+                    team={injury.team}
+                  />
                 ))}
               </div>
             </DashboardCard>
           </section>
-        </div>
       </div>
     </main>
   );
@@ -166,30 +202,6 @@ function HeroPill({ label, value }: { label: string; value: string }) {
         {label}
       </p>
       <p className="mt-2 text-sm font-semibold text-white">{value}</p>
-    </div>
-  );
-}
-
-function MobileNavigation() {
-  return (
-    <div className="border-b border-slate-800 bg-[#050915] px-4 py-3 md:hidden">
-      <div className="flex gap-2 overflow-x-auto">
-        {dashboardNavItems.map((item) => (
-          <a
-            key={item.label}
-            href={item.href}
-            className="flex shrink-0 items-center gap-2 rounded-full border border-slate-800 bg-white/[0.03] px-3 py-2 text-sm text-slate-300"
-          >
-            <span>{item.icon}</span>
-            <span>{item.label}</span>
-            {item.badge ? (
-              <span className="rounded-full bg-white/[0.08] px-2 py-0.5 text-xs">
-                {item.badge}
-              </span>
-            ) : null}
-          </a>
-        ))}
-      </div>
     </div>
   );
 }

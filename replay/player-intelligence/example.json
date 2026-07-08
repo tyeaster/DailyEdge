@@ -1,0 +1,63 @@
+{
+  "fetchedAt": "2026-06-26T12:00:00.000Z",
+  "logs": [
+    {
+      "battersFaced": 27,
+      "date": "2026-06-26T18:00:00.000Z",
+      "decision": "W",
+      "earnedRuns": 1,
+      "flyBalls": 8,
+      "gameScore": 68,
+      "groundBalls": 9,
+      "hits": 4,
+      "homeAway": "home",
+      "inningsPitched": 6.1,
+      "opponent": "HOU",
+      "pitchCount": 98,
+      "result": "W",
+      "strikeouts": 7,
+      "walks": 1
+    },
+    {
+      "battersFaced": 24,
+      "date": "2026-06-21T00:00:00.000Z",
+      "decision": null,
+      "earnedRuns": 2,
+      "flyBalls": 7,
+      "gameScore": 59,
+      "groundBalls": 8,
+      "hits": 6,
+      "homeAway": "away",
+      "inningsPitched": 5.2,
+      "opponent": "ATL",
+      "pitchCount": 91,
+      "result": "L",
+      "strikeouts": 6,
+      "walks": 2
+    },
+    {
+      "battersFaced": 25,
+      "date": "2026-06-16T18:00:00.000Z",
+      "decision": "W",
+      "earnedRuns": 1,
+      "flyBalls": 9,
+      "gameScore": 71,
+      "groundBalls": 10,
+      "hits": 5,
+      "homeAway": "home",
+      "inningsPitched": 6,
+      "opponent": "MIA",
+      "pitchCount": 95,
+      "result": "W",
+      "strikeouts": 8,
+      "walks": 1
+    }
+  ],
+  "mode": "live",
+  "pitcherId": 2002,
+  "provider": "mlb-pitcher-game-log",
+  "raw": {
+    "note": "Minimal normalized replay fixture for Player Intelligence tests."
+  },
+  "season": 2026
+}
