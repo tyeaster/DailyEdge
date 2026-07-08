@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
+import { GlobalSearch } from "@/src/components/global-search/global-search";
 import { cn } from "@/src/lib/cn";
 
 const navigationGroups = [
@@ -163,8 +164,11 @@ export function AppShell({ children }: { children: ReactNode }) {
               </div>
             </nav>
 
-            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-slate-700 bg-gradient-to-br from-blue-300/25 to-slate-800 text-sm font-semibold text-white">
-              TL
+            <div className="flex shrink-0 items-center gap-3">
+              <GlobalSearch />
+              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-slate-700 bg-gradient-to-br from-blue-300/25 to-slate-800 text-sm font-semibold text-white">
+                TL
+              </div>
             </div>
           </div>
 
