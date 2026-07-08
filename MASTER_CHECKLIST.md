@@ -97,7 +97,7 @@ Ranked by what actually blocks a real launch:
 8. [x] **Observability** — structured logging done 2026-07-07 (see Section 8l); provider health monitoring / error tracking still not done — a real logging *destination* (Sentry, Datadog, etc.) is a separate decision from the structured-format work here
 9. [x] **E2E / route smoke tests** — done 2026-07-07 (see Section 8m)
 10. **Global search** — not implemented anywhere
-11. **API licensing review** — Baseball Savant / Statcast CSV and Open-Meteo usage haven't been reviewed for production terms
+11. [ ] **API licensing review** — attempted 2026-07-08, could not complete; this is a real legal/business decision, not something to check off. See Section 8n.
 
 ---
 
@@ -143,7 +143,7 @@ Work roughly top-to-bottom; items within a phase can interleave.
 14. [x] Production cache adapter — done 2026-07-07 (see Section 8k)
 15. [x] Structured logging — done 2026-07-07, partial (see Section 8l); provider health dashboard / error-tracking destination still open
 16. [x] E2E/route smoke test suite — done 2026-07-07 (see Section 8m)
-17. API licensing review (Statcast, Open-Meteo)
+17. [ ] API licensing review — attempted, could not complete, needs owner/legal decision (see Section 8n). Skipped past for now; not blocking items 18-23.
 
 **Phase 5 — Product completion**
 18. Complete Pitch Intelligence to match Zone Intelligence depth
@@ -374,6 +374,23 @@ Coverage:
 Verified for real, not just written: ran `npm run build && npm start` for a genuine production server, then `npm run test:e2e` against it — **10/10 passing** on the first attempt (no flakiness this time, unlike some manual Playwright runs earlier in the session). Confirmed the default `npm test` still shows exactly 214 tests (unchanged), proving the e2e subfolder is correctly isolated. Server logs during the run showed only the already-understood, already-documented injuries network-block errors (Section 8f) — no new or unexpected errors.
 
 **Not yet done**: CI wiring (no GitHub Actions workflow exists to actually run `test:e2e` automatically against a deployed/built app), broader route coverage (6 of 25+ routes), and no visual regression testing.
+
+---
+
+## 8n. API Licensing Review — Attempted, Not Completed (2026-07-08)
+
+**This is not a checklist item that gets checked off by me.** It's a real legal/business decision about whether TrueLine is allowed to power a commercial sports-betting-analytics product with MLB Stats API / Baseball Savant (Statcast) and Open-Meteo data. Marking it "done" without an actual answer would be worse than leaving it visibly open.
+
+What I actually did: tried to pull current terms via both `curl` and `WebFetch` against `open-meteo.com`, `baseballsavant.mlb.com`, and `mlb.com`'s terms-of-use page. All four requests came back `403` — this sandbox's network policy blocks essentially all outbound access except a small package-registry allowlist (same restriction documented in Sections 8e/8f/the OddsPipe key note), and it turns out that applies to `WebFetch` too, not just raw `curl`. I could not verify current terms for either provider from here.
+
+**What I know from general knowledge (not verified against current terms — could be outdated, do not treat as legal advice)**:
+
+- **Open-Meteo**: historically free for non-commercial use under a daily call cap, with a paid commercial tier for higher volume or commercial use (their own docs reference an optional API key for paid plans — consistent with `OPEN_METEO_API_KEY` already being a scaffolded, optional env var in this codebase, `src/providers/weather/OpenMeteoWeatherProvider.ts`). Lower-stakes: weather data alone, used as model input rather than resold or displayed as the product itself.
+- **MLB Stats API / Baseball Savant (Statcast)**: this is the one that actually matters. MLB has not published a clear, public commercial license for third-party use of `statsapi.mlb.com` or Baseball Savant data. It's widely used by hobbyist and open-source projects (which is almost certainly why the original build used it without a licensing step), but MLB has a documented history of protecting its data commercially, and using it to power **betting recommendations** — not just stats display — is a materially different, higher-risk use case than a fan stats site. Real production use of MLB data in a betting product typically goes through an official data partner/license (MLB Advanced Media or a licensed sports-data vendor), not the public Stats API.
+
+**Recommendation**: before this goes anywhere near a real user base, get an actual answer — either a licensing conversation with MLB Advanced Media / Baseball Savant, or a lawyer's read on the Stats API terms, or (lowest-risk path) swap the underlying schedule/stats/Statcast data source for a properly licensed sports-data vendor before launch. Don't treat continued use of these sources in production as implicitly approved just because the code works.
+
+**Status**: left open, not blocking further app-completion work (items 18-23) since those are UI/product work that doesn't change the underlying data-licensing question either way.
 
 ---
 
