@@ -35,29 +35,6 @@ const comingSoonPages = {
       "Ballpark research will centralize park-factor intelligence for game, team, and player prop workflows.",
     title: "Ballparks",
   },
-  "pitch-intelligence": {
-    cards: [
-      {
-        description: "Pitch usage, velocity, movement, whiff, put-away, strike, and zone rates.",
-        label: "Primary view",
-        value: "Pitch arsenal",
-      },
-      {
-        description: "Pitch-type compatibility between a pitcher arsenal and hitter profile.",
-        label: "Core score",
-        value: "Pitch Match",
-      },
-      {
-        description: "Strikeout, hits, total bases, home runs, and matchup research.",
-        label: "Feeds",
-        value: "Player labs",
-      },
-    ],
-    eyebrow: "Matchups",
-    summary:
-      "Pitch Intelligence will expose pitch-level matchup diagnostics from the existing Matchup Intelligence engine.",
-    title: "Pitch Intelligence",
-  },
   players: {
     cards: [
       {

@@ -1,21 +1,13 @@
 import type { Pitcher, Player, Team } from "../../models/mlb.ts";
-import type {
-  DailySlateGame,
-  DailySlateProp,
-  DailySlateViewModel,
-} from "../../services/daily-slate/types.ts";
+import type { DailySlateGame, DailySlateProp } from "../../services/daily-slate/types.ts";
 import {
-  matchupService,
   type BatterPitchProfile,
   type MatchupIntelligenceResult,
   type MatchupZoneOverlayCell,
   type PitchProfile,
 } from "../../services/matchup/index.ts";
-import {
-  playerIntelligenceService,
-  type BatterIntelligence,
-  type PitcherIntelligence,
-} from "../../services/player-intelligence/index.ts";
+import { loadMatchupIntelligence } from "../../services/matchup-selection.ts";
+import type { BatterIntelligence, PitcherIntelligence } from "../../services/player-intelligence/index.ts";
 
 export interface ZoneCellViewModel {
   classification?: "advantage" | "neutral" | "risk";
@@ -105,42 +97,12 @@ export async function getZoneIntelligence({
   batterId?: string;
   pitcherId?: string;
 } = {}): Promise<ZoneIntelligenceViewModel> {
-  const { getDailySlate } = await import("../../services/daily-slate/service.ts");
-  const slate = await getDailySlate();
-  const selection = selectMatchup(slate, { batterId, pitcherId });
-  const season = getSeason(selection.game.game.scheduledAt);
-  const [pitcherIntelligence, batterIntelligence] = await Promise.all([
-    loadPitcherIntelligence(selection, season),
-    loadBatterIntelligence(selection, season),
-  ]);
-  const matchup = await matchupService.getMatchupIntelligence(
-    {
-      asOfDate: selection.game.game.scheduledAt.slice(0, 10),
-      batterIds: [selection.batter.id],
-      batterMlbIds: selection.batter.externalIds?.mlb
-        ? [selection.batter.externalIds.mlb]
-        : undefined,
-      batterNames: [selection.batter.fullName],
-      pitcherId: selection.pitcher.id,
-      pitcherMlbId: selection.pitcher.externalIds?.mlb,
-      pitcherName: selection.pitcher.fullName,
-      season,
-    },
-    {
-      ballpark: selection.game.game.ballpark,
-      bullpen: selection.batterTeam.strength?.bullpen,
-      lineup: selection.batterTeam.lineup,
-      pitcherIntelligence,
-      weather: selection.game.weather,
-    },
-  );
+  const { batterIntelligence, matchup, pitcherIntelligence, selection } =
+    await loadMatchupIntelligence({ batterId, pitcherId });
 
   return buildZoneIntelligenceViewModel({
     ...selection,
-    batterIntelligence:
-      batterIntelligence && "available" in batterIntelligence && batterIntelligence.available
-        ? batterIntelligence
-        : undefined,
+    batterIntelligence,
     matchup,
     pitcherIntelligence,
   });
@@ -223,155 +185,6 @@ export function buildZoneIntelligenceViewModel({
     summary: buildSummary({ batter, game, matchup, pitcher }),
     zoneDamageCells: buildZoneDamageCells(matchup),
     zoneReasons: matchup.zoneMatch.reasons,
-  };
-}
-
-async function loadPitcherIntelligence(
-  selection: MatchupSelection,
-  season: number,
-) {
-  try {
-    return await playerIntelligenceService.getPitcher({
-      context: {
-        ballpark: selection.game.game.ballpark,
-        game: selection.game.game,
-        lineup: selection.pitcherTeam.lineup,
-        opponent: selection.batterTeam,
-        prediction: selection.game.game.prediction,
-        team: selection.pitcherTeam,
-        weather: selection.game.weather,
-      },
-      pitcher: selection.pitcher,
-      season,
-    });
-  } catch {
-    return undefined;
-  }
-}
-
-async function loadBatterIntelligence(
-  selection: MatchupSelection,
-  season: number,
-) {
-  try {
-    return await playerIntelligenceService.getBatter({
-      batter: selection.batter,
-      context: {
-        ballpark: selection.game.game.ballpark,
-        game: selection.game.game,
-        lineup: selection.batterTeam.lineup,
-        opponent: selection.pitcherTeam,
-        prediction: selection.game.game.prediction,
-        team: selection.batterTeam,
-        weather: selection.game.weather,
-      },
-      season,
-    });
-  } catch {
-    return undefined;
-  }
-}
-
-interface MatchupSelection {
-  batter: Player;
-  batterTeam: Team;
-  game: DailySlateGame;
-  pitcher: Pitcher;
-  pitcherTeam: Team;
-  selectedProp?: DailySlateProp;
-}
-
-function selectMatchup(
-  slate: DailySlateViewModel,
-  {
-    batterId,
-    pitcherId,
-  }: {
-    batterId?: string;
-    pitcherId?: string;
-  },
-): MatchupSelection {
-  const hitterProps = getHitterProps(slate);
-  const selectedProp =
-    hitterProps.find((prop) => prop.player.id === batterId) ?? hitterProps[0];
-  const selectedPropGame = selectedProp
-    ? findGameById(slate, selectedProp.prop.gameId)
-    : undefined;
-  const pitcherGame = pitcherId
-    ? slate.games.find(
-        (candidate) =>
-          candidate.awayPitcher.id === pitcherId ||
-          candidate.homePitcher.id === pitcherId,
-      )
-    : undefined;
-  const game = pitcherGame ?? selectedPropGame ?? slate.games[0];
-  const batterTeam =
-    selectedProp && selectedProp.prop.gameId === game.game.id
-      ? selectedProp.team
-      : game.awayTeam.id === game.game.awayTeamId
-        ? game.awayTeam
-        : game.homeTeam;
-  const batter =
-    selectedProp && selectedProp.team.id === batterTeam.id
-      ? (selectedProp.player as Player)
-      : buildFallbackBatter(batterTeam);
-  const pitcher =
-    pitcherId === game.awayPitcher.id
-      ? game.awayPitcher
-      : pitcherId === game.homePitcher.id
-        ? game.homePitcher
-        : batterTeam.id === game.awayTeam.id
-          ? game.homePitcher
-          : game.awayPitcher;
-  const pitcherTeam = pitcher.teamId === game.awayTeam.id ? game.awayTeam : game.homeTeam;
-
-  return {
-    batter,
-    batterTeam,
-    game,
-    pitcher,
-    pitcherTeam,
-    selectedProp,
-  };
-}
-
-function getHitterProps(slate: DailySlateViewModel) {
-  return slate.propCategories
-    .filter(
-      (category) =>
-        category.label === "Hits" ||
-        category.label === "Total Bases" ||
-        category.label === "Home Runs",
-    )
-    .flatMap((category) => category.props);
-}
-
-function findGameById(slate: DailySlateViewModel, gameId: string) {
-  return slate.games.find((game) => game.game.id === gameId) ?? slate.games[0];
-}
-
-function buildFallbackBatter(team: Team): Player {
-  const lineupPlayer = team.lineup?.players[0];
-
-  if (lineupPlayer) {
-    return {
-      bats: lineupPlayer.battingHand === "U" ? "R" : lineupPlayer.battingHand,
-      externalIds: { mlb: lineupPlayer.mlbId },
-      fullName: lineupPlayer.fullName,
-      id: `mlb-player-${lineupPlayer.mlbId}`,
-      position: lineupPlayer.position,
-      teamId: team.id,
-      throws: "R",
-    };
-  }
-
-  return {
-    bats: "R",
-    fullName: "Projected Hitter",
-    id: "projected-hitter",
-    position: "DH",
-    teamId: team.id,
-    throws: "R",
   };
 }
 
@@ -575,10 +388,6 @@ function buildSummary({
   const reason = matchup.reasons[0] ?? "The matchup is neutral with current data.";
 
   return `${batter.fullName} versus ${pitcher.fullName} grades ${matchup.overallMatchupScore}/100 overall with a ${matchup.zoneMatch.score}/100 Zone Match and ${matchup.pitchTypeMatch.score}/100 Pitch Match. ${reason} Context includes ${game.weather.summary} at ${game.game.venue}.`;
-}
-
-function getSeason(scheduledAt: string) {
-  return new Date(scheduledAt).getUTCFullYear();
 }
 
 function formatGameTime(scheduledAt: string) {
