@@ -2,7 +2,7 @@
 
 Living project roadmap and status document. Update this file after every major feature lands so it always reflects the project's true state — do not let it go stale like `docs/PROJECT_STATE.md` did.
 
-Last updated: 2026-07-08 (Global search completed — item 21)
+Last updated: 2026-07-08 (Live player-prop odds coverage expansion completed — item 22)
 Baseline: `codex/trueline-rebrand` @ `59b4d79` ("Add AI handoff documentation")
 Working branch: `claude/trueline-development`
 
@@ -10,8 +10,8 @@ Validation at time of writing (all passing):
 ```
 npx tsc --noEmit                    -> clean
 npm run build                       -> 26 routes compiled; homepage confirmed HTTP 200 after rebuild; injuries 403 now logs as clean structured JSON
-npm test (no DATABASE_URL)          -> 204 pass, 23 skipped (all recorder/provider/cache DB tests)
-npm test (with DATABASE_URL)        -> 227/227 passing, verified against a real local Postgres 16 instance
+npm test (no DATABASE_URL)          -> 213 pass, 23 skipped (all recorder/provider/cache DB tests)
+npm test (with DATABASE_URL)        -> 236/236 passing, verified against a real local Postgres 16 instance
 npm run test:e2e (against a real npm start server) -> 11/11 passing, 3 skipped (homepage, full admin auth flow, 9-route smoke sample incl. Pitch Intelligence + all 3 entity research pages)
 npm run dev (no secrets set)        -> boots fine, logs env issues (dev is lenient)
 npm run build && npm start (no secrets set) -> fails to boot with a clear error (production is strict)
@@ -64,7 +64,7 @@ Verified via code inspection, `tsc`, build output, and passing tests — not jus
 - [x] Betting markets (built + ranked + tested, odds coverage varies): Moneyline, Run Line, Team Totals, Game Totals, Home Runs, Total Bases, Hits, Strikeouts
 - [x] Best Bets — aggregates all 8 markets via RankingEngine, with interactive search/filter/sort (Section 8q)
 - [x] Research pages — Pitcher Research / Strikeout Lab, Hitter Research / Hits Lab, Zone Intelligence, Pitch Intelligence (Section 8o), Player/Team/Ballpark Research directories (Section 8p)
-- [x] 227 unit tests across services/providers/engines, all passing
+- [x] 236 unit tests across services/providers/engines, all passing
 - [x] `docs/` — 40+ documents covering architecture, each engine, each market, providers, standards
 
 ---
@@ -73,7 +73,7 @@ Verified via code inspection, `tsc`, build output, and passing tests — not jus
 
 | System | What exists | What's missing |
 |---|---|---|
-| Odds (OddsPipe) | Real live HTTP provider, replay, mock, error handling, requires `ODDSPIPE_API_KEY` | Player-prop odds coverage incomplete; no durable rate-limit/backoff strategy documented |
+| Odds (OddsPipe) | Real live HTTP provider, replay, mock, error handling, requires `ODDSPIPE_API_KEY`; player-prop market mapping + player-identity matching for Strikeouts/Hits/Home Runs/Total Bases now real (Section 8s) | Live confidence/edge for player props is an honest placeholder, not a real model score yet (Section 8s); no durable rate-limit/backoff strategy documented |
 | Calibration Engine | Service, admin dashboard (`/admin/calibration`), tests, mock/replay records, and now `DurableCalibrationProvider` reading real moneyline predictions/results from Postgres when `CALIBRATION_MODE=live` (Section 8h) | Moneyline only — 7 other markets still need the `OddsMarket`/`BetMarketType` vocabulary reconciliation before they can be recorded/calibrated; sample size will be small until this runs for a while in production |
 | Backtesting Engine | `BacktestRunner`, `StrategyEvaluator`, `BankrollSimulator`, admin dashboard, tests, and now `DurableHistoricalSlateProvider` grouping real moneyline predictions/results into daily slates when `BACKTEST_MODE=live` (Section 8i) | Moneyline only, same vocabulary-reconciliation debt as Calibration/Odds Intelligence; real sample size will take time to accumulate |
 | Odds Intelligence | `ClosingLineCalculator`, `MarketMovementAnalyzer`, `SteamMoveDetector`, admin dashboard, tests, live recorder writing to `odds_snapshots` (Section 8d), and now `DurableOddsIntelligenceProvider` reading real opening-to-current movement when `ODDS_INTELLIGENCE_MODE=live` (Section 8j) | CLV specifically isn't computed yet (closings intentionally left empty — needs game start/finish tracking); moneyline only; movement attribution (injury/weather-driven) is limited |
@@ -147,7 +147,7 @@ Work roughly top-to-bottom; items within a phase can interleave.
 19. [x] Entity research pages (players/teams/ballparks) made real and searchable — done 2026-07-08 (see Section 8p)
 20. [x] Best Bets interactive filtering/sorting — done 2026-07-08 (see Section 8q)
 21. [x] Global search — done 2026-07-08 (see Section 8r)
-22. Live player-prop odds coverage expansion
+22. [x] Live player-prop odds coverage expansion — done 2026-07-08 (see Section 8s)
 23. **Restructure the home page / Daily Slate navigation** — owner feedback (2026-07-07): the current nav feels "all over the place with too many tabs." Not yet scoped — needs an IA pass over `app-shell`'s nav groups (Slate, Pitching, Hitting, Matchups, Analysis, Team Betting, Research — 19 routes total) before implementation starts.
 
 ---
@@ -479,6 +479,29 @@ No way to jump directly to a player, team, or page existed outside each section'
 - `npm run build`: compiles cleanly; `/api/search` appears in the route table as a dynamic (`ƒ`) route.
 - `npm run test:e2e` against a real `next start` server: 11/11 passing (unchanged route sample, confirming the new header component didn't break any existing page).
 - Real browser check (Playwright): `curl`'d `/api/search?q=judge` directly and got back the real Aaron Judge record with the correct `/hitting/hits?batter=player-judge` href; opened the modal via the header button, typed "dodgers", confirmed "Los Angeles Dodgers · Team" rendered with zero console errors, then confirmed pressing Enter actually navigated to `/research/teams` (not just that the link renders); separately confirmed the `/` keyboard shortcut opens the modal and `Escape` closes it.
+
+---
+
+## 8s. Live Player-Prop Odds Coverage Expansion (added 2026-07-08)
+
+Traced why Section 3's "Odds (OddsPipe)" row said "player-prop odds coverage incomplete": `LiveMLBProvider.props` (`src/services/providers/live-mlb-provider.ts`) was hardwired to `mockDataProvider.props` — **every player prop was mock data even in `ODDS_MODE=live`**, unlike games/teams/pitchers/predictions, which all have real live providers. Root cause went two levels deep: `OddsPipeProvider.normalizeMarket()` only recognized the literal strings `"team-total"`/`"player-prop"`, so any real per-category OddsPipe market key (`player_strikeouts`, `batter_hits`, etc.) fell through and got silently dropped; and `NormalizedOddsRecord` had no field to carry a player's identity at all, so even a recognized record couldn't be routed to a specific `PlayerProp`.
+
+**What changed**:
+
+- `NormalizedOddsRecord` gained `playerName?` and `propCategory?`. `OddsPipeProvider`'s market normalizer now maps real per-category market keys (`player_strikeouts`/`pitcher_strikeouts` → Strikeouts, `batter_hits`/`player_hits` → Hits, `batter_home_runs`/`player_home_runs` → Home Runs, `batter_total_bases`/`player_total_bases` → Total Bases, plus Runs/RBI variants) to `market: "player-prop"` + the right `PlayerPropCategory`, and extracts the player's name from whichever field the vendor used (tried in order: `playerName`, `player_name`, `participant`, `description`, `name`, `selection`).
+- New `LivePropsProvider` (`src/services/providers/live-mlb-provider.ts`) requests player-prop odds from OddsPipe via the existing `oddsService` singleton and matches each record to a real player from today's schedule: probable pitchers for Strikeouts, lineup batters for everything else, matched case-insensitively by full name. `LivePlayersProvider` was extended to also surface lineup batters (previously it only had probable pitchers + the static mock roster) — the prop matcher needs those to resolve a batter prop to a real `Player.id`, and this closes a related gap where live-mode batter identity was mock-only too.
+- Categories with no live match keep their existing mock entries rather than disappearing entirely — blended per-category fallback, not all-or-nothing, matching this app's degrade-gracefully-not-throw philosophy everywhere else.
+- **Deliberately did not fabricate a confidence/edge score.** Live-sourced props get an explicit, honest placeholder (`confidence: "Medium"/50`, `edge: 0%`, reasoning text stating scoring isn't computed yet) rather than inventing a number that looks like a real model output. A genuine edge for these markets needs a player-performance projection (season/rolling rate vs. the market line) that doesn't exist yet — computing that honestly is future work, not something to fake in one pass. Runs/RBI categories were left out of live-wiring scope entirely (no downstream intelligence feature reads them, per the design survey that scoped this item), so only Strikeouts/Hits/Home Runs/Total Bases get real live odds.
+- Split the new pure parsing/matching logic into two relative-imports-only modules — `src/providers/odds/normalize-oddspipe.ts` and `src/services/providers/live-props-matching.ts` — since both `OddsPipeProvider.ts` (parameter-property constructor syntax) and `live-mlb-provider.ts` (full of `@/`-aliased value imports) are otherwise unloadable by `node --experimental-strip-types`, the same constraint documented earlier this session for `daily-slate/service.ts` and `player-research/service.ts`.
+
+**Verified for real**:
+- `npx tsc --noEmit` clean, `npx eslint .` clean.
+- `npm test` (no `DATABASE_URL`): 236 tests, 213 pass / 23 skip / 0 fail, including 9 new tests across `tests/live-props-matching.test.ts` (pitcher/batter matching, case-insensitivity, Over/Under display line, drops for unmatched players, drops for non-prop records, `buildLineupBatters` id stability) and `tests/oddspipe-player-props.test.ts` (per-category market key recognition, existing game-level markets still normalize unchanged, unrecognized market keys still get dropped).
+- `npm test` with a real `DATABASE_URL`: 236/236 passing.
+- `npm run build`: compiles cleanly.
+- Real browser regression check (Playwright, screenshot taken): confirmed the homepage, Best Bets, and Player Research all still render at 200 with the same "Live data fallback: MLB schedule request failed with 403" banner and mock-sourced data as every prior session — the outer `getDailySlate()` try/catch still falls all the way back to `mockDataProvider` (bypassing `LivePropsProvider` entirely) whenever the live MLB schedule fetch fails, which it always does in this sandbox (Section 8n). No new console errors beyond the pre-existing injuries-403 structured log line.
+
+**Not verified (same sandbox network-policy blocker as every other live provider — Section 8n)**: the actual live OddsPipe player-prop request/response round trip. The matching logic itself is fully unit-tested against realistic OddsPipe-shaped fixtures; what's unverified is only whether OddsPipe's real API uses the exact market-key strings and player-identity field names assumed here. If real OddsPipe traffic uses different key names, `normalizeMarket`'s `playerPropMarketKeys` map is the one place to update — it degrades safely either way (unmatched keys are dropped, not mis-attributed).
 
 ---
 
