@@ -14,6 +14,10 @@ export type OddsPipeRecord = {
   americanOdds?: number;
   awayTeam?: string;
   away_team?: string;
+  book?: string;
+  bookmaker?: string;
+  bookmakerTitle?: string;
+  bookmaker_title?: string;
   description?: string;
   eventId?: string;
   event_id?: string;
@@ -25,16 +29,16 @@ export type OddsPipeRecord = {
   key?: string;
   lastUpdate?: string;
   last_update?: string;
-  line?: number;
+  line?: number | string;
   market?: string;
   name?: string;
-  odds?: number;
+  odds?: number | string;
   outcomes?: OddsPipeRecord[];
   participant?: string;
   playerName?: string;
   player_name?: string;
-  point?: number;
-  price?: number;
+  point?: number | string;
+  price?: number | string;
   selection?: string;
   side?: string;
   sportsbook?: string;
@@ -53,10 +57,10 @@ export function normalizeOddsPipeResponse(raw: unknown): NormalizedOddsRecord[] 
   const records = extractRecords(raw);
 
   return records.flatMap((record, index) => {
-    const americanOdds = record.americanOdds ?? record.odds ?? record.price;
+    const americanOdds = toNumber(record.americanOdds ?? record.odds ?? record.price);
     const normalized = normalizeMarket(record.market ?? record.type ?? record.key);
 
-    if (typeof americanOdds !== "number" || !normalized) {
+    if (americanOdds === undefined || !normalized) {
       return [];
     }
 
@@ -79,11 +83,16 @@ export function normalizeOddsPipeResponse(raw: unknown): NormalizedOddsRecord[] 
       {
         americanOdds,
         awayTeam: record.awayTeam ?? record.away_team,
-        eventId: record.eventId ?? record.event_id ?? record.gameId ?? record.game_id,
+        eventId:
+          record.eventId ??
+          record.event_id ??
+          record.gameId ??
+          record.game_id ??
+          record.id,
         homeTeam: record.homeTeam ?? record.home_team,
         id: record.id ?? `oddspipe-${index}`,
         impliedProbability: americanOddsToImpliedProbability(americanOdds),
-        line: record.line ?? record.point,
+        line: toNumber(record.line ?? record.point),
         market,
         playerName,
         propCategory,
@@ -93,8 +102,11 @@ export function normalizeOddsPipeResponse(raw: unknown): NormalizedOddsRecord[] 
           record.sportsbook ??
           record.sportsBook ??
           record.sportsbookName ??
+          record.bookmakerTitle ??
+          record.bookmaker_title ??
+          record.bookmaker ??
+          record.book ??
           record.title ??
-          record.key ??
           "OddsPipe",
         teamName: record.teamName ?? record.team,
         updatedAt,
@@ -174,7 +186,7 @@ function flattenOddsItem(item: unknown): OddsPipeRecord[] {
         line: parent.line,
         market: parent.market,
         name: parent.name,
-        odds: typeof parent.odds === "number" ? parent.odds : undefined,
+        odds: parent.odds,
         participant: parent.participant,
         playerName: parent.playerName,
         player_name: parent.player_name,
@@ -182,6 +194,10 @@ function flattenOddsItem(item: unknown): OddsPipeRecord[] {
         price: parent.price,
         selection: parent.selection,
         side: parent.side,
+        book: parent.book,
+        bookmaker: parent.bookmaker,
+        bookmakerTitle: parent.bookmakerTitle,
+        bookmaker_title: parent.bookmaker_title,
         sportsbook: parent.sportsbook,
         sportsBook: parent.sportsBook,
         sportsbookName: parent.sportsbookName,
@@ -209,11 +225,14 @@ function flattenOddsItem(item: unknown): OddsPipeRecord[] {
 const playerPropMarketKeys: Record<string, PlayerPropCategory> = {
   "batter-hits": "Hits",
   "batter-home-runs": "Home Runs",
+  "batter-homeruns": "Home Runs",
   "batter-runs-scored": "Runs",
   "batter-rbis": "RBI",
+  "batter-rbi": "RBI",
   "batter-total-bases": "Total Bases",
   "player-hits": "Hits",
   "player-home-runs": "Home Runs",
+  "player-homeruns": "Home Runs",
   "player-rbi": "RBI",
   "player-rbis": "RBI",
   "player-runs": "Runs",
@@ -235,15 +254,25 @@ function normalizeMarket(
     return { market: "moneyline" };
   }
 
-  if (normalized === "spread" || normalized === "spreads") {
+  if (
+    normalized === "spread" ||
+    normalized === "spreads" ||
+    normalized === "run-line" ||
+    normalized === "runline"
+  ) {
     return { market: "spread" };
   }
 
-  if (normalized === "total" || normalized === "totals") {
+  if (
+    normalized === "total" ||
+    normalized === "totals" ||
+    normalized === "game-total" ||
+    normalized === "game-totals"
+  ) {
     return { market: "total" };
   }
 
-  if (normalized === "team-total") {
+  if (normalized === "team-total" || normalized === "team-totals") {
     return { market: "team-total" };
   }
 
@@ -258,6 +287,20 @@ function normalizeMarket(
   }
 
   return undefined;
+}
+
+function toNumber(value: number | string | undefined) {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : undefined;
+  }
+
+  if (typeof value !== "string" || value.trim() === "") {
+    return undefined;
+  }
+
+  const parsed = Number(value);
+
+  return Number.isFinite(parsed) ? parsed : undefined;
 }
 
 function normalizeSide(sideOrSelection: string | undefined) {

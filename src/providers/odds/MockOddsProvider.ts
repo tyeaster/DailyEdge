@@ -1,5 +1,5 @@
-import { betRecommendations, games } from "@/mock";
-import { americanOddsToImpliedProbability } from "@/src/lib/odds";
+import { betRecommendations, games } from "../../../mock/index.ts";
+import { americanOddsToImpliedProbability } from "../../lib/odds.ts";
 
 import type {
   NormalizedOddsRecord,

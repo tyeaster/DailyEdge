@@ -27,10 +27,19 @@ export type NormalizedOddsRecord = {
   updatedAt: string;
 };
 
+export type OddsRateLimitInfo = {
+  limit?: string;
+  remaining?: string;
+  reset?: string;
+  retryAfter?: string;
+};
+
 export type OddsProviderResponse = {
+  error?: string;
   fetchedAt: string;
   mode: OddsProviderMode;
   provider: string;
+  rateLimit?: OddsRateLimitInfo;
   records: NormalizedOddsRecord[];
 };
 

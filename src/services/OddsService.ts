@@ -20,6 +20,7 @@ export class OddsService {
   constructor(
     private readonly provider: OddsProvider = getConfiguredOddsProvider(),
     private readonly cache: CacheProvider = memoryCache,
+    private readonly fallbackProvider: OddsProvider = new MockOddsProvider(),
   ) {}
 
   async getOdds(request: OddsProviderRequest = defaultRequest) {
@@ -30,12 +31,33 @@ export class OddsService {
       return cached;
     }
 
-    const response = await this.provider.getOdds(request);
+    const response = await this.getProviderResponse(request);
 
     await this.cache.set(cacheKey, response, CACHE_TTL_SECONDS.odds);
     await recordOddsSnapshot(response);
 
     return response;
+  }
+
+  private async getProviderResponse(request: OddsProviderRequest) {
+    try {
+      return await this.provider.getOdds(request);
+    } catch (error) {
+      if (this.provider.id !== "oddspipe") {
+        throw error;
+      }
+
+      const fallback = await this.fallbackProvider.getOdds(request);
+
+      return {
+        ...fallback,
+        error:
+          error instanceof Error
+            ? error.message
+            : "OddsPipe unavailable; using mock odds fallback",
+        provider: `${this.provider.id}-fallback`,
+      };
+    }
   }
 }
 
