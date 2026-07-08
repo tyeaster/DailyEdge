@@ -4,6 +4,7 @@ import path from "node:path";
 import { errorFields, logger } from "../../lib/logger.ts";
 import { OddsSnapshotsRepository } from "../../persistence/repositories/odds-snapshots-repository.ts";
 import { PredictionsRepository } from "../../persistence/repositories/predictions-repository.ts";
+import { HistoricalMarketStorageService } from "../historical-market-storage/HistoricalMarketStorageService.ts";
 import type {
   OddsClosingRecord,
   OddsHistoryRecord,
@@ -124,6 +125,19 @@ export class DurableOddsIntelligenceProvider implements OddsIntelligenceProvider
     }
 
     try {
+      const historicalMarket = await new HistoricalMarketStorageService()
+        .getOddsHistory();
+
+      if (historicalMarket.history.length > 0) {
+        return {
+          closings: historicalMarket.closings,
+          fetchedAt: new Date().toISOString(),
+          history: historicalMarket.history,
+          mode: this.mode,
+          provider: this.id,
+        };
+      }
+
       const [snapshots, predictions] = await Promise.all([
         new OddsSnapshotsRepository().listGameSnapshots(MONEYLINE_MARKET),
         new PredictionsRepository().list(),

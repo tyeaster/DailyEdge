@@ -4,6 +4,7 @@ import path from "node:path";
 import { errorFields, logger } from "../../lib/logger.ts";
 import { PredictionResultsRepository } from "../../persistence/repositories/prediction-results-repository.ts";
 import { PredictionsRepository } from "../../persistence/repositories/predictions-repository.ts";
+import { HistoricalMarketStorageService } from "../historical-market-storage/HistoricalMarketStorageService.ts";
 import type {
   BacktestProviderMode,
   HistoricalSlate,
@@ -101,12 +102,24 @@ export class DurableHistoricalSlateProvider implements HistoricalSlateProvider {
         new PredictionsRepository().list(),
         new PredictionResultsRepository().list(),
       ]);
+      const historicalMarket = await new HistoricalMarketStorageService()
+        .getCalibrationHistory();
+      const mergedPredictions = mergeById(
+        historicalMarket.predictions,
+        predictions,
+        (prediction) => prediction.predictionId,
+      );
+      const mergedResults = mergeById(
+        historicalMarket.results,
+        results,
+        (result) => result.predictionId,
+      );
       const resultByPredictionId = new Map(
-        results.map((result) => [result.predictionId, result]),
+        mergedResults.map((result) => [result.predictionId, result]),
       );
       const slatesByDate = new Map<string, HistoricalSlate>();
 
-      for (const prediction of predictions) {
+      for (const prediction of mergedPredictions) {
         const date = prediction.timestamp.slice(0, 10);
         const slate = slatesByDate.get(date) ?? {
           calibrationRecords: { predictions: [], results: [] },
@@ -231,4 +244,22 @@ export function getBacktestMode(): BacktestProviderMode {
   if (mode === "live" || mode === "mock" || mode === "replay") return mode;
 
   return "mock";
+}
+
+function mergeById<T>(
+  preferred: T[],
+  fallback: T[],
+  getId: (item: T) => string,
+): T[] {
+  const merged = new Map<string, T>();
+
+  for (const item of fallback) {
+    merged.set(getId(item), item);
+  }
+
+  for (const item of preferred) {
+    merged.set(getId(item), item);
+  }
+
+  return [...merged.values()];
 }

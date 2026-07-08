@@ -3,6 +3,9 @@ import { errorFields, logger } from "../lib/logger.ts";
 import type { Game } from "../models/mlb.ts";
 import { OddsSnapshotsRepository } from "../persistence/repositories/odds-snapshots-repository.ts";
 import type { OddsProviderResponse } from "../providers/odds/OddsProvider.ts";
+import { historicalMarketStorageService } from "./historical-market-storage/HistoricalMarketStorageService.ts";
+import type { PredictionResult } from "../models/mlb.ts";
+import type { BetMarketType } from "./ranking/types.ts";
 
 /**
  * Durably records a live odds fetch so line movement can be reconstructed
@@ -83,4 +86,86 @@ export async function recordGameOddsSnapshots(
       errorFields(error),
     );
   }
+}
+
+/**
+ * Records the resolved Daily Slate market ledger used by calibration,
+ * backtesting, odds intelligence, and future optimization. Game-level markets
+ * are available once odds have been applied to games; moneyline rows also
+ * receive PredictionEngine values because those are already calculated today.
+ */
+export async function recordHistoricalGameMarkets({
+  dataSource,
+  games,
+  predictions,
+}: {
+  dataSource: "live" | "mock";
+  games: Game[];
+  predictions: PredictionResult[];
+}): Promise<void> {
+  if (dataSource !== "live" || !process.env.DATABASE_URL) {
+    return;
+  }
+
+  const predictionByGameId = new Map(
+    predictions.map((prediction) => [prediction.gameId, prediction]),
+  );
+
+  for (const game of games) {
+    const prediction = predictionByGameId.get(game.id);
+
+    await Promise.all([
+      recordGameMarket(game, "moneyline", prediction),
+      recordGameMarket(game, "run-line"),
+      recordGameMarket(game, "game-total"),
+    ]);
+  }
+}
+
+async function recordGameMarket(
+  game: Game,
+  market: Extract<BetMarketType, "game-total" | "moneyline" | "run-line">,
+  prediction?: PredictionResult,
+) {
+  const odds =
+    market === "moneyline"
+      ? game.odds.moneyline
+      : market === "run-line"
+        ? game.odds.spread
+        : game.odds.total;
+
+  if (!odds || !Number.isFinite(odds.price) || odds.price === 0) {
+    return;
+  }
+
+  await historicalMarketStorageService.recordSnapshot({
+    capturedAt: odds.updatedAt ?? new Date().toISOString(),
+    currentOdds: odds.price,
+    edgePercent: market === "moneyline" ? prediction?.edgePercent : undefined,
+    expectedValuePercent:
+      market === "moneyline" ? prediction?.expectedValuePercent : undefined,
+    fairOdds: market === "moneyline" ? prediction?.selectedFairMoneyline : undefined,
+    gameId: game.id,
+    line: odds.line,
+    market,
+    openingOdds: odds.openingLine ?? odds.price,
+    predictionId:
+      market === "moneyline" && prediction
+        ? `${prediction.predictionVersion}:${prediction.gameId}:moneyline`
+        : undefined,
+    provider: "daily-slate",
+    selection: odds.displayLine,
+    snapshotId: [
+      "daily-slate",
+      game.id,
+      market,
+      odds.sportsbook,
+      odds.updatedAt ?? "current",
+    ].join(":"),
+    sportsbook: odds.sportsbook,
+    teamId: market === "moneyline" ? prediction?.selectedTeamId : undefined,
+    trueLineProbability:
+      market === "moneyline" ? prediction?.selectedWinProbability : undefined,
+    updatedAt: odds.updatedAt ?? new Date().toISOString(),
+  });
 }

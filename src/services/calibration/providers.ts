@@ -4,6 +4,7 @@ import path from "node:path";
 import { errorFields, logger } from "../../lib/logger.ts";
 import { PredictionResultsRepository } from "../../persistence/repositories/prediction-results-repository.ts";
 import { PredictionsRepository } from "../../persistence/repositories/predictions-repository.ts";
+import { HistoricalMarketStorageService } from "../historical-market-storage/HistoricalMarketStorageService.ts";
 import type {
   CalibrationProviderMode,
   CalibrationProviderResponse,
@@ -111,17 +112,28 @@ export class DurableCalibrationProvider implements CalibrationHistoryProvider {
     try {
       const predictionsRepository = new PredictionsRepository();
       const resultsRepository = new PredictionResultsRepository();
-      const [predictions, results] = await Promise.all([
+      const [predictions, results, historicalMarket] = await Promise.all([
         predictionsRepository.list(),
         resultsRepository.list(),
+        new HistoricalMarketStorageService().getCalibrationHistory(),
       ]);
+      const mergedPredictions = mergeById(
+        historicalMarket.predictions,
+        predictions,
+        (prediction) => prediction.predictionId,
+      );
+      const mergedResults = mergeById(
+        historicalMarket.results,
+        results,
+        (result) => result.predictionId,
+      );
 
       return {
         fetchedAt: new Date().toISOString(),
         mode: this.mode,
-        predictions,
+        predictions: mergedPredictions,
         provider: this.id,
-        results,
+        results: mergedResults,
       };
     } catch (error) {
       logger.error(
@@ -151,6 +163,24 @@ export function getCalibrationMode(): CalibrationProviderMode {
   if (mode === "live" || mode === "mock" || mode === "replay") return mode;
 
   return "mock";
+}
+
+function mergeById<T>(
+  preferred: T[],
+  fallback: T[],
+  getId: (item: T) => string,
+): T[] {
+  const merged = new Map<string, T>();
+
+  for (const item of fallback) {
+    merged.set(getId(item), item);
+  }
+
+  for (const item of preferred) {
+    merged.set(getId(item), item);
+  }
+
+  return [...merged.values()];
 }
 
 function buildMockPredictions(): RecordedPrediction[] {
