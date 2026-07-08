@@ -2,7 +2,7 @@
 
 Living project roadmap and status document. Update this file after every major feature lands so it always reflects the project's true state — do not let it go stale like `docs/PROJECT_STATE.md` did.
 
-Last updated: 2026-07-08 (Entity research pages completed — item 19)
+Last updated: 2026-07-08 (Best Bets interactive filtering/sorting completed — item 20)
 Baseline: `codex/trueline-rebrand` @ `59b4d79` ("Add AI handoff documentation")
 Working branch: `claude/trueline-development`
 
@@ -62,7 +62,7 @@ Verified via code inspection, `tsc`, build output, and passing tests — not jus
 - [x] RankingEngine V1 — cross-market `BetCandidate` ranking, grades, tiers, explanations
 - [x] CorrelationEngine V1 — exposure detection, portfolio generation, conflict warnings
 - [x] Betting markets (built + ranked + tested, odds coverage varies): Moneyline, Run Line, Team Totals, Game Totals, Home Runs, Total Bases, Hits, Strikeouts
-- [x] Best Bets — aggregates all 8 markets via RankingEngine
+- [x] Best Bets — aggregates all 8 markets via RankingEngine, with interactive search/filter/sort (Section 8q)
 - [x] Research pages — Pitcher Research / Strikeout Lab, Hitter Research / Hits Lab, Zone Intelligence, Pitch Intelligence (Section 8o), Player/Team/Ballpark Research directories (Section 8p)
 - [x] 223 unit tests across services/providers/engines, all passing
 - [x] `docs/` — 40+ documents covering architecture, each engine, each market, providers, standards
@@ -77,7 +77,6 @@ Verified via code inspection, `tsc`, build output, and passing tests — not jus
 | Calibration Engine | Service, admin dashboard (`/admin/calibration`), tests, mock/replay records, and now `DurableCalibrationProvider` reading real moneyline predictions/results from Postgres when `CALIBRATION_MODE=live` (Section 8h) | Moneyline only — 7 other markets still need the `OddsMarket`/`BetMarketType` vocabulary reconciliation before they can be recorded/calibrated; sample size will be small until this runs for a while in production |
 | Backtesting Engine | `BacktestRunner`, `StrategyEvaluator`, `BankrollSimulator`, admin dashboard, tests, and now `DurableHistoricalSlateProvider` grouping real moneyline predictions/results into daily slates when `BACKTEST_MODE=live` (Section 8i) | Moneyline only, same vocabulary-reconciliation debt as Calibration/Odds Intelligence; real sample size will take time to accumulate |
 | Odds Intelligence | `ClosingLineCalculator`, `MarketMovementAnalyzer`, `SteamMoveDetector`, admin dashboard, tests, live recorder writing to `odds_snapshots` (Section 8d), and now `DurableOddsIntelligenceProvider` reading real opening-to-current movement when `ODDS_INTELLIGENCE_MODE=live` (Section 8j) | CLV specifically isn't computed yet (closings intentionally left empty — needs game start/finish tracking); moneyline only; movement attribution (injury/weather-driven) is limited |
-| Best Bets filtering/sorting | Static ranked board renders | No interactive filters or sort controls yet |
 
 ---
 
@@ -146,7 +145,7 @@ Work roughly top-to-bottom; items within a phase can interleave.
 **Phase 5 — Product completion**
 18. [x] Complete Pitch Intelligence to match Zone Intelligence depth — done 2026-07-08 (see Section 8o)
 19. [x] Entity research pages (players/teams/ballparks) made real and searchable — done 2026-07-08 (see Section 8p)
-20. Best Bets interactive filtering/sorting
+20. [x] Best Bets interactive filtering/sorting — done 2026-07-08 (see Section 8q)
 21. Global search
 22. Live player-prop odds coverage expansion
 23. **Restructure the home page / Daily Slate navigation** — owner feedback (2026-07-07): the current nav feels "all over the place with too many tabs." Not yet scoped — needs an IA pass over `app-shell`'s nav groups (Slate, Pitching, Hitting, Matchups, Analysis, Team Betting, Research — 19 routes total) before implementation starts.
@@ -439,6 +438,26 @@ Zone Intelligence and Pitch Intelligence both read the same `MatchupIntelligence
 - Real browser check (Playwright, screenshots taken) with `MATCHUP_MODE=mock`/`TEAM_STRENGTH_MODE=mock`/`BALLPARK_MODE=mock` etc.: Team Research renders all 30 real teams/divisions/leagues, search and league/division filters work; Ballpark Research renders all 30 real parks with correct home teams; Player Research renders today's real slate (confirmed starters like Gerrit Cole, Mookie Betts, Aaron Judge alongside "Projected Hitter"-style placeholders for teams without a confirmed lineup, matching the existing mock-lineup convention elsewhere in the app) — clicked a "Zone Intel" link from the Player Research table and confirmed it navigated to `/matchups/zone-intelligence?batter=player-judge` and rendered "Brayan Bello vs Aaron Judge" with real matchup data, proving the cross-feature deep-link actually carries the selected player through, not just that the link renders.
 
 **Known limitation (not a regression)**: `MockTeamStrengthProvider` and `MockBallparkProvider` both only echo back a `fallback*` value if one was already supplied by the caller — they don't synthesize fixture data on their own. Since a cold "list all 30 teams/parks" call has no pre-existing fallback to pass in, Team Research and Ballpark Research show `-`/"unavailable" ratings under `*_MODE=mock`, even though the directory, search, and card rendering all work correctly. This traces back to the same `mock/mlb-data.ts` fixture set not carrying `team.strength` on its handful of teams either (confirmed by inspection — the existing Zone/Pitch Intelligence context cards show the same "Bullpen -" under mock mode), so it's pre-existing app-wide behavior, not something introduced here. Real ratings require `TEAM_STRENGTH_MODE=live`/`BALLPARK_MODE=live`, which needs the outbound MLB Stats API / Baseball Savant access this sandbox's network policy blocks (Section 8n).
+
+---
+
+## 8q. Best Bets Interactive Filtering/Sorting (added 2026-07-08)
+
+`/best-bets` rendered three fixed sections (Top 10 / Top 25 / Top 50), always sorted by TrueLine Score with no way to narrow or reorder them — despite `BestBetsService.getBestBets()` already accepting a `BestBetsFilters` object (market, risk tier, minimum confidence/edge/expected value, team, player, sportsbook) that nothing in the UI ever passed.
+
+**What changed**:
+
+- Replaced the three fixed sections with one interactive board (`src/features/best-bets/best-bets-board.tsx`, a new client component): free-text search across title/team/opponent/player, market filter, risk-tier filter, minimum-confidence input, a sort selector (TrueLine Score / Edge / Confidence / Expected Value) with a direction toggle, and a result-count selector (10/25/50). All of it operates client-side over the already-fetched `top50` candidate array — instant, no extra network round trip.
+- This deliberately re-sorts/filters *within* the top-50-by-TrueLine-Score pool that was already computed server-side, rather than re-invoking the ranking engine per filter change (which does support a `sortBy: RankingSortKey` option, unused here) or re-fetching from the server. That's a real, documented scope choice: full "sort the entire candidate universe by Edge" would need `rankCandidates()` re-invoked server-side per interaction; re-sorting the top-50 client-side is simpler, instant, and still genuinely interactive, matching the client-side-filtering pattern already used for the entity research directories (Section 8p).
+- `src/features/best-bets/best-bets-page.tsx` now just fetches the view model and renders the header/market-summary strip plus `<BestBetsBoard />`.
+- Found and fixed two pre-existing bugs while verifying this in a real browser (neither introduced by this change — both existed in the original fixed-section code, just never surfaced because nobody had opened devtools console on this page before): `supportingFactors.map((factor) => <div key={factor.key}>)` and `reasons.map((reason) => <li key={reason}>)` both used non-unique keys (`factorKey()` maps multiple distinct factors to the same handful of category strings; `reasons` can contain duplicate text across its explanation/reason/calibration/CLV sources), causing "Encountered two children with the same key" React console errors on every card. Both now include the array index in the key.
+
+**Verified for real**:
+- `npx tsc --noEmit` clean, `npx eslint .` clean.
+- `npm test` (no `DATABASE_URL`): 223/223 as before (no service-layer changes, existing `tests/best-bets.test.ts` coverage untouched and still passing).
+- `npm test` with a real `DATABASE_URL`: 223/223 passing.
+- `npm run build`: compiles cleanly.
+- Real browser check (Playwright) with `MATCHUP_MODE=mock` etc.: confirmed zero console errors on initial load; selected Market=Moneyline and Sort=Edge and confirmed the board correctly dropped from 44 to 6 bets and re-ordered them by descending edge (+7.4% before +2.8%); re-checked console after the duplicate-key fix and confirmed the error count went from 60+ to 0.
 
 ---
 
