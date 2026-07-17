@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 
 import { errorFields, logger } from "../../lib/logger.ts";
+import { mergeById } from "../../lib/merge-by-id.ts";
 import { PredictionResultsRepository } from "../../persistence/repositories/prediction-results-repository.ts";
 import { PredictionsRepository } from "../../persistence/repositories/predictions-repository.ts";
 import { HistoricalMarketStorageService } from "../historical-market-storage/HistoricalMarketStorageService.ts";
@@ -165,23 +166,6 @@ export function getCalibrationMode(): CalibrationProviderMode {
   return "mock";
 }
 
-function mergeById<T>(
-  preferred: T[],
-  fallback: T[],
-  getId: (item: T) => string,
-): T[] {
-  const merged = new Map<string, T>();
-
-  for (const item of fallback) {
-    merged.set(getId(item), item);
-  }
-
-  for (const item of preferred) {
-    merged.set(getId(item), item);
-  }
-
-  return [...merged.values()];
-}
 
 function buildMockPredictions(): RecordedPrediction[] {
   return [

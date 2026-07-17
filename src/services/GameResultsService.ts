@@ -44,9 +44,9 @@ export function getConfiguredGameResultsProvider(
 export async function ingestGameResults(
   request: GameResultsRequest,
   provider: GameResultsProvider = getConfiguredGameResultsProvider(),
-): Promise<{ reconciled: number; recorded: number }> {
+): Promise<{ reconciled: number; recorded: number; settledMarkets: number }> {
   if (!process.env.DATABASE_URL) {
-    return { reconciled: 0, recorded: 0 };
+    return { reconciled: 0, recorded: 0, settledMarkets: 0 };
   }
 
   try {
@@ -68,7 +68,11 @@ export async function ingestGameResults(
       settledMarkets += settled;
     }
 
-    return { reconciled: reconciled + settledMarkets, recorded: response.results.length };
+    return {
+      reconciled,
+      recorded: response.results.length,
+      settledMarkets,
+    };
   } catch (error) {
     logger.error(
       "game-results-service",
@@ -76,6 +80,6 @@ export async function ingestGameResults(
       errorFields(error),
     );
 
-    return { reconciled: 0, recorded: 0 };
+    return { reconciled: 0, recorded: 0, settledMarkets: 0 };
   }
 }

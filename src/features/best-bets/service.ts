@@ -216,7 +216,7 @@ export class BestBetsService {
       this.loadCalibration().catch(() => undefined),
       this.loadOddsIntelligence().catch(() => undefined),
     ]);
-    const normalizedForStorage = normalizeAllCandidates({
+    const normalized = normalizeAllCandidates({
       gameTotals,
       homeRuns,
       moneyline,
@@ -226,7 +226,7 @@ export class BestBetsService {
       totalBases,
     });
 
-    await recordHistoricalBestBetSnapshots(normalizedForStorage, slate);
+    await recordHistoricalBestBetSnapshots(normalized, slate);
 
     return buildBestBetsViewModel({
       calibration,
@@ -234,6 +234,7 @@ export class BestBetsService {
       gameTotals,
       homeRuns,
       moneyline,
+      normalized,
       oddsIntelligence,
       rankingEngine: this.rankingEngine,
       runLine,
@@ -256,6 +257,7 @@ export function buildBestBetsViewModel({
   gameTotals,
   homeRuns,
   moneyline,
+  normalized: prenormalized,
   oddsIntelligence,
   rankingEngine = new RankingEngineService(),
   runLine,
@@ -268,6 +270,9 @@ export function buildBestBetsViewModel({
   gameTotals: GameTotalsViewModel;
   homeRuns: HomeRunIntelligenceViewModel;
   moneyline: MoneylineIntelligenceViewModel;
+  /** Pass through an already-normalized candidate list to avoid
+   * normalizing the same inputs twice in one request. */
+  normalized?: NormalizedCandidate[];
   oddsIntelligence?: OddsIntelligenceDashboardViewModel;
   rankingEngine?: RankingEngineService;
   runLine: RunLineViewModel;
@@ -275,15 +280,17 @@ export function buildBestBetsViewModel({
   teamTotals: TeamTotalsViewModel;
   totalBases: TotalBasesViewModel;
 }): BestBetsViewModel {
-  const normalized = normalizeAllCandidates({
-    gameTotals,
-    homeRuns,
-    moneyline,
-    runLine,
-    slate,
-    teamTotals,
-    totalBases,
-  });
+  const normalized =
+    prenormalized ??
+    normalizeAllCandidates({
+      gameTotals,
+      homeRuns,
+      moneyline,
+      runLine,
+      slate,
+      teamTotals,
+      totalBases,
+    });
   const filtered = applyBestBetFilters(normalized, filters);
   const ranked = rankingEngine.rankCandidates(filtered.map((item) => item.candidate));
   const normalizedById = new Map(normalized.map((item) => [item.candidate.betId, item]));

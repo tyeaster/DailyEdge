@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 
 import { errorFields, logger } from "../../lib/logger.ts";
+import { mergeById } from "../../lib/merge-by-id.ts";
 import { OddsSnapshotsRepository } from "../../persistence/repositories/odds-snapshots-repository.ts";
 import { PredictionsRepository } from "../../persistence/repositories/predictions-repository.ts";
 import { HistoricalMarketStorageService } from "../historical-market-storage/HistoricalMarketStorageService.ts";
@@ -103,12 +104,12 @@ export class ReplayOddsIntelligenceProvider implements OddsIntelligenceProvider 
  * price, currentOdds is that specific snapshot's price - matching how
  * the existing mock fixtures shape multiple records per predictionId.
  *
- * Closings are left empty for this first pass: determining a genuine
- * "closing" line needs to know a game has actually started/finished,
- * which isn't tracked yet. ClosingLineCalculator/MarketMovementAnalyzer
- * already handle an absent closing gracefully (falls back to the latest
- * snapshot), so this doesn't break the dashboard, it just means CLV
- * specifically isn't computed yet - only opening-to-current movement is.
+ * Closings come only from historical market storage (populated once a
+ * snapshot records a closingOdds value); the snapshot-derived path still
+ * contributes none, since a genuine "closing" line needs game start/finish
+ * tracking. ClosingLineCalculator/MarketMovementAnalyzer handle an absent
+ * closing gracefully (falls back to the latest snapshot), so CLV appears
+ * only where a real closing was captured.
  *
  * A game only appears if it has both a recorded prediction and at least
  * one snapshot - if either is missing there's nothing meaningful to show
@@ -125,20 +126,13 @@ export class DurableOddsIntelligenceProvider implements OddsIntelligenceProvider
     }
 
     try {
-      const historicalMarket = await new HistoricalMarketStorageService()
-        .getOddsHistory();
-
-      if (historicalMarket.history.length > 0) {
-        return {
-          closings: historicalMarket.closings,
-          fetchedAt: new Date().toISOString(),
-          history: historicalMarket.history,
-          mode: this.mode,
-          provider: this.id,
-        };
-      }
-
-      const [snapshots, predictions] = await Promise.all([
+      // Blend both durable sources rather than letting one shadow the
+      // other: historical market storage covers every market it has
+      // recorded, while odds_snapshots still carries the moneyline
+      // per-fetch time series. If either source is empty the other
+      // stands alone.
+      const [historicalMarket, snapshots, predictions] = await Promise.all([
+        new HistoricalMarketStorageService().getOddsHistory(),
         new OddsSnapshotsRepository().listGameSnapshots(MONEYLINE_MARKET),
         new PredictionsRepository().list(),
       ]);
@@ -191,9 +185,13 @@ export class DurableOddsIntelligenceProvider implements OddsIntelligenceProvider
       }
 
       return {
-        closings: [],
+        closings: historicalMarket.closings,
         fetchedAt: new Date().toISOString(),
-        history,
+        history: mergeById(
+          historicalMarket.history,
+          history,
+          (record) => `${record.predictionId}:${record.timestamp}:${record.sportsbook}`,
+        ),
         mode: this.mode,
         provider: this.id,
       };
