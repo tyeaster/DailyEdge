@@ -13,6 +13,7 @@ export {
 } from "./RankingEngineService.ts";
 export { RANKING_ENGINE_CONFIG } from "./config.ts";
 export {
+  DurableRankingCandidateProvider,
   getConfiguredRankingCandidateProvider,
   MockRankingCandidateProvider,
   ReplayRankingCandidateProvider,

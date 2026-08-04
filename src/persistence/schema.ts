@@ -116,3 +116,52 @@ export const cacheEntries = pgTable("cache_entries", {
   key: text("key").primaryKey(),
   value: jsonb("value").notNull(),
 });
+
+/**
+ * Canonical historical market ledger. Unlike raw odds_snapshots, these rows
+ * are resolved to TrueLine game/player/team identifiers and include the model
+ * values required by calibration, backtesting, CLV, and ranking.
+ */
+export const historicalMarketSnapshots = pgTable("historical_market_snapshots", {
+  capturedAt: timestamp("captured_at", { withTimezone: true }).notNull(),
+  closingOdds: doublePrecision("closing_odds"),
+  currentOdds: doublePrecision("current_odds").notNull(),
+  edgePercent: doublePrecision("edge_percent"),
+  expectedValuePercent: doublePrecision("expected_value_percent"),
+  fairOdds: doublePrecision("fair_odds"),
+  gameId: text("game_id").notNull(),
+  calibrationVersion: text("calibration_version"),
+  dataQuality: doublePrecision("data_quality"),
+  modelConfidence: doublePrecision("model_confidence"),
+  modelVersion: text("model_version"),
+  line: doublePrecision("line"),
+  market: text("market").notNull(),
+  openingOdds: doublePrecision("opening_odds").notNull(),
+  playerId: text("player_id"),
+  predictionId: text("prediction_id"),
+  predictionVersion: text("prediction_version"),
+  provider: text("provider").notNull(),
+  recommendation: text("recommendation"),
+  variance: doublePrecision("variance"),
+  selection: text("selection"),
+  snapshotId: text("snapshot_id").primaryKey(),
+  sportsbook: text("sportsbook").notNull(),
+  teamId: text("team_id"),
+  trueLineProbability: doublePrecision("true_line_probability"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * Settlement records for historical market snapshots. One result per snapshot
+ * keeps final outcomes independent from provider odds updates and supports
+ * props, team markets, and future market types with a generic actualStat.
+ */
+export const historicalMarketResults = pgTable("historical_market_results", {
+  actualStat: doublePrecision("actual_stat"),
+  finalResult: text("final_result"),
+  market: text("market").notNull(),
+  outcome: text("outcome").notNull(),
+  resultId: text("result_id").primaryKey(),
+  settledAt: timestamp("settled_at", { withTimezone: true }).notNull(),
+  snapshotId: text("snapshot_id").notNull(),
+});

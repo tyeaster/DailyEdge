@@ -2,8 +2,10 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 
 import { errorFields, logger } from "../../lib/logger.ts";
+import { mergeById } from "../../lib/merge-by-id.ts";
 import { PredictionResultsRepository } from "../../persistence/repositories/prediction-results-repository.ts";
 import { PredictionsRepository } from "../../persistence/repositories/predictions-repository.ts";
+import { HistoricalMarketStorageService } from "../historical-market-storage/HistoricalMarketStorageService.ts";
 import type {
   CalibrationProviderMode,
   CalibrationProviderResponse,
@@ -111,17 +113,28 @@ export class DurableCalibrationProvider implements CalibrationHistoryProvider {
     try {
       const predictionsRepository = new PredictionsRepository();
       const resultsRepository = new PredictionResultsRepository();
-      const [predictions, results] = await Promise.all([
+      const [predictions, results, historicalMarket] = await Promise.all([
         predictionsRepository.list(),
         resultsRepository.list(),
+        new HistoricalMarketStorageService().getCalibrationHistory(),
       ]);
+      const mergedPredictions = mergeById(
+        historicalMarket.predictions,
+        predictions,
+        (prediction) => prediction.predictionId,
+      );
+      const mergedResults = mergeById(
+        historicalMarket.results,
+        results,
+        (result) => result.predictionId,
+      );
 
       return {
         fetchedAt: new Date().toISOString(),
         mode: this.mode,
-        predictions,
+        predictions: mergedPredictions,
         provider: this.id,
-        results,
+        results: mergedResults,
       };
     } catch (error) {
       logger.error(
@@ -152,6 +165,7 @@ export function getCalibrationMode(): CalibrationProviderMode {
 
   return "mock";
 }
+
 
 function buildMockPredictions(): RecordedPrediction[] {
   return [

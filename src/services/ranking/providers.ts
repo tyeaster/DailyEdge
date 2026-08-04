@@ -1,6 +1,8 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
+import { errorFields, logger } from "../../lib/logger.ts";
+import { HistoricalMarketStorageService } from "../historical-market-storage/HistoricalMarketStorageService.ts";
 import type {
   BetCandidate,
   RankingProviderMode,
@@ -72,6 +74,36 @@ export class ReplayRankingCandidateProvider implements RankingCandidateProvider 
   }
 }
 
+export class DurableRankingCandidateProvider implements RankingCandidateProvider {
+  readonly id = "ranking-durable";
+  readonly mode: RankingProviderMode = "live";
+
+  async getCandidates(): Promise<RankingProviderResponse> {
+    if (!process.env.DATABASE_URL) {
+      return new StaticRankingCandidateProvider().getCandidates();
+    }
+
+    try {
+      const history = await new HistoricalMarketStorageService().getRankingHistory();
+
+      return {
+        candidates: history.candidates,
+        fetchedAt: new Date().toISOString(),
+        mode: this.mode,
+        provider: this.id,
+      };
+    } catch (error) {
+      logger.error(
+        "durable-ranking-provider",
+        "failed to load historical market ranking candidates",
+        errorFields(error),
+      );
+
+      return new StaticRankingCandidateProvider().getCandidates();
+    }
+  }
+}
+
 export function getConfiguredRankingCandidateProvider(
   mode: RankingProviderMode = getRankingMode(),
 ) {
@@ -83,7 +115,7 @@ export function getConfiguredRankingCandidateProvider(
     return new MockRankingCandidateProvider();
   }
 
-  return new StaticRankingCandidateProvider();
+  return new DurableRankingCandidateProvider();
 }
 
 export function getRankingMode(): RankingProviderMode {

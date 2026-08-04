@@ -2,9 +2,9 @@
 
 Living project roadmap and status document. Update this file after every major feature lands so it always reflects the project's true state — do not let it go stale like `docs/PROJECT_STATE.md` did.
 
-Last updated: 2026-07-08 (`v1.1.0-live-odds` release — production OddsPipe integration complete)
-Baseline: `main` after PR #7 ("Complete production OddsPipe integration")
-Working branch: `main`
+Last updated: 2026-07-08 (Historical Market Storage V1 feature branch)
+Baseline: `main` @ `ca32177` (`v1.1.0-live-odds`)
+Working branch: `feature/historical-market-storage`
 
 Validation at time of writing (all passing):
 ```
@@ -26,6 +26,8 @@ npm run build && npm start (ODDS_INTELLIGENCE_MODE=live + real DB) -> /admin/odd
 **Real ODDSPIPE_API_KEY provided by owner (2026-07-07)**: stored in `.env.local` (gitignored, never committed, never printed to logs). **Not verifiable from this sandbox** — the same network policy that blocks `statsapi.mlb.com` also blocks `api.oddspipe.com` (confirmed via `curl -v`: the sandbox's own proxy rejects the `CONNECT` tunnel with a 403 before any request reaches OddsPipe's servers — this is unrelated to whether the key itself is valid). First real test of this key has to happen once the app is deployed somewhere with actual internet access.
 
 **Release update (`v1.1.0-live-odds`)**: Production OddsPipe integration is complete and merged to `main`. OddsPipe now supports the preferred `ODDSPIPE_BASE_URL` env var, keeps `ODDSPIPE_API_URL` as a full-endpoint override, exposes rate-limit metadata when available, includes retry-after/body context in provider errors, has a live verification command (`npm run verify:oddspipe`), and documents replay capture in `docs/LIVE_ODDSPIPE.md`.
+
+**Feature update (Historical Market Storage V1)**: Added a canonical historical market ledger with `historical_market_snapshots` and `historical_market_results`, live/replay/mock providers, Daily Slate game-market recording, and integrations for Calibration, Backtesting, Odds Intelligence, and Ranking. See `docs/HISTORICAL_MARKET_STORAGE.md`.
 
 ---
 
@@ -79,6 +81,7 @@ Verified via code inspection, `tsc`, build output, and passing tests — not jus
 | Calibration Engine | Service, admin dashboard (`/admin/calibration`), tests, mock/replay records, and now `DurableCalibrationProvider` reading real moneyline predictions/results from Postgres when `CALIBRATION_MODE=live` (Section 8h) | Moneyline only — 7 other markets still need the `OddsMarket`/`BetMarketType` vocabulary reconciliation before they can be recorded/calibrated; sample size will be small until this runs for a while in production |
 | Backtesting Engine | `BacktestRunner`, `StrategyEvaluator`, `BankrollSimulator`, admin dashboard, tests, and now `DurableHistoricalSlateProvider` grouping real moneyline predictions/results into daily slates when `BACKTEST_MODE=live` (Section 8i) | Moneyline only, same vocabulary-reconciliation debt as Calibration/Odds Intelligence; real sample size will take time to accumulate |
 | Odds Intelligence | `ClosingLineCalculator`, `MarketMovementAnalyzer`, `SteamMoveDetector`, admin dashboard, tests, live recorder writing to `odds_snapshots` (Section 8d), and now `DurableOddsIntelligenceProvider` reading real opening-to-current movement when `ODDS_INTELLIGENCE_MODE=live` (Section 8j) | CLV specifically isn't computed yet (closings intentionally left empty — needs game start/finish tracking); moneyline only; movement attribution (injury/weather-driven) is limited |
+| Historical Market Storage | Canonical market snapshot/result ledger, Drizzle migration, live/replay/mock provider, Daily Slate + Best Bets market recording for all supported markets, model metadata, automatic game/team-market settlement, historical Daily Slate grouping, and Calibration/Backtesting/Odds Intelligence/Ranking read integration | Automatic player-prop settlement still needs an official player box-score source keyed by stable game/player IDs; no retention/indexing/archive strategy yet |
 
 ---
 

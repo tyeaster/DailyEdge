@@ -6,6 +6,7 @@ import { calibrationService } from "../../services/calibration/index.ts";
 import type { DailySlateViewModel } from "../../services/daily-slate/types.ts";
 import type { OddsIntelligenceDashboardViewModel } from "../../services/odds-intelligence/types.ts";
 import { oddsIntelligenceService } from "../../services/odds-intelligence/index.ts";
+import { historicalMarketStorageService } from "../../services/historical-market-storage/index.ts";
 import {
   RankingEngineService,
   type BetCandidate,
@@ -140,8 +141,11 @@ interface NormalizedCandidate {
   candidate: BetCandidate;
   fairLine: string;
   gameGrade: number;
+  gameId: string;
   href: string;
+  line?: number;
   reasons: string[];
+  selection?: string;
   sportsbookLine: string;
   title: string;
 }
@@ -212,6 +216,17 @@ export class BestBetsService {
       this.loadCalibration().catch(() => undefined),
       this.loadOddsIntelligence().catch(() => undefined),
     ]);
+    const normalized = normalizeAllCandidates({
+      gameTotals,
+      homeRuns,
+      moneyline,
+      runLine,
+      slate,
+      teamTotals,
+      totalBases,
+    });
+
+    await recordHistoricalBestBetSnapshots(normalized, slate);
 
     return buildBestBetsViewModel({
       calibration,
@@ -219,6 +234,7 @@ export class BestBetsService {
       gameTotals,
       homeRuns,
       moneyline,
+      normalized,
       oddsIntelligence,
       rankingEngine: this.rankingEngine,
       runLine,
@@ -241,6 +257,7 @@ export function buildBestBetsViewModel({
   gameTotals,
   homeRuns,
   moneyline,
+  normalized: prenormalized,
   oddsIntelligence,
   rankingEngine = new RankingEngineService(),
   runLine,
@@ -253,6 +270,9 @@ export function buildBestBetsViewModel({
   gameTotals: GameTotalsViewModel;
   homeRuns: HomeRunIntelligenceViewModel;
   moneyline: MoneylineIntelligenceViewModel;
+  /** Pass through an already-normalized candidate list to avoid
+   * normalizing the same inputs twice in one request. */
+  normalized?: NormalizedCandidate[];
   oddsIntelligence?: OddsIntelligenceDashboardViewModel;
   rankingEngine?: RankingEngineService;
   runLine: RunLineViewModel;
@@ -260,15 +280,17 @@ export function buildBestBetsViewModel({
   teamTotals: TeamTotalsViewModel;
   totalBases: TotalBasesViewModel;
 }): BestBetsViewModel {
-  const normalized = normalizeAllCandidates({
-    gameTotals,
-    homeRuns,
-    moneyline,
-    runLine,
-    slate,
-    teamTotals,
-    totalBases,
-  });
+  const normalized =
+    prenormalized ??
+    normalizeAllCandidates({
+      gameTotals,
+      homeRuns,
+      moneyline,
+      runLine,
+      slate,
+      teamTotals,
+      totalBases,
+    });
   const filtered = applyBestBetFilters(normalized, filters);
   const ranked = rankingEngine.rankCandidates(filtered.map((item) => item.candidate));
   const normalizedById = new Map(normalized.map((item) => [item.candidate.betId, item]));
@@ -371,8 +393,11 @@ function normalizeTotalBases(candidate: TotalBasesCandidate): NormalizedCandidat
     candidate: betCandidate,
     fairLine: candidate.fairLineDisplay,
     gameGrade: candidate.gameGrade,
+    gameId: candidate.game.game.id,
     href: "/betting/total-bases",
+    line: candidate.sportsbookLine,
     reasons: candidate.reasons,
+    selection: "Over",
     sportsbookLine: candidate.sportsbookLineDisplay,
     title: `${candidate.batter.fullName} Total Bases`,
   };
@@ -429,8 +454,11 @@ function normalizeProps(
       candidate,
       fairLine: prop.odds.displayLine,
       gameGrade: confidence,
+      gameId: prop.gameId,
       href: getMarketHref(marketType),
+      line: prop.odds.line,
       reasons: [prop.reasoning, ...candidate.supportingFactors.map((item) => item.summary)].slice(0, 4),
+      selection: prop.odds.displayLine,
       sportsbookLine: prop.odds.displayLine,
       title: `${player.fullName} ${prop.category}`,
     };
@@ -475,8 +503,11 @@ function normalizeHomeRun(candidate: HomeRunCandidate): NormalizedCandidate {
     candidate: betCandidate,
     fairLine: candidate.fairOddsDisplay,
     gameGrade: candidate.overallHrScore,
+    gameId: candidate.game.game.id,
     href: "/hitting/home-runs",
+    line: candidate.prop?.prop.odds.line,
     reasons: candidate.explanations,
+    selection: "Yes",
     sportsbookLine: candidate.sportsbook?.oddsDisplay ?? "No market odds",
     title: `${candidate.batter.fullName} Home Run`,
   };
@@ -527,8 +558,10 @@ function normalizeMoneyline(evaluation: MoneylineGameEvaluation): NormalizedCand
     gameGrade: evaluation.projectedWinner.id === evaluation.homeTeam.id
       ? evaluation.home.overallTeamGrade
       : evaluation.away.overallTeamGrade,
+    gameId: evaluation.game.game.id,
     href: "/betting/moneyline",
     reasons: evaluation.reasons,
+    selection: evaluation.projectedWinner.name,
     sportsbookLine: evaluation.sportsbookOddsDisplay,
     title: `${evaluation.projectedWinner.name} Moneyline`,
   };
@@ -570,8 +603,11 @@ function normalizeTeamTotal(candidate: TeamTotalCandidate): NormalizedCandidate 
     candidate: betCandidate,
     fairLine: candidate.fairTotalDisplay,
     gameGrade: candidate.gameGrade,
+    gameId: candidate.game.game.id,
     href: "/betting/team-totals",
+    line: candidate.sportsbookTotal,
     reasons: candidate.reasons,
+    selection: `${candidate.team.name} Over`,
     sportsbookLine: candidate.sportsbookTotalDisplay,
     title: `${candidate.team.name} Team Total`,
   };
@@ -614,8 +650,11 @@ function normalizeGameTotal(candidate: GameTotalCandidate): NormalizedCandidate 
     candidate: betCandidate,
     fairLine: candidate.fairTotalDisplay,
     gameGrade: candidate.gameGrade,
+    gameId: candidate.game.game.id,
     href: "/betting/game-totals",
+    line: candidate.sportsbookTotal,
     reasons: candidate.reasons,
+    selection: candidate.side,
     sportsbookLine: `${candidate.side} ${candidate.sportsbookTotalDisplay}`,
     title: `${candidate.game.awayTeam.abbreviation} at ${candidate.game.homeTeam.abbreviation} ${candidate.side}`,
   };
@@ -658,11 +697,66 @@ function normalizeRunLine(candidate: RunLineCandidate): NormalizedCandidate {
     candidate: betCandidate,
     fairLine: candidate.fairSpreadDisplay,
     gameGrade: candidate.gameGrade,
+    gameId: candidate.game.game.id,
     href: "/betting/run-line",
+    line: candidate.sportsbookRunLine,
     reasons: candidate.reasons,
+    selection: candidate.selectedTeam.name,
     sportsbookLine: candidate.sportsbookRunLineDisplay,
     title: `${candidate.selectedTeam.name} Run Line`,
   };
+}
+
+async function recordHistoricalBestBetSnapshots(
+  normalized: NormalizedCandidate[],
+  slate: DailySlateViewModel,
+) {
+  if (slate.dataSource !== "live" || !process.env.DATABASE_URL) {
+    return;
+  }
+
+  await Promise.all(
+    normalized.map((item) => {
+      const candidate = item.candidate;
+
+      if (candidate.sportsbookOdds === undefined || !candidate.sportsbook) {
+        return undefined;
+      }
+
+      return historicalMarketStorageService.recordSnapshot({
+        calibrationVersion: "calibration-v1",
+        capturedAt: candidate.timestamp,
+        currentOdds: candidate.sportsbookOdds,
+        dataQuality: candidate.dataQuality,
+        edgePercent: candidate.edgePercent,
+        expectedValuePercent: candidate.expectedValuePercent,
+        fairOdds: candidate.fairOdds,
+        gameId: item.gameId,
+        line: item.line,
+        market: candidate.marketType,
+        modelConfidence: candidate.confidence,
+        modelVersion: `${candidate.marketType}-intelligence-v1`,
+        openingOdds: candidate.sportsbookOdds,
+        playerId: candidate.player?.id,
+        predictionId: candidate.betId,
+        predictionVersion: `${candidate.marketType}-v1`,
+        provider: "best-bets",
+        recommendation: candidate.recommendation,
+        selection: item.selection ?? item.title,
+        snapshotId: [
+          "best-bets",
+          candidate.betId,
+          candidate.sportsbook,
+          candidate.timestamp,
+        ].join(":"),
+        sportsbook: candidate.sportsbook,
+        teamId: candidate.team?.id,
+        trueLineProbability: candidate.modelProbability,
+        updatedAt: candidate.timestamp,
+        variance: candidate.variance,
+      });
+    }),
+  );
 }
 
 function applyBestBetFilters(candidates: NormalizedCandidate[], filters: BestBetsFilters) {

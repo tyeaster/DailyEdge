@@ -8,6 +8,7 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 - [Architecture](docs/ARCHITECTURE.md)
 - [API Providers](docs/API_PROVIDERS.md)
 - [Live OddsPipe Integration](docs/LIVE_ODDSPIPE.md)
+- [Historical Market Storage](docs/HISTORICAL_MARKET_STORAGE.md)
 - [Phase 2 Data Plan](docs/PHASE_2_DATA_PLAN.md)
 - [Environmental Data Sources](docs/ENVIRONMENTAL_DATA_SOURCES.md)
 - [Environmental Intelligence](docs/ENVIRONMENTAL_INTELLIGENCE.md)

@@ -2,8 +2,10 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 
 import { errorFields, logger } from "../../lib/logger.ts";
+import { mergeById } from "../../lib/merge-by-id.ts";
 import { PredictionResultsRepository } from "../../persistence/repositories/prediction-results-repository.ts";
 import { PredictionsRepository } from "../../persistence/repositories/predictions-repository.ts";
+import { HistoricalMarketStorageService } from "../historical-market-storage/HistoricalMarketStorageService.ts";
 import type {
   BacktestProviderMode,
   HistoricalSlate,
@@ -101,12 +103,24 @@ export class DurableHistoricalSlateProvider implements HistoricalSlateProvider {
         new PredictionsRepository().list(),
         new PredictionResultsRepository().list(),
       ]);
+      const historicalMarket = await new HistoricalMarketStorageService()
+        .getCalibrationHistory();
+      const mergedPredictions = mergeById(
+        historicalMarket.predictions,
+        predictions,
+        (prediction) => prediction.predictionId,
+      );
+      const mergedResults = mergeById(
+        historicalMarket.results,
+        results,
+        (result) => result.predictionId,
+      );
       const resultByPredictionId = new Map(
-        results.map((result) => [result.predictionId, result]),
+        mergedResults.map((result) => [result.predictionId, result]),
       );
       const slatesByDate = new Map<string, HistoricalSlate>();
 
-      for (const prediction of predictions) {
+      for (const prediction of mergedPredictions) {
         const date = prediction.timestamp.slice(0, 10);
         const slate = slatesByDate.get(date) ?? {
           calibrationRecords: { predictions: [], results: [] },

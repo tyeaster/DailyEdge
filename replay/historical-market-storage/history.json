@@ -1,0 +1,57 @@
+{
+  "fetchedAt": "2026-07-08T18:00:00.000Z",
+  "snapshots": [
+    {
+      "capturedAt": "2026-07-08T18:00:00.000Z",
+      "closingOdds": -118,
+      "currentOdds": -110,
+      "edgePercent": 5.4,
+      "expectedValuePercent": 4.8,
+      "fairOdds": -132,
+      "gameId": "game-replay-1",
+      "calibrationVersion": "calibration-v1",
+      "dataQuality": 91,
+      "line": 6.5,
+      "market": "strikeouts",
+      "modelConfidence": 82,
+      "modelVersion": "strikeouts-model-v1",
+      "openingOdds": 104,
+      "playerId": "player-wheeler",
+      "predictionId": "replay-prediction-wheeler-k",
+      "predictionVersion": "strikeouts-prediction-v1",
+      "provider": "oddspipe",
+      "recommendation": "Play",
+      "selection": "Over",
+      "snapshotId": "replay-market-wheeler-k",
+      "sportsbook": "DraftKings",
+      "teamId": "team-phi",
+      "trueLineProbability": 0.57,
+      "updatedAt": "2026-07-08T22:30:00.000Z",
+      "variance": 45
+    },
+    {
+      "capturedAt": "2026-07-08T18:05:00.000Z",
+      "currentOdds": -125,
+      "gameId": "game-replay-1",
+      "line": 8.5,
+      "market": "game-total",
+      "openingOdds": -120,
+      "provider": "oddspipe",
+      "selection": "Over 8.5",
+      "snapshotId": "replay-market-game-total",
+      "sportsbook": "FanDuel",
+      "updatedAt": "2026-07-08T18:05:00.000Z"
+    }
+  ],
+  "results": [
+    {
+      "actualStat": 7,
+      "finalResult": "Wheeler over 6.5 strikeouts",
+      "market": "strikeouts",
+      "outcome": "win",
+      "resultId": "replay-result-wheeler-k",
+      "settledAt": "2026-07-08T23:15:00.000Z",
+      "snapshotId": "replay-market-wheeler-k"
+    }
+  ]
+}
