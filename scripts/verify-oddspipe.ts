@@ -12,7 +12,6 @@ const DEFAULT_REPLAY_DIR = "replay/odds";
 
 async function main() {
   await loadLocalEnv();
-  await configureProxyFromEnv();
 
   const apiKey = process.env.ODDSPIPE_API_KEY;
 
@@ -37,8 +36,6 @@ async function main() {
       Accept: "application/json",
       Authorization: `Bearer ${apiKey}`,
     },
-  }).catch((error: unknown) => {
-    fail(describeFetchFailure(url, error));
   });
   const elapsedMs = Date.now() - startedAt;
   const rateLimit = extractRateLimit(response.headers);
@@ -96,35 +93,6 @@ async function main() {
 async function loadLocalEnv() {
   for (const file of [".env.local", ".env"]) {
     await loadEnvFile(path.resolve(process.cwd(), file));
-  }
-}
-
-/**
- * Node's built-in fetch (undici) ignores HTTP(S)_PROXY environment
- * variables, unlike Next.js's patched fetch that the app itself runs on.
- * In proxied environments (e.g. cloud sandboxes where all egress goes
- * through a local proxy) a direct fetch fails with ENOTFOUND before it
- * ever reaches the network, so route through the proxy when one is set.
- */
-async function configureProxyFromEnv() {
-  const proxyUrl =
-    process.env.HTTPS_PROXY ??
-    process.env.https_proxy ??
-    process.env.HTTP_PROXY ??
-    process.env.http_proxy;
-
-  if (!proxyUrl) {
-    return;
-  }
-
-  try {
-    const { EnvHttpProxyAgent, setGlobalDispatcher } = await import("undici");
-
-    setGlobalDispatcher(new EnvHttpProxyAgent());
-  } catch {
-    console.warn(
-      "HTTPS_PROXY is set but the undici package is unavailable; fetch may bypass the proxy.",
-    );
   }
 }
 
@@ -211,28 +179,6 @@ function redactUrl(url: URL) {
   clone.searchParams.sort();
 
   return clone.toString();
-}
-
-function describeFetchFailure(url: URL, error: unknown): string {
-  const causes: string[] = [];
-  let current: unknown = error;
-
-  while (current instanceof Error) {
-    causes.push(current.message);
-    current = current.cause;
-  }
-
-  const detail = causes.join(" -> ") || String(error);
-
-  if (detail.includes("Proxy response (403)")) {
-    return `OddsPipe verification blocked: the network proxy denied access to ${url.hostname} (policy denial, not an OddsPipe/auth problem). Run this from an environment whose network policy allows ${url.hostname}.`;
-  }
-
-  if (detail.includes("ENOTFOUND")) {
-    return `OddsPipe verification failed: DNS could not resolve ${url.hostname}. If this environment routes egress through a proxy, ensure HTTPS_PROXY is set so the script can use it.`;
-  }
-
-  return `OddsPipe verification failed before receiving a response from ${url.hostname}: ${detail}`;
 }
 
 function fail(message: string): never {

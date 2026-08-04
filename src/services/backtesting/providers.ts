@@ -246,4 +246,3 @@ export function getBacktestMode(): BacktestProviderMode {
 
   return "mock";
 }
-
